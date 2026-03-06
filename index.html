@@ -762,7 +762,7 @@ function connectDeriv(){
 function derivConnect(){
   try{
     if(ws&&ws.readyState<2)ws.close();
-    ws=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=36544');
+    ws=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
     ws.onopen=()=>{
       wsReady=true;
       updateConnectionStatus(true);
