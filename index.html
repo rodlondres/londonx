@@ -788,12 +788,12 @@ function derivConnect(){
 }
 
 function handleAuthorize(auth){
-  if(!auth){notify('❌ Token inválido!');updateTokenStatus(false,null);return;}
-  const bal=parseFloat(auth.balance).toFixed(2);
-  const cur=auth.currency;
+  if(!auth||auth.error){notify('❌ Token inválido!');updateTokenStatus(false,null);return;}
+  const bal=parseFloat(auth.balance||0).toFixed(2);
+  const cur=auth.currency||'USD';
   const acc=auth.is_virtual?'DEMO':'REAL';
-  updateTokenStatus(true,{bal,cur,acc,email:auth.email});
-  notify('✅ Conta '+acc+' conectada!');
+  updateTokenStatus(true,{bal,cur,acc,email:auth.email||''});
+  notify('✅ '+acc+' — '+cur+' '+bal);
   subscribeAllTickers();
   subscribeCandles();
 }
