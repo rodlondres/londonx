@@ -804,8 +804,15 @@ function derivConnect(){
         if(msg.msg_type==='ohlc') handleOHLC(msg.ohlc);
       }catch(err){}
     };
+    // Keepalive ping every 30s to prevent 10min timeout
+    if(window._pingInterval) clearInterval(window._pingInterval);
+    window._pingInterval=setInterval(()=>{
+      if(wsReady) derivSend({ping:1});
+    },25000);
+
     ws.onclose=()=>{
       wsReady=false;
+      clearInterval(window._pingInterval);
       updateConnectionStatus(false);
       setTimeout(()=>{try{derivConnect();}catch(e){}},5000);
     };
@@ -1290,7 +1297,7 @@ function buildStrats(){
     </div>`
   ).join('');
 }
-function selStrat(id){S.strategy=id;buildStrats();notify('ESTRATÉGIA: '+STRATEGIES.find(s=>s.id===id).name);}
+function selStrat(id){S.strategy=id;bankroll.reset();buildStrats();notify('ESTRATÉGIA: '+STRATEGIES.find(s=>s.id===id).name);}
 
 // ============================================================
 // ENTRY
@@ -1373,8 +1380,11 @@ function calcChartRSI(data,p=14){
 function drawChart(){
   const c=document.getElementById('miniChart');if(!c)return;
   const dpr=window.devicePixelRatio||1;
-  c.width=c.offsetWidth*dpr||440;
+  const chartW=c.parentElement?c.parentElement.clientWidth:440;
+  c.width=(chartW||440)*dpr;
   c.height=140*dpr;
+  c.style.width=(chartW||440)+'px';
+  c.style.height='140px';
   const ctx=c.getContext('2d'),w=c.width,h=c.height;
 
   const d=candleOHLC.length>0?candleOHLC:S.chartData.map((v,i,a)=>{
@@ -1483,7 +1493,9 @@ function drawChart(){
 function drawRSI(rsiData){
   const c=document.getElementById('rsiChart');if(!c)return;
   const dpr=window.devicePixelRatio||1;
-  c.width=c.offsetWidth*dpr||440;c.height=40*dpr;
+  const rsiW=c.parentElement?c.parentElement.clientWidth:440;
+  c.width=(rsiW||440)*dpr;c.height=40*dpr;
+  c.style.width=(rsiW||440)+'px';c.style.height='40px';
   const ctx=c.getContext('2d'),w=c.width,h=c.height;
   ctx.clearRect(0,0,w,h);
 
@@ -1572,7 +1584,7 @@ function selDur(i){S_dur=i;buildDuration();}
 // ============================================================
 // TRADE HISTORY
 // ============================================================
-let tradeHistory=[];
+let tradeHistory=(()=>{try{const h=sessionStorage.getItem('londonx_history');return h?JSON.parse(h):[];}catch(e){return [];}})();
 function clearHistory(){tradeHistory=[];renderHistory();}
 function renderHistory(){
   const el=document.getElementById('histList');if(!el)return;
@@ -1720,7 +1732,8 @@ function openModal(side,ev){
   if(tradeMarkers.length>10)tradeMarkers.shift();
   drawChart();
   tradeHistory.push({id:tradeId,side,pair,val:'US$'+stake,stake,profit,score:S.totalScore+'/'+S.totalMax,time,prob:S.prob,result:'pending',remaining:durSecs,entryPrice,isBuy,contractId:null,strat:S.strategy,martLevel:bankroll.martLevel});
-  if(tradeHistory.length>20)tradeHistory.shift();
+  if(tradeHistory.length>50)tradeHistory.shift();
+  try{sessionStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
   renderHistory();
 
   // Countdown
@@ -1761,6 +1774,7 @@ function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct=0.85
   if(t){
     t.result=won?'win':'loss';
     t.profit=won?profit:('-'+stake);
+    try{sessionStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
     renderHistory();
     // Atualiza marcador no gráfico
     const marker=tradeMarkers.find(m=>m.id===tradeId);
