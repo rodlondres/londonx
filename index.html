@@ -636,14 +636,16 @@ canvas{width:100%;height:80px;display:block;}
 // DATA DEFINITIONS
 // ============================================================
 const PAIRS=[
+  // VOLATILITY — payout ~95% (recomendado)
+  {sym:'VOL 75',otc:false,deriv:'R_75',vol:true},{sym:'VOL 25',otc:false,deriv:'R_25',vol:true},
+  {sym:'VOL 10',otc:false,deriv:'R_10',vol:true},{sym:'VOL 50',otc:false,deriv:'R_50',vol:true},
+  {sym:'VOL 100',otc:false,deriv:'R_100',vol:true},
+  // FOREX OTC — payout ~85%
   {sym:'EUR/USD',otc:true,deriv:'frxEURUSD'},{sym:'GBP/USD',otc:true,deriv:'frxGBPUSD'},
   {sym:'USD/JPY',otc:true,deriv:'frxUSDJPY'},{sym:'AUD/USD',otc:true,deriv:'frxAUDUSD'},
   {sym:'EUR/GBP',otc:true,deriv:'frxEURGBP'},{sym:'USD/CAD',otc:true,deriv:'frxUSDCAD'},
   {sym:'NZD/USD',otc:true,deriv:'frxNZDUSD'},{sym:'EUR/JPY',otc:true,deriv:'frxEURJPY'},
   {sym:'GBP/JPY',otc:true,deriv:'frxGBPJPY'},{sym:'USD/CHF',otc:true,deriv:'frxUSDCHF'},
-  {sym:'EUR/AUD',otc:true,deriv:'frxEURAUD'},{sym:'GBP/AUD',otc:true,deriv:'frxGBPAUD'},
-  {sym:'AUD/JPY',otc:true,deriv:'frxAUDJPY'},{sym:'EUR/CAD',otc:true,deriv:'frxEURCAD'},
-  {sym:'USD/MXN',otc:false,deriv:'frxUSDMXN'}
 ];
 const TFS=['1M','3M','5M','15M'];
 const STRATEGIES=[
@@ -1061,15 +1063,37 @@ function updatePairPayout(symbol, payout){
 }
 
 function buildPairs(){
-  document.getElementById('pairGrid').innerHTML=PAIRS.map((p,i)=>{
-    const po = pairPayouts[p.deriv];
-    const poHtml = po ? `<span class="payout ${po>=90?'high':po<80?'low':''}">${po}%</span>` : '';
-    return `<button class="pair-btn${i===S.pair?' active':''}" onclick="selectPair(${i})">
-      ${p.sym.replace('/',' /')}<span class="otc">${p.otc?'OTC':''}</span>${poHtml}
+  // Separar VOL e FOREX
+  const volPairs=PAIRS.filter(p=>p.vol);
+  const fxPairs=PAIRS.filter(p=>!p.vol);
+
+  let html='';
+
+  // Label VOL
+  html+=`<div style="grid-column:1/-1;font-size:8px;letter-spacing:2px;color:var(--green);font-weight:900;margin-bottom:2px;">⚡ VOLATILITY — 95% PAYOUT</div>`;
+  volPairs.forEach((p,idx)=>{
+    const i=PAIRS.indexOf(p);
+    const po=pairPayouts[p.deriv];
+    const poHtml=po?`<span class="payout high">${po}%</span>`:`<span class="payout high">~95%</span>`;
+    html+=`<button class="pair-btn${i===S.pair?' active':''}" onclick="selectPair(${i})" style="${i===S.pair?'':'border-color:rgba(0,230,118,.3)'}">
+      ${p.sym}<span class="otc" style="color:var(--green)">VOL</span>${poHtml}
     </button>`;
-  }).join('');
+  });
+
+  // Label FOREX
+  html+=`<div style="grid-column:1/-1;font-size:8px;letter-spacing:2px;color:var(--cyan);font-weight:900;margin:4px 0 2px;">📊 FOREX OTC — 85% PAYOUT</div>`;
+  fxPairs.forEach((p,idx)=>{
+    const i=PAIRS.indexOf(p);
+    const po=pairPayouts[p.deriv];
+    const poHtml=po?`<span class="payout ${po>=90?'high':po<80?'low':''}">${po}%</span>`:'';
+    html+=`<button class="pair-btn${i===S.pair?' active':''}" onclick="selectPair(${i})">
+      ${p.sym.replace('/',' /')}<span class="otc">OTC</span>${poHtml}
+    </button>`;
+  });
+
+  document.getElementById('pairGrid').innerHTML=html;
 }
-function selectPair(i){S.pair=i;S.chartData=[];candleBuffer=[];buildPairs();document.getElementById('confPair').textContent=PAIRS[i].sym+(PAIRS[i].otc?' OTC':'');notify('PAR: '+PAIRS[i].sym);if(wsReady)subscribeCandles();else initChart();randomAll();}
+function selectPair(i){S.pair=i;S.chartData=[];candleBuffer=[];tradeMarkers=[];buildPairs();const p=PAIRS[i];document.getElementById('confPair').textContent=p.sym+(p.otc?' OTC':p.vol?' VOL':'');notify('PAR: '+p.sym);if(wsReady)subscribeCandles();else initChart();randomAll();}
 
 // ============================================================
 // TF
@@ -1583,14 +1607,95 @@ function renderHistory(){
 // MODAL + COUNTDOWN
 // ============================================================
 let cdInterval=null;
+// ============================================================
+// GESTÃO DE BANCA — Martingale, Soros, Conservadora
+// ============================================================
+const bankroll = {
+  martLevel: 0,      // nível atual martingale (0=base)
+  sorosLevel: 0,     // nível atual soros (0=base)
+  sorosProfit: 0,    // lucro acumulado para soros
+  baseStake: 20,     // entrada base
+  lastResult: null,  // 'win' ou 'loss'
+
+  // Calcula próxima entrada baseado na estratégia
+  getStake(strategy, baseStake){
+    this.baseStake = baseStake;
+    if(strategy === 'cons'){
+      // Conservadora: sempre entrada fixa
+      this.martLevel = 0;
+      this.sorosLevel = 0;
+      return baseStake;
+    }
+    if(strategy === 'mart'){
+      // Martingale: dobra após perda, volta à base após ganho
+      const multipliers = [1, 2, 4, 8]; // 4 níveis máx
+      const level = Math.min(this.martLevel, multipliers.length-1);
+      return baseStake * multipliers[level];
+    }
+    if(strategy === 'soros'){
+      // Soros: reinveste lucro na próxima entrada
+      if(this.sorosLevel === 0) return baseStake;
+      // Nível 1: base + 85% do lucro anterior
+      // Nível 2: volta à base
+      const payout = 0.954; // V75 payout
+      if(this.sorosLevel === 1){
+        const profit = baseStake * payout;
+        return parseFloat((baseStake + profit).toFixed(2));
+      }
+      return baseStake;
+    }
+    return baseStake;
+  },
+
+  // Atualiza estado após resultado
+  update(strategy, won){
+    this.lastResult = won ? 'win' : 'loss';
+    if(strategy === 'mart'){
+      if(won){
+        this.martLevel = 0; // volta à base
+      } else {
+        this.martLevel = Math.min(this.martLevel + 1, 3); // máx 3 níveis
+      }
+    }
+    if(strategy === 'soros'){
+      if(won && this.sorosLevel === 0){
+        this.sorosLevel = 1; // ganhou — reinveste
+      } else {
+        this.sorosLevel = 0; // perdeu ou já reinvestiu — volta à base
+      }
+    }
+  },
+
+  reset(){
+    this.martLevel = 0;
+    this.sorosLevel = 0;
+    this.sorosProfit = 0;
+    this.lastResult = null;
+  }
+};
+
 function openModal(side,ev){
   const isBuy=side==='BUY';
-  const pair=PAIRS[S.pair].sym+(PAIRS[S.pair].otc?' OTC':'');
+  const pairObj=PAIRS[S.pair];
+  const pair=pairObj.sym+(pairObj.otc?' OTC':pairObj.vol?' VOL':'');
   const time=new Date().toLocaleTimeString('pt-BR',{hour12:false});
   const entryPrice=S.chartTick||1.0873;
   const durSecs=DURATIONS[S_dur].s;
-  const stake=parseFloat(ev)||20;
-  const profit=(stake*0.85).toFixed(2); // payout típico 85%
+
+  // Payout dinâmico baseado no par
+  const payoutPct = pairObj.vol ? 0.954 : 0.85;
+
+  // Calcula stake baseado na estratégia
+  const baseStake = parseFloat(ev)||20;
+  const stake = bankroll.getStake(S.strategy, baseStake);
+  const profit = (stake * payoutPct).toFixed(2);
+
+  // Info da estratégia atual
+  const stratInfo = {
+    cons: `🛡 FIXO — US$${stake}`,
+    mart: `📈 MART nível ${bankroll.martLevel+1} — US$${stake}`,
+    soros: `🔄 SOROS nível ${bankroll.sorosLevel+1} — US$${stake}`
+  }[S.strategy];
 
   // Monta modal
   const modal=document.getElementById('modal');
@@ -1599,7 +1704,7 @@ function openModal(side,ev){
   document.getElementById('modalTitle').textContent=isBuy?'✅ COMPRA EXECUTADA':'✅ VENDA EXECUTADA';
   document.getElementById('modalTitle').className='modal-title '+(isBuy?'buy':'sell');
   document.getElementById('modalTime').textContent=time+' — '+pair+' — '+S.tf+' — '+DURATIONS[S_dur].l;
-  document.getElementById('modalVal').textContent='R$'+ev;
+  document.getElementById('modalVal').textContent='US$'+stake+' ('+stratInfo+')';
   document.getElementById('modalProb').textContent=S.prob+'%';
   document.getElementById('modalScore').textContent=S.totalScore+'/'+S.totalMax;
   document.getElementById('modalRegime').textContent=S.regime.toUpperCase();
@@ -1608,9 +1713,13 @@ function openModal(side,ev){
   document.getElementById('cdSecs').textContent=durSecs;
   document.getElementById('modalOverlay').classList.add('show');
 
-  // Adiciona ao histórico como pendente
+  // Adiciona ao histórico
   const tradeId=Date.now();
-  tradeHistory.push({id:tradeId,side,pair,val:'R$'+ev,stake,profit,score:S.totalScore+'/'+S.totalMax,time,prob:S.prob,result:'pending',remaining:durSecs,entryPrice,isBuy});
+  // Adiciona marcador no gráfico
+  tradeMarkers.push({idx:candleOHLC.length-1,side,result:null,id:tradeId});
+  if(tradeMarkers.length>10)tradeMarkers.shift();
+  drawChart();
+  tradeHistory.push({id:tradeId,side,pair,val:'US$'+stake,stake,profit,score:S.totalScore+'/'+S.totalMax,time,prob:S.prob,result:'pending',remaining:durSecs,entryPrice,isBuy,contractId:null,strat:S.strategy,martLevel:bankroll.martLevel});
   if(tradeHistory.length>20)tradeHistory.shift();
   renderHistory();
 
@@ -1621,31 +1730,45 @@ function openModal(side,ev){
     secs--;
     const cdEl=document.getElementById('cdSecs');
     if(cdEl)cdEl.textContent=secs;
-    // Atualiza remaining no histórico
     const t=tradeHistory.find(x=>x.id===tradeId);
     if(t&&t.result==='pending'){t.remaining=secs;renderHistory();}
     if(secs<=0){
       clearInterval(cdInterval);
-      resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit);
+      resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct);
       document.getElementById('modalCountdown').style.display='none';
       document.getElementById('modalOverlay').classList.remove('show');
     }
   },1000);
 }
 
-function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit){
+function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct=0.85){
   const exitPrice=S.chartTick||entryPrice;
   const priceWent=exitPrice>entryPrice;
   const won=isBuy?priceWent:!priceWent;
   const t=tradeHistory.find(x=>x.id===tradeId);
+
+  // Atualiza estratégia de banca
+  bankroll.update(S.strategy, won);
+
+  // Próxima entrada sugerida
+  const nextStake = bankroll.getStake(S.strategy, bankroll.baseStake);
+  const nextInfo = {
+    cons: `próx: US$${nextStake} fixo`,
+    mart: won ? `✅ voltou à base US$${nextStake}` : `⚠ mart nível ${bankroll.martLevel+1} → US$${nextStake}`,
+    soros: won && bankroll.sorosLevel===1 ? `🔄 reinvestindo US$${nextStake}` : `próx: US$${nextStake}`
+  }[S.strategy];
+
   if(t){
     t.result=won?'win':'loss';
-    t.profit=profit;
+    t.profit=won?profit:('-'+stake);
     renderHistory();
-    notify(won?`✅ GANHOU +US$${profit}`:`❌ PERDEU -US$${stake}`);
+    // Atualiza marcador no gráfico
+    const marker=tradeMarkers.find(m=>m.id===tradeId);
+    if(marker) marker.result=won?'win':'loss';
+    drawChart();
+    notify(won?`✅ +US$${profit} — ${nextInfo}`:`❌ -US$${stake} — ${nextInfo}`);
   }
-  // Atualiza saldo real da conta
-  if(wsReady && userToken) derivSend({balance:1});
+  if(wsReady && userToken) derivSend({balance:1, subscribe:1});
 }
 
 function closeModal(){
@@ -1654,36 +1777,36 @@ function closeModal(){
 
 function executeTrade(side){
   if(S.prob<60){notify('⚠ PROB. BAIXA — NÃO OPERADO');return;}
-  const ev=document.getElementById('ecustom').value||'20';
+  const baseStake=parseFloat(document.getElementById('ecustom').value||'20');
+  const stake=bankroll.getStake(S.strategy, baseStake);
   const btn=document.querySelector(side==='BUY'?'.buybtn':'.sellbtn');
   if(btn){btn.style.transform='scale(.96)';setTimeout(()=>btn.style.transform='',150);}
   if(wsReady && userToken){
     const durSecs=DURATIONS[S_dur].s;
     const contractType=side==='BUY'?'CALL':'PUT';
     const symbol=PAIRS[S.pair].deriv;
-    const stake=parseFloat(ev)||20;
     const reqId=Date.now();
-    notify('📡 Enviando ordem para Deriv...');
-    derivSend({proposal:1,amount:stake,basis:'stake',contract_type:contractType,currency:'USD',duration:durSecs,duration_unit:'s',symbol:symbol,req_id:reqId});
-    const prev=ws.onmessage;
-    ws.onmessage=(e)=>{
+    notify('📡 Enviando US$'+stake+'...');
+
+    // Handler temporário que intercepta só este reqId
+    const proposalHandler=(e)=>{
       try{
         const msg=JSON.parse(e.data);
         if(msg.req_id===reqId && msg.msg_type==='proposal'){
-          ws.onmessage=prev;
-          if(msg.error){notify('❌ '+msg.error.message);openModal(side,ev);return;}
+          ws.removeEventListener('message', proposalHandler);
+          if(msg.error){notify('❌ '+msg.error.message);openModal(side,String(stake));return;}
           derivSend({buy:msg.proposal.id,price:msg.proposal.ask_price});
-          notify('✅ Ordem enviada!');
-          openModal(side,ev);
-        } else if(msg.msg_type==='buy'){
-          ws.onmessage=prev;
-          if(msg.error){notify('❌ Rejeitada: '+msg.error.message);}
-        } else { if(prev)prev(e); }
-      }catch(err){if(prev)prev(e);}
+          notify('✅ Ordem US$'+stake+' enviada!');
+          openModal(side,String(stake));
+        }
+      }catch(err){}
     };
-    setTimeout(()=>{ws.onmessage=prev;},5000);
+    ws.addEventListener('message', proposalHandler);
+    setTimeout(()=>ws.removeEventListener('message', proposalHandler), 6000);
+
+    derivSend({proposal:1,amount:stake,basis:'stake',contract_type:contractType,currency:'USD',duration:durSecs,duration_unit:'s',symbol:symbol,req_id:reqId});
   } else {
-    openModal(side,ev);
+    openModal(side,String(stake));
   }
   randomAll();
 }
