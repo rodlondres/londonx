@@ -436,11 +436,12 @@ canvas{width:100%;height:80px;display:block;}
   </div>
   <canvas id="rsiChart" width="440" height="40"></canvas>
   <!-- Legend -->
-  <div style="display:flex;gap:12px;margin-top:6px;padding:0 2px">
-    <span style="font-size:8px;font-weight:700;color:#00e676">● BUY</span>
-    <span style="font-size:8px;font-weight:700;color:#ff1744">● SELL</span>
+  <div style="display:flex;gap:10px;margin-top:6px;padding:0 2px;flex-wrap:wrap">
+    <span style="font-size:8px;font-weight:700;color:#00e676">▲ BUY</span>
+    <span style="font-size:8px;font-weight:700;color:#ff1744">▼ SELL</span>
     <span style="font-size:8px;font-weight:700;color:#00e5ff">— EMA5</span>
     <span style="font-size:8px;font-weight:700;color:#ffd600">— EMA13</span>
+    <span style="font-size:8px;font-weight:700;color:#7c4dff">— BB</span>
   </div>
 </div>
 
@@ -796,6 +797,12 @@ function derivConnect(){
         const msg=JSON.parse(e.data);
         if(msg.msg_type==='authorize') handleAuthorize(msg.authorize);
         if(msg.msg_type==='balance') handleBalance(msg.balance);
+        if(msg.msg_type==='proposal'&&msg.req_id&&window._pendingProposals&&window._pendingProposals[msg.req_id]){
+          const h=window._pendingProposals[msg.req_id];
+          delete window._pendingProposals[msg.req_id];
+          h.cb(msg.proposal||msg.error||{});
+          return;
+        }
         if(msg.msg_type==='candles' && msg.subscription) currentSub=msg.subscription.id;
         if(msg.msg_type==='contracts_for') handleContractsFor(msg.contracts_for, msg.echo_req.contracts_for);
         if(msg.msg_type==='active_symbols') handleActiveSymbols(msg.active_symbols);
@@ -979,7 +986,11 @@ function handleTick(tick){
       last.h=Math.max(last.h,price);
       last.l=Math.min(last.l,price);
     }
-    drawChart();
+    // Throttle drawChart no tick — máx 1x por segundo
+    if(!window._tickThrottle){
+      window._tickThrottle=true;
+      setTimeout(()=>{window._tickThrottle=false;drawChart();},800);
+    }
     const decimals=price>10?3:5;
     document.getElementById('chartPrice').textContent=price.toFixed(decimals);
   }
@@ -1009,19 +1020,32 @@ function handleCandles(candles){
 
 function handleOHLC(ohlc){
   const o=parseFloat(ohlc.open),h=parseFloat(ohlc.high),l=parseFloat(ohlc.low),c=parseFloat(ohlc.close);
-  const epoch=ohlc.epoch;
-  // Atualiza ou adiciona candle
-  if(candleOHLC.length>0&&candleOHLC[candleOHLC.length-1].epoch===epoch){
+  const epoch=parseInt(ohlc.epoch);
+  const gran={'1M':60,'3M':180,'5M':300,'15M':900}[S.tf]||180;
+
+  if(candleOHLC.length>0){
     const last=candleOHLC[candleOHLC.length-1];
-    last.h=Math.max(last.h,h);last.l=Math.min(last.l,l);last.c=c;
+    // Mesmo candle se epoch está dentro da granularidade atual
+    const sameCandle=epoch>=last.epoch && epoch<last.epoch+gran;
+    if(sameCandle){
+      last.h=Math.max(last.h,h);
+      last.l=Math.min(last.l,l);
+      last.c=c;
+    } else if(epoch>=last.epoch+gran){
+      // Novo candle
+      candleOHLC.push({o,h,l,c,epoch});
+      if(candleOHLC.length>80)candleOHLC.shift();
+    }
   } else {
     candleOHLC.push({o,h,l,c,epoch});
-    if(candleOHLC.length>80)candleOHLC.shift();
   }
-  candleBuffer=candleOHLC.map(x=>x.c);
-  S.chartData=[...candleBuffer];
+
   S.chartTick=c;
-  drawChart();
+  // Throttle drawChart — máx 1x por segundo
+  if(!window._chartThrottle){
+    window._chartThrottle=true;
+    setTimeout(()=>{window._chartThrottle=false;drawChart();},800);
+  }
   const dec=c>10?3:5;
   document.getElementById('chartPrice').textContent=c.toFixed(dec);
 }
@@ -1391,9 +1415,9 @@ function drawChart(){
   if(c.width!==W*dpr||c.height!==H*dpr){
     c.width=W*dpr;
     c.height=H*dpr;
-    c.style.width=W+'px';
-    c.style.height=H+'px';
   }
+  c.style.width='100%';
+  c.style.height=H+'px';
 
   const ctx=c.getContext('2d');
   const w=c.width,h=c.height;
@@ -1462,6 +1486,29 @@ function drawChart(){
     ctx.fillRect(x-candleW/2,by,candleW,bh);
   });
 
+  // Bollinger Bands
+  const bbPeriod=20,bbMult=2;
+  const bbArr=closes.map((v,i)=>{
+    if(i<bbPeriod)return null;
+    const sl=closes.slice(i-bbPeriod+1,i+1);
+    const mean=sl.reduce((a,b)=>a+b,0)/bbPeriod;
+    const std=Math.sqrt(sl.reduce((a,b)=>a+(b-mean)**2,0)/bbPeriod);
+    return{mid:mean,upper:mean+bbMult*std,lower:mean-bbMult*std};
+  });
+  // BB upper
+  ctx.beginPath();ctx.strokeStyle='rgba(124,77,255,.5)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  bbArr.forEach((bb,i)=>{if(!bb)return;const x=xP(i),y=yP(bb.upper);i===0||!bbArr[i-1]?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke();
+  // BB lower
+  ctx.beginPath();ctx.strokeStyle='rgba(124,77,255,.5)';ctx.lineWidth=1;
+  bbArr.forEach((bb,i)=>{if(!bb)return;const x=xP(i),y=yP(bb.lower);i===0||!bbArr[i-1]?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke();
+  // BB middle
+  ctx.beginPath();ctx.strokeStyle='rgba(124,77,255,.3)';ctx.lineWidth=1;
+  bbArr.forEach((bb,i)=>{if(!bb)return;const x=xP(i),y=yP(bb.mid);i===0||!bbArr[i-1]?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke();
+  ctx.setLineDash([]);
+
   // EMA 5 cyan
   ctx.beginPath();ctx.strokeStyle='rgba(0,229,255,.9)';ctx.lineWidth=1.5;
   ema5arr.forEach((v,i)=>{const x=xP(i),y=yP(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
@@ -1521,8 +1568,9 @@ function drawRSI(rsiData){
   const H=40;
   if(c.width!==W*dpr||c.height!==H*dpr){
     c.width=W*dpr;c.height=H*dpr;
-    c.style.width=W+'px';c.style.height=H+'px';
   }
+  c.style.width='100%';
+  c.style.height=H+'px';
   const ctx=c.getContext('2d'),w=c.width,h=c.height;
   ctx.clearRect(0,0,w,h);
   ctx.fillStyle='rgba(6,13,26,.8)';ctx.fillRect(0,0,w,h);
@@ -1613,7 +1661,7 @@ function selDur(i){S_dur=i;buildDuration();}
 // ============================================================
 // TRADE HISTORY
 // ============================================================
-let tradeHistory=(()=>{try{const h=sessionStorage.getItem('londonx_history');return h?JSON.parse(h):[];}catch(e){return [];}})();
+let tradeHistory=(()=>{try{const h=localStorage.getItem('londonx_history');return h?JSON.parse(h):[];}catch(e){return [];}})();
 function clearHistory(){tradeHistory=[];renderHistory();}
 function renderHistory(){
   const el=document.getElementById('histList');if(!el)return;
@@ -1762,7 +1810,7 @@ function openModal(side,ev){
   drawChart();
   tradeHistory.push({id:tradeId,side,pair,val:'US$'+stake,stake,profit,score:S.totalScore+'/'+S.totalMax,time,prob:S.prob,result:'pending',remaining:durSecs,entryPrice,isBuy,contractId:null,strat:S.strategy,martLevel:bankroll.martLevel});
   if(tradeHistory.length>50)tradeHistory.shift();
-  try{sessionStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
+  try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
   renderHistory();
 
   // Countdown
@@ -1803,7 +1851,7 @@ function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct=0.85
   if(t){
     t.result=won?'win':'loss';
     t.profit=won?profit:('-'+stake);
-    try{sessionStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
+    try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
     renderHistory();
     // Atualiza marcador no gráfico
     const marker=tradeMarkers.find(m=>m.id===tradeId);
@@ -1831,21 +1879,20 @@ function executeTrade(side){
     const reqId=Date.now();
     notify('📡 Enviando US$'+stake+'...');
 
-    // Handler temporário que intercepta só este reqId
-    const proposalHandler=(e)=>{
-      try{
-        const msg=JSON.parse(e.data);
-        if(msg.req_id===reqId && msg.msg_type==='proposal'){
-          ws.removeEventListener('message', proposalHandler);
-          if(msg.error){notify('❌ '+msg.error.message);openModal(side,String(stake));return;}
-          derivSend({buy:msg.proposal.id,price:msg.proposal.ask_price});
-          notify('✅ Ordem US$'+stake+' enviada!');
-          openModal(side,String(stake));
-        }
-      }catch(err){}
-    };
-    ws.addEventListener('message', proposalHandler);
-    setTimeout(()=>ws.removeEventListener('message', proposalHandler), 6000);
+    // Registra handler na fila global — não substitui onmessage
+    window._pendingProposals=window._pendingProposals||{};
+    window._pendingProposals[reqId]={side,stake,cb:(proposal)=>{
+      if(proposal.error){notify('❌ '+proposal.error.message);openModal(side,String(stake));return;}
+      derivSend({buy:proposal.id,price:proposal.ask_price});
+      notify('✅ Ordem US$'+stake+' enviada!');
+      openModal(side,String(stake));
+    }};
+    setTimeout(()=>{
+      if(window._pendingProposals&&window._pendingProposals[reqId]){
+        delete window._pendingProposals[reqId];
+        openModal(side,String(stake));
+      }
+    },6000);
 
     derivSend({proposal:1,amount:stake,basis:'stake',contract_type:contractType,currency:'USD',duration:durSecs,duration_unit:'s',symbol:symbol,req_id:reqId});
   } else {
