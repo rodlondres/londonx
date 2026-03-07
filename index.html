@@ -62,6 +62,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
 .pair-btn:hover{border-color:var(--cyan);color:#fff;background:rgba(0,229,255,.1);text-shadow:0 0 8px rgba(255,255,255,.4);}
 .pair-btn.active{background:rgba(0,229,255,.18);border-color:var(--cyan);color:#fff;box-shadow:var(--glow-cyan);font-weight:900;text-shadow:0 0 10px rgba(0,229,255,.6);}
 .pair-btn .otc{font-size:7px;color:#00c8e8;display:block;font-weight:700;}
+.pair-btn .payout{font-size:7px;color:#ffd600;display:block;font-weight:800;letter-spacing:.5px;}
+.pair-btn .payout.high{color:#00e676;}
+.pair-btn .payout.low{color:#ff1744;}
 
 /* TF */
 .tf-row{display:flex;gap:4px;margin-bottom:8px;}
@@ -773,6 +776,7 @@ function derivConnect(){
       try{
         const msg=JSON.parse(e.data);
         if(msg.msg_type==='authorize') handleAuthorize(msg.authorize);
+        if(msg.msg_type==='contracts_for') handleContractsFor(msg.contracts_for, msg.echo_req.contracts_for);
         if(msg.msg_type==='tick') handleTick(msg.tick);
         if(msg.msg_type==='candles') handleCandles(msg.candles);
         if(msg.msg_type==='ohlc') handleOHLC(msg.ohlc);
@@ -808,6 +812,7 @@ function handleAuthorize(auth){
   notify('✅ '+acc+' — '+cur+' $'+bal);
   subscribeAllTickers();
   subscribeCandles();
+  setTimeout(fetchPayouts, 2000);
 }
 
 function updateTokenStatus(connected, info){
@@ -861,6 +866,20 @@ function subscribeCandles(){
     currentSub=null; candleBuffer=[];
     derivSend({ticks_history:sym,adjust_start_time:1,count:60,end:'latest',granularity:gran,style:'candles',subscribe:1});
   }catch(e){}
+}
+
+function handleContractsFor(data, symbol){
+  if(!data || !data.available) return;
+  // Busca contrato CALL/PUT para achar o payout
+  const contract = data.available.find(c=>c.contract_type==='CALL' && c.payout_limit);
+  if(!contract) {
+    // Tenta pegar pelo profit_percentage
+    const c2 = data.available.find(c=>c.contract_type==='CALL');
+    if(c2 && c2.profit_percentage) updatePairPayout(symbol, Math.round(c2.profit_percentage));
+    return;
+  }
+  const payout = Math.round((contract.payout_limit / 1) * 100) || null;
+  if(payout) updatePairPayout(symbol, payout);
 }
 
 function handleTick(tick){
@@ -921,12 +940,29 @@ buildTicker();setInterval(buildTicker,8000);
 // ============================================================
 // PAIRS
 // ============================================================
+// Payouts em tempo real
+const pairPayouts = {};
+
+function fetchPayouts(){
+  if(!wsReady) return;
+  PAIRS.forEach(p=>{
+    derivSend({contracts_for: p.deriv, currency: 'USD', landing_company: 'svg', product_type: 'basic'});
+  });
+}
+
+function updatePairPayout(symbol, payout){
+  pairPayouts[symbol] = payout;
+  buildPairs();
+}
+
 function buildPairs(){
-  document.getElementById('pairGrid').innerHTML=PAIRS.map((p,i)=>
-    `<button class="pair-btn${i===S.pair?' active':''}" onclick="selectPair(${i})">
-      ${p.sym.replace('/',' /')}<span class="otc">${p.otc?'OTC':''}</span>
-    </button>`
-  ).join('');
+  document.getElementById('pairGrid').innerHTML=PAIRS.map((p,i)=>{
+    const po = pairPayouts[p.deriv];
+    const poHtml = po ? `<span class="payout ${po>=90?'high':po<80?'low':''}">${po}%</span>` : '';
+    return `<button class="pair-btn${i===S.pair?' active':''}" onclick="selectPair(${i})">
+      ${p.sym.replace('/',' /')}<span class="otc">${p.otc?'OTC':''}</span>${poHtml}
+    </button>`;
+  }).join('');
 }
 function selectPair(i){S.pair=i;S.chartData=[];candleBuffer=[];buildPairs();document.getElementById('confPair').textContent=PAIRS[i].sym+(PAIRS[i].otc?' OTC':'');notify('PAR: '+PAIRS[i].sym);if(wsReady)subscribeCandles();else initChart();randomAll();}
 
@@ -1327,7 +1363,34 @@ function executeTrade(side){
   const ev=document.getElementById('ecustom').value||'20';
   const btn=document.querySelector(side==='BUY'?'.buybtn':'.sellbtn');
   if(btn){btn.style.transform='scale(.96)';setTimeout(()=>btn.style.transform='',150);}
-  openModal(side,ev);
+  if(wsReady && userToken){
+    const durSecs=DURATIONS[S_dur].s;
+    const contractType=side==='BUY'?'CALL':'PUT';
+    const symbol=PAIRS[S.pair].deriv;
+    const stake=parseFloat(ev)||20;
+    const reqId=Date.now();
+    notify('📡 Enviando ordem para Deriv...');
+    derivSend({proposal:1,amount:stake,basis:'stake',contract_type:contractType,currency:'USD',duration:durSecs,duration_unit:'s',symbol:symbol,req_id:reqId});
+    const prev=ws.onmessage;
+    ws.onmessage=(e)=>{
+      try{
+        const msg=JSON.parse(e.data);
+        if(msg.req_id===reqId && msg.msg_type==='proposal'){
+          ws.onmessage=prev;
+          if(msg.error){notify('❌ '+msg.error.message);openModal(side,ev);return;}
+          derivSend({buy:msg.proposal.id,price:msg.proposal.ask_price});
+          notify('✅ Ordem enviada!');
+          openModal(side,ev);
+        } else if(msg.msg_type==='buy'){
+          ws.onmessage=prev;
+          if(msg.error){notify('❌ Rejeitada: '+msg.error.message);}
+        } else { if(prev)prev(e); }
+      }catch(err){if(prev)prev(e);}
+    };
+    setTimeout(()=>{ws.onmessage=prev;},5000);
+  } else {
+    openModal(side,ev);
+  }
   randomAll();
 }
 
