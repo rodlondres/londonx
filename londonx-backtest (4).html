@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LONDONX — BACKTEST</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#060d1a;--bg2:#0a1628;--card:#0d1f3c;--card2:#112244;
+  --cyan:#00e5ff;--green:#00e676;--red:#ff1744;--yellow:#ffd600;
+  --border:rgba(0,229,255,.15);--border2:rgba(0,229,255,.3);
+  --text:#dff0ff;--text2:#a0c4e8;
+  --glow-cyan:0 0 20px rgba(0,229,255,.3);
+}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;padding:12px;}
+.header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border:1px solid var(--border2);border-radius:12px;margin-bottom:10px;}
+.logo{font-family:'Orbitron',monospace;font-size:18px;font-weight:900;color:var(--yellow);letter-spacing:3px;}
+.logo span{display:block;font-size:8px;color:var(--cyan);letter-spacing:4px;font-weight:700;margin-top:2px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+.slabel{font-size:9px;letter-spacing:3px;color:var(--cyan);font-weight:700;margin-bottom:6px;padding:0 2px;}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.sel{flex:1;min-width:120px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;outline:none;cursor:pointer;}
+.sel:focus{border-color:var(--cyan);}
+.btn{padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-family:'Orbitron',monospace;font-size:11px;font-weight:900;letter-spacing:2px;transition:all .2s;}
+.btn-run{background:rgba(0,229,255,.15);border:2px solid var(--cyan);color:var(--cyan);width:100%;}
+.btn-run:hover{background:rgba(0,229,255,.3);}
+.btn-run:disabled{opacity:.4;cursor:not-allowed;}
+.token-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+.token-inp{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;}
+.token-inp:focus{border-color:var(--cyan);}
+.token-btn{background:rgba(0,229,255,.15);border:2px solid var(--cyan);color:var(--cyan);font-family:'Orbitron',monospace;font-size:10px;font-weight:900;padding:9px 14px;border-radius:8px;cursor:pointer;}
+.token-btn.ok{border-color:var(--green);color:var(--green);background:rgba(0,230,118,.1);}
+.progress-wrap{background:var(--bg2);border-radius:8px;height:8px;margin:10px 0;overflow:hidden;display:none;}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:8px;width:0%;transition:width .3s;}
+.progress-txt{font-size:10px;color:var(--text2);font-weight:700;text-align:center;margin-top:4px;display:none;}
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.stat-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;}
+.stat-val{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;}
+.stat-lbl{font-size:9px;letter-spacing:2px;color:var(--text2);font-weight:700;margin-top:3px;}
+.stat-sub{font-size:8px;color:var(--text2);margin-top:2px;}
+/* CHART */
+canvas{width:100%;border-radius:8px;display:block;}
+/* TABLE */
+.result-table{width:100%;border-collapse:collapse;font-size:11px;}
+.result-table th{font-size:8px;letter-spacing:2px;color:var(--cyan);font-weight:700;padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;}
+.result-table td{padding:7px 6px;border-bottom:1px solid rgba(0,229,255,.06);font-weight:700;}
+.result-table tr:hover td{background:rgba(0,229,255,.05);}
+.win{color:var(--green);}
+.loss{color:var(--red);}
+.badge{font-size:8px;padding:2px 6px;border-radius:4px;font-weight:900;letter-spacing:1px;}
+.badge.buy{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);}
+.badge.sell{background:rgba(255,23,68,.15);color:var(--red);border:1px solid rgba(255,23,68,.3);}
+.pair-summary{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg2);border-radius:8px;margin-bottom:6px;}
+.pair-name{font-family:'Orbitron',monospace;font-size:11px;font-weight:900;color:#fff;}
+.pair-wr{font-size:12px;font-weight:900;}
+.notif{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border2);border-radius:10px;padding:10px 20px;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--cyan);letter-spacing:2px;box-shadow:0 8px 32px rgba(0,0,0,.5);opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;white-space:nowrap;}
+.notif.show{opacity:1;}
+.empty{text-align:center;padding:30px;color:var(--text2);font-size:11px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<div id="notif" class="notif"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div><div class="logo">LONDONX<span>BACKTEST ENGINE v1.0</span></div></div>
+  <div style="font-family:'Share Tech Mono';font-size:10px;color:var(--cyan)" id="clockEl"></div>
+</div>
+
+<!-- TOKEN -->
+<div class="slabel">🔑 CONECTAR CONTA DERIV</div>
+<div class="card">
+  <div class="token-row">
+    <input class="token-inp" type="password" id="tokenInp" placeholder="Cole seu token API aqui...">
+    <button class="token-btn" id="tokenBtn" onclick="connectDeriv()">CONECTAR</button>
+    <button class="token-btn" onclick="reconnect()" style="background:rgba(255,214,0,.1);border-color:var(--yellow);color:var(--yellow)">🔄</button>
+  </div>
+  <div id="tokenStatus" style="font-size:9px;color:var(--text2);font-weight:700">⚪ Não conectado</div>
+</div>
+
+<!-- CONFIG -->
+<div class="slabel">⚙️ CONFIGURAÇÃO DO BACKTEST</div>
+<div class="card">
+  <div class="row">
+    <select class="sel" id="selPair">
+      <option value="frxEURUSD">EUR/USD</option>
+      <option value="frxGBPUSD">GBP/USD</option>
+      <option value="frxUSDJPY">USD/JPY</option>
+      <option value="frxAUDUSD">AUD/USD</option>
+      <option value="frxEURGBP">EUR/GBP</option>
+      <option value="frxUSDCAD">USD/CAD</option>
+      <option value="frxNZDUSD">NZD/USD</option>
+      <option value="frxEURJPY">EUR/JPY</option>
+      <option value="frxGBPJPY">GBP/JPY</option>
+      <option value="frxUSDCHF">USD/CHF</option>
+      <option value="frxEURAUD">EUR/AUD</option>
+    </select>
+    <select class="sel" id="selTF">
+      <option value="60">1 min</option>
+      <option value="180" selected>3 min</option>
+      <option value="300">5 min</option>
+      <option value="900">15 min</option>
+    </select>
+  </div>
+  <div class="row">
+    <select class="sel" id="selCandles">
+      <option value="100">100 candles</option>
+      <option value="250" selected>250 candles</option>
+      <option value="500">500 candles</option>
+      <option value="1000">1000 candles</option>
+    </select>
+    <select class="sel" id="selStake">
+      <option value="5">US$ 5</option>
+      <option value="10">US$ 10</option>
+      <option value="20" selected>US$ 20</option>
+      <option value="50">US$ 50</option>
+    </select>
+  </div>
+  <div class="progress-wrap" id="progWrap"><div class="progress-bar" id="progBar"></div></div>
+  <div class="progress-txt" id="progTxt">Carregando candles...</div>
+  <button class="btn btn-run" id="btnRun" onclick="runBacktest()">▶ RODAR BACKTEST</button>
+</div>
+
+<!-- RESULTADO GERAL -->
+<div id="resultsSection" style="display:none">
+
+<div class="slabel">📊 RESULTADO GERAL</div>
+<div class="stats-grid">
+  <div class="stat-box">
+    <div class="stat-val" id="statWR" style="color:var(--green)">—</div>
+    <div class="stat-lbl">WIN RATE</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" id="statPL" style="color:var(--green)">—</div>
+    <div class="stat-lbl">P&L TOTAL</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" id="statTrades" style="color:var(--cyan)">—</div>
+    <div class="stat-lbl">TOTAL OPS</div>
+    <div class="stat-sub" id="statWL">—W / —L</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" id="statDD" style="color:var(--yellow)">—</div>
+    <div class="stat-lbl">MAX DRAWDOWN</div>
+  </div>
+</div>
+
+<!-- CURVA DE CAPITAL -->
+<div class="slabel">📈 CURVA DE CAPITAL</div>
+<div class="card">
+  <canvas id="equityChart" height="120"></canvas>
+</div>
+
+<!-- HISTÓRICO DE TRADES -->
+<div class="slabel">📋 HISTÓRICO DE OPERAÇÕES</div>
+<div class="card" style="overflow-x:auto">
+  <table class="result-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>LADO</th>
+        <th>ENTRADA</th>
+        <th>SAÍDA</th>
+        <th>RESULTADO</th>
+        <th>P&L</th>
+        <th>CAPITAL</th>
+      </tr>
+    </thead>
+    <tbody id="tradeTable"></tbody>
+  </table>
+</div>
+
+</div><!-- end resultsSection -->
+
+<script>
+// ============================================================
+// CLOCK
+// ============================================================
+setInterval(()=>{document.getElementById('clockEl').textContent=new Date().toLocaleTimeString('pt-BR',{hour12:false});},1000);
+
+// ============================================================
+// DERIV CONNECTION
+// ============================================================
+const APP_ID=1089;
+let ws=null, wsReady=false, userToken=null;
+
+function connectDeriv(){
+  const inp=document.getElementById('tokenInp');
+  const token=inp.value.trim();
+  if(!token){notify('⚠ Cole seu token primeiro!');return;}
+  userToken=token;
+  inp.value='';
+  inp.placeholder='Token salvo ✅';
+  notify('🔌 Conectando...');
+  openWS();
+}
+
+function openWS(onReady){
+  try{
+    wsReady=false;
+    if(ws){try{ws.close();}catch(e){}}
+    ws=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+APP_ID);
+    ws.onopen=()=>{
+      wsReady=true;
+      if(userToken){
+        wsSend({authorize:userToken});
+        // Chama callback após autorizar
+        if(onReady) setTimeout(onReady,1000);
+      }
+    };
+    ws.onmessage=(e)=>{
+      try{
+        const msg=JSON.parse(e.data);
+        if(msg.msg_type==='authorize') handleAuth(msg.authorize);
+        if(msg.msg_type==='candles') handleCandles(msg.candles);
+        if(msg.msg_type==='error') notify('❌ '+(msg.error.message||'Erro desconhecido'));
+      }catch(err){}
+    };
+    ws.onclose=()=>{wsReady=false;};
+    ws.onerror=()=>{wsReady=false;try{ws.close();}catch(e){}};
+  }catch(e){}
+}
+
+function reconnect(onReady){
+  notify('🔄 Reconectando...');
+  openWS(onReady);
+}
+
+function wsSend(obj){try{if(ws&&ws.readyState===1)ws.send(JSON.stringify(obj));}catch(e){}}
+
+function handleAuth(auth){
+  if(!auth||auth.error){
+    document.getElementById('tokenStatus').innerHTML='<span style="color:var(--red)">🔴 Token inválido</span>';
+    document.getElementById('tokenBtn').textContent='CONECTAR';
+    return;
+  }
+  const bal=parseFloat(auth.balance||0).toFixed(2);
+  const cur=auth.currency||'USD';
+  const acc=auth.is_virtual?'DEMO':'REAL';
+  document.getElementById('tokenStatus').innerHTML=`<span style="color:var(--green)">🟢 ${acc} — ${cur} $${bal}</span>`;
+  document.getElementById('tokenBtn').textContent='✅ CONECTADO';
+  document.getElementById('tokenBtn').className='token-btn ok';
+  notify('✅ '+acc+' conectado!');
+}
+
+// ============================================================
+// INDICATORS
+// ============================================================
+function calcEMA(data,period){
+  const k=2/(period+1);let ema=data[0];
+  return data.map((v,i)=>{if(i===0)return ema;ema=v*k+ema*(1-k);return ema;});
+}
+
+function calcRSI(data,period=14){
+  let gains=0,losses=0;
+  for(let i=1;i<=period;i++){const d=data[i]-data[i-1];d>0?gains+=d:losses-=d;}
+  let avgG=gains/period,avgL=losses/period;
+  const rsi=[50];
+  for(let i=period+1;i<data.length;i++){
+    const d=data[i]-data[i-1];
+    avgG=(avgG*(period-1)+(d>0?d:0))/period;
+    avgL=(avgL*(period-1)+(d<0?-d:0))/period;
+    const rs=avgL===0?100:avgG/avgL;
+    rsi.push(100-(100/(1+rs)));
+  }
+  return rsi;
+}
+
+function calcMACD(data){
+  const ema12=calcEMA(data,12),ema26=calcEMA(data,26);
+  const macd=ema12.map((v,i)=>v-ema26[i]);
+  const signal=calcEMA(macd,9);
+  return{macd,signal,hist:macd.map((v,i)=>v-signal[i])};
+}
+
+// ============================================================
+// STRATEGY — gera sinal BUY/SELL/NONE
+// ============================================================
+function calcBB(data, period=20){
+  const result=[];
+  for(let i=0;i<data.length;i++){
+    if(i<period){result.push({mid:data[i],upper:data[i],lower:data[i],width:0});continue;}
+    const slice=data.slice(i-period+1,i+1);
+    const mean=slice.reduce((a,b)=>a+b,0)/period;
+    const std=Math.sqrt(slice.reduce((s,v)=>s+(v-mean)**2,0)/period);
+    result.push({mid:mean,upper:mean+2*std,lower:mean-2*std,width:std*2/mean});
+  }
+  return result;
+}
+
+function calcStoch(candles, period=14){
+  const result=[];
+  for(let i=0;i<candles.length;i++){
+    if(i<period){result.push(50);continue;}
+    const slice=candles.slice(i-period+1,i+1);
+    const highH=Math.max(...slice.map(c=>c.h));
+    const lowL=Math.min(...slice.map(c=>c.l));
+    const k=highH===lowL?50:((candles[i].c-lowL)/(highH-lowL))*100;
+    result.push(k);
+  }
+  return result;
+}
+
+function getSignal(candles, i){
+  if(i<35) return 'NONE';
+  const slice=candles.slice(Math.max(0,i-60),i+1);
+  const closes=slice.map(c=>c.c);
+  if(closes.length<25) return 'NONE';
+
+  const last=closes.length-1;
+
+  // Indicadores
+  const ema5=calcEMA(closes,5);
+  const ema13=calcEMA(closes,13);
+  const ema34=calcEMA(closes,34);
+  const rsi=calcRSI(closes,14);
+  const {hist,macd,signal}=calcMACD(closes);
+  const bb=calcBB(closes,20);
+  const stoch=calcStoch(slice,14);
+
+  const e5=ema5[last], e13=ema13[last], e34=ema34[last];
+  const rsiV=rsi[rsi.length-1]||50;
+  const rsiPrev=rsi[rsi.length-2]||50;
+  const macdH=hist[last]||0;
+  const macdPrev=hist[last-1]||0;
+  const macdH2=hist[last-2]||0;
+  const bbV=bb[last];
+  const stochV=stoch[stoch.length-1]||50;
+  const stochPrev=stoch[stoch.length-2]||50;
+  const price=closes[last];
+  const prevPrice=closes[last-1];
+  const prevPrice2=closes[last-2];
+
+  let buyScore=0, sellScore=0;
+
+  // 1. TENDENCIA EMA tripla — sinal mais forte
+  if(e5>e13&&e13>e34) buyScore+=3;
+  else if(e5<e13&&e13<e34) sellScore+=3;
+
+  // 2. EMA cross recente (5 cruzou 13)
+  const e5prev=ema5[last-1]||e5, e13prev=ema13[last-1]||e13;
+  if(e5>e13&&e5prev<=e13prev) buyScore+=2;
+  else if(e5<e13&&e5prev>=e13prev) sellScore+=2;
+
+  // 3. RSI — zona + direção
+  if(rsiV>50&&rsiPrev<50) buyScore+=2; // cruzou 50 pra cima
+  else if(rsiV<50&&rsiPrev>50) sellScore+=2; // cruzou 50 pra baixo
+  else if(rsiV>55&&rsiV<75) buyScore+=1;
+  else if(rsiV<45&&rsiV>25) sellScore+=1;
+  // Sobrecomprado/sobrevendido — contra tendência — penaliza
+  if(rsiV>75) buyScore-=1;
+  if(rsiV<25) sellScore-=1;
+
+  // 4. MACD histograma — aceleração
+  if(macdH>0&&macdH>macdPrev&&macdPrev>macdH2) buyScore+=2; // acelerando pra cima
+  else if(macdH<0&&macdH<macdPrev&&macdPrev<macdH2) sellScore+=2; // acelerando pra baixo
+  else if(macdH>0&&macdPrev<0) buyScore+=2; // cross bullish
+  else if(macdH<0&&macdPrev>0) sellScore+=2; // cross bearish
+
+  // 5. Bollinger Bands
+  if(price>bbV.mid&&prevPrice<=bbV.mid) buyScore+=1; // cruzou mid pra cima
+  else if(price<bbV.mid&&prevPrice>=bbV.mid) sellScore+=1;
+  if(price<bbV.lower) buyScore+=1; // oversold
+  if(price>bbV.upper) sellScore+=1; // overbought
+
+  // 6. Stochastic
+  if(stochV>20&&stochPrev<20) buyScore+=2; // saindo oversold
+  else if(stochV<80&&stochPrev>80) sellScore+=2; // saindo overbought
+  else if(stochV>50&&stochPrev<50) buyScore+=1;
+  else if(stochV<50&&stochPrev>50) sellScore+=1;
+
+  // 7. Price action — 2 candles consecutivos
+  const c=candles[i], cp=candles[i-1];
+  const bullCandle=c.c>c.o&&c.c>cp.c;
+  const bearCandle=c.c<c.o&&c.c<cp.c;
+  if(bullCandle) buyScore+=1;
+  if(bearCandle) sellScore+=1;
+
+  // Threshold alto para entrar — qualidade > quantidade
+  if(buyScore>=8&&buyScore>sellScore+3) return 'BUY';
+  if(sellScore>=8&&sellScore>buyScore+3) return 'SELL';
+  return 'NONE';
+}
+
+// ============================================================
+// BACKTEST ENGINE
+// ============================================================
+let allCandles=[];
+let backtestRunning=false;
+
+let btTimeout=null;
+
+function runBacktest(){
+  if(!userToken){notify('⚠ Conecte sua conta primeiro!');return;}
+  if(backtestRunning) return;
+
+  backtestRunning=true;
+  document.getElementById('btnRun').disabled=true;
+  document.getElementById('btnRun').textContent='⏳ RECONECTANDO...';
+  document.getElementById('progWrap').style.display='block';
+  document.getElementById('progTxt').style.display='block';
+  document.getElementById('progTxt').textContent='Reconectando à Deriv...';
+  document.getElementById('progBar').style.width='5%';
+  document.getElementById('resultsSection').style.display='none';
+
+  // Sempre reconecta antes de buscar candles
+  reconnect(()=>fetchCandles());
+}
+
+function fetchCandles(){
+  const sym=document.getElementById('selPair').value;
+  const gran=parseInt(document.getElementById('selTF').value);
+  const count=parseInt(document.getElementById('selCandles').value);
+
+  document.getElementById('btnRun').textContent='⏳ CARREGANDO...';
+  document.getElementById('progTxt').textContent='Buscando '+count+' candles...';
+  document.getElementById('progBar').style.width='20%';
+
+  notify('📡 Buscando histórico...');
+
+  // Timeout de 20 segundos
+  btTimeout=setTimeout(()=>{
+    if(backtestRunning){
+      notify('⚠ Timeout — tente menos candles!');
+      resetBtn();
+    }
+  },20000);
+
+  wsSend({
+    ticks_history: sym,
+    adjust_start_time: 1,
+    count: count,
+    end: 'latest',
+    granularity: gran,
+    style: 'candles'
+  });
+}
+
+function handleCandles(candles){
+  if(!backtestRunning) return;
+  clearTimeout(btTimeout);
+  if(!candles||candles.length<30){
+    notify('❌ Poucos candles — tente menos!');
+    resetBtn();
+    return;
+  }
+
+  document.getElementById('progBar').style.width='50%';
+  document.getElementById('progTxt').textContent='Simulando estratégia em '+candles.length+' candles...';
+
+  // Converte candles
+  allCandles=candles.map(c=>({
+    o:parseFloat(c.open),
+    h:parseFloat(c.high),
+    l:parseFloat(c.low),
+    c:parseFloat(c.close),
+    epoch:c.epoch
+  }));
+
+  // Simula com pequeno delay para não travar UI
+  setTimeout(()=>simulate(),50);
+}
+
+function simulate(){
+  const stake=parseFloat(document.getElementById('selStake').value)||20;
+  const payout=0.85;
+  const gran=parseInt(document.getElementById('selTF').value);
+
+  let capital=1000;
+  let maxCapital=1000;
+  let maxDD=0;
+  let wins=0,losses=0;
+  let trades=[];
+  let equity=[1000];
+
+  for(let i=30;i<allCandles.length-1;i++){
+    const signal=getSignal(allCandles,i);
+    if(signal==='NONE') continue;
+
+    const entry=allCandles[i].c;
+    const exit=allCandles[i+1].c;
+    const isBuy=signal==='BUY';
+    const won=isBuy?(exit>entry):(exit<entry);
+
+    const pl=won?+(stake*payout):-(stake);
+    capital+=pl;
+    equity.push(capital);
+
+    if(capital>maxCapital) maxCapital=capital;
+    const dd=((maxCapital-capital)/maxCapital)*100;
+    if(dd>maxDD) maxDD=dd;
+
+    won?wins++:losses++;
+
+    trades.push({
+      n:trades.length+1,
+      side:signal,
+      entry:entry.toFixed(entry>10?3:5),
+      exit:exit.toFixed(exit>10?3:5),
+      won,
+      pl:pl.toFixed(2),
+      capital:capital.toFixed(2)
+    });
+  }
+
+  document.getElementById('progBar').style.width='100%';
+  document.getElementById('progTxt').textContent='Concluído!';
+
+  setTimeout(()=>{
+    showResults(trades,wins,losses,capital,maxDD,equity,stake);
+    resetBtn();
+  },300);
+}
+
+function showResults(trades,wins,losses,capital,maxDD,equity,stake){
+  const total=wins+losses;
+  const wr=total>0?((wins/total)*100).toFixed(1):0;
+  const pl=(capital-1000).toFixed(2);
+  const plColor=pl>=0?'var(--green)':'var(--red)';
+
+  document.getElementById('statWR').textContent=wr+'%';
+  document.getElementById('statWR').style.color=wr>=55?'var(--green)':wr>=45?'var(--yellow)':'var(--red)';
+  document.getElementById('statPL').textContent=(pl>=0?'+':'')+pl;
+  document.getElementById('statPL').style.color=plColor;
+  document.getElementById('statTrades').textContent=total;
+  document.getElementById('statWL').textContent=wins+'W / '+losses+'L';
+  document.getElementById('statDD').textContent=maxDD.toFixed(1)+'%';
+  document.getElementById('statDD').style.color=maxDD<10?'var(--green)':maxDD<20?'var(--yellow)':'var(--red)';
+
+  drawEquityCurve(equity);
+  fillTable(trades);
+  document.getElementById('resultsSection').style.display='block';
+  notify('✅ Backtest concluído! '+total+' operações');
+}
+
+function drawEquityCurve(equity){
+  const canvas=document.getElementById('equityChart');
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=canvas.offsetWidth*dpr||400;
+  canvas.height=120*dpr;
+  const ctx=canvas.getContext('2d');
+  const w=canvas.width,h=canvas.height;
+  const mn=Math.min(...equity),mx=Math.max(...equity);
+  const rng=mx-mn||1;
+
+  ctx.clearRect(0,0,w,h);
+
+  // Grid
+  ctx.strokeStyle='rgba(0,229,255,.1)';ctx.lineWidth=1;
+  for(let i=0;i<4;i++){
+    const y=(h/3)*i;
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
+  }
+
+  // Baseline (capital inicial)
+  const baseY=h-((1000-mn)/rng)*h;
+  ctx.strokeStyle='rgba(255,214,0,.3)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(0,baseY);ctx.lineTo(w,baseY);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Equity curve
+  const last=equity[equity.length-1];
+  const isProfit=last>=1000;
+  const curveColor=isProfit?'#00e676':'#ff1744';
+
+  // Fill
+  const gr=ctx.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,isProfit?'rgba(0,230,118,.2)':'rgba(255,23,68,.2)');
+  gr.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();
+  equity.forEach((v,i)=>{
+    const x=(i/(equity.length-1))*w;
+    const y=h-((v-mn)/rng)*h;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();
+  ctx.fillStyle=gr;ctx.fill();
+
+  // Line
+  ctx.beginPath();ctx.strokeStyle=curveColor;ctx.lineWidth=2*dpr;
+  equity.forEach((v,i)=>{
+    const x=(i/(equity.length-1))*w;
+    const y=h-((v-mn)/rng)*h;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+}
+
+function fillTable(trades){
+  const tbody=document.getElementById('tradeTable');
+  // Mostra últimas 50 operações
+  const show=trades.slice(-50).reverse();
+  tbody.innerHTML=show.map(t=>`
+    <tr>
+      <td style="color:var(--text2)">${t.n}</td>
+      <td><span class="badge ${t.side.toLowerCase()}">${t.side}</span></td>
+      <td style="font-family:'Share Tech Mono';font-size:10px">${t.entry}</td>
+      <td style="font-family:'Share Tech Mono';font-size:10px">${t.exit}</td>
+      <td class="${t.won?'win':'loss'}">${t.won?'✅ WIN':'❌ LOSS'}</td>
+      <td class="${t.won?'win':'loss'}" style="font-family:'Orbitron';font-size:11px">${t.won?'+':''} ${t.pl}</td>
+      <td style="font-family:'Share Tech Mono';font-size:10px;color:var(--text2)">${t.capital}</td>
+    </tr>
+  `).join('');
+}
+
+function resetBtn(){
+  clearTimeout(btTimeout);
+  backtestRunning=false;
+  document.getElementById('btnRun').disabled=false;
+  document.getElementById('btnRun').textContent='▶ RODAR BACKTEST';
+  setTimeout(()=>{
+    document.getElementById('progWrap').style.display='none';
+    document.getElementById('progTxt').style.display='none';
+  },2000);
+}
+
+// ============================================================
+// NOTIFY
+// ============================================================
+let nT;
+function notify(msg){
+  const el=document.getElementById('notif');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(nT);nT=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// Start WS on load
+openWS();
+</script>
+</body>
+</html>
