@@ -634,7 +634,7 @@ const STRATEGIES=[
   {id:'mart',icon:'📈',name:'MARTINGALE',  desc:'3 níveis máx\nR$20→40→80\n>65% prob',   color:'mart',lvl:3,max:3},
   {id:'soros',icon:'🔄',name:'SOROS',      desc:'Reinvest.\nR$20→36→65\n2 níveis máx',  color:'soros',lvl:2,max:2}
 ];
-const ENTRY_SIZES=['R$5','R$10','R$20','R$50'];
+const ENTRY_SIZES=['US$5','US$10','US$20','US$50','US$100'];
 const FILTERS=[
   {txt:'Volatilidade extrema',status:'ok',  lbl:'NORMAL'},
   {txt:'Notícias simuladas',  status:'ok',  lbl:'LIMPO'},
@@ -776,6 +776,7 @@ function derivConnect(){
       try{
         const msg=JSON.parse(e.data);
         if(msg.msg_type==='authorize') handleAuthorize(msg.authorize);
+        if(msg.msg_type==='balance') handleBalance(msg.balance);
         if(msg.msg_type==='contracts_for') handleContractsFor(msg.contracts_for, msg.echo_req.contracts_for);
         if(msg.msg_type==='tick') handleTick(msg.tick);
         if(msg.msg_type==='candles') handleCandles(msg.candles);
@@ -870,16 +871,24 @@ function subscribeCandles(){
 
 function handleContractsFor(data, symbol){
   if(!data || !data.available) return;
-  // Busca contrato CALL/PUT para achar o payout
-  const contract = data.available.find(c=>c.contract_type==='CALL' && c.payout_limit);
-  if(!contract) {
-    // Tenta pegar pelo profit_percentage
-    const c2 = data.available.find(c=>c.contract_type==='CALL');
-    if(c2 && c2.profit_percentage) updatePairPayout(symbol, Math.round(c2.profit_percentage));
-    return;
+  // Deriv retorna profit_percentage direto
+  const c = data.available.find(c=>c.contract_type==='CALL' || c.contract_type==='MULTUP');
+  if(!c) return;
+  let po = null;
+  if(c.profit_percentage) po = Math.round(parseFloat(c.profit_percentage));
+  else if(c.payout_limit) po = Math.round(parseFloat(c.payout_limit));
+  if(po && po>0 && po<200) updatePairPayout(symbol, po);
+}
+
+function handleBalance(bal){
+  if(!bal) return;
+  const status=document.getElementById('tokenStatus');
+  if(status){
+    const balVal=parseFloat(bal.balance).toFixed(2);
+    const cur=bal.currency||'USD';
+    const balEl=status.querySelector('.token-bal');
+    if(balEl) balEl.textContent=cur+' $'+balVal;
   }
-  const payout = Math.round((contract.payout_limit / 1) * 100) || null;
-  if(payout) updatePairPayout(symbol, payout);
 }
 
 function handleTick(tick){
@@ -1167,7 +1176,7 @@ function buildEntry(){
     `<button class="esize${i===S.entryIdx?' active':''}" onclick="selEntry(${i},'${s}')">${s}</button>`
   ).join('');
 }
-function selEntry(i,v){S.entryIdx=i;document.getElementById('ecustom').value=v.replace('R$','');buildEntry();}
+function selEntry(i,v){S.entryIdx=i;document.getElementById('ecustom').value=v.replace('US$','').replace('R$','');buildEntry();}
 
 // ============================================================
 // STOPS
@@ -1350,8 +1359,10 @@ function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit){
     t.result=won?'win':'loss';
     t.profit=profit;
     renderHistory();
-    notify(won?`✅ GANHOU +R$${profit}`:`❌ PERDEU -R$${stake}`);
+    notify(won?`✅ GANHOU +US$${profit}`:`❌ PERDEU -US$${stake}`);
   }
+  // Atualiza saldo real da conta
+  if(wsReady && userToken) derivSend({balance:1, account:'current'});
 }
 
 function closeModal(){
