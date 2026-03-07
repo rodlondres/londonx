@@ -74,7 +74,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
 
 /* CHART */
 .chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;}
-canvas{width:100%;height:80px;display:block;}
+canvas{width:100%;display:block;}
+#miniChart{height:170px;}
+#rsiChart{height:44px;}
 
 /* REGIME */
 .regime-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;position:relative;overflow:hidden;}
@@ -365,12 +367,113 @@ canvas{width:100%;height:80px;display:block;}
   .slabel { font-size: 11px; }
   .stat-val { font-size: 20px !important; }
   .conf-score { font-size: 50px !important; }
-  #miniChart { height: 220px !important; }
+  #miniChart { height: 250px; }
+  #rsiChart  { height: 55px; }
   .pair-grid { grid-template-columns: repeat(5, 1fr) !important; }
   .ind-grid  { grid-template-columns: repeat(4, 1fr) !important; }
   .hist-card { max-height: 360px; overflow-y: auto; }
   .abtn { font-size: 14px !important; }
 }
+/* ══════════════════════════════════════
+   RESPONSIVE — desktop sem quebrar iPhone
+══════════════════════════════════════ */
+@media (min-width: 600px) {
+  .container  { max-width: 560px; }
+  #miniChart  { height: 200px; }
+  #rsiChart   { height: 48px; }
+}
+
+@media (min-width: 900px) {
+  .container  { max-width: 720px; }
+  #miniChart  { height: 240px; }
+  #rsiChart   { height: 52px; }
+
+  /* Textos base */
+  body         { font-size: 15px; }
+  .slabel      { font-size: 12px; letter-spacing: 2px; }
+  .card-title  { font-size: 12px; }
+
+  /* Header */
+  .logo        { font-size: 22px !important; }
+  .clock       { font-size: 15px !important; }
+  .live-badge  { font-size: 12px !important; }
+
+  /* Stats */
+  .stat-val    { font-size: 22px !important; }
+  .stat-lbl    { font-size: 11px !important; }
+
+  /* Pares — 5 colunas */
+  .pair-grid   { grid-template-columns: repeat(5, 1fr) !important; }
+  .pair-btn    { font-size: 11px !important; padding: 10px 4px !important; }
+
+  /* TF */
+  .tf-btn      { font-size: 12px !important; padding: 10px 18px !important; }
+
+  /* Confluence */
+  .conf-score  { font-size: 52px !important; }
+  .conf-prob   { font-size: 13px !important; }
+  .src-nm      { font-size: 10px !important; }
+  .src-pc      { font-size: 10px !important; }
+
+  /* Indicadores — 4 colunas */
+  .ind-grid    { grid-template-columns: repeat(4, 1fr) !important; }
+  .ind-val     { font-size: 14px !important; }
+  .ind-lbl     { font-size: 10px !important; }
+  .ind-sig     { font-size: 10px !important; }
+
+  /* Estratégia */
+  .strat-grid  { grid-template-columns: repeat(3,1fr) !important; }
+  .strat-btn   { font-size: 12px !important; }
+
+  /* Entrada */
+  .esize       { font-size: 12px !important; }
+  .ecustom     { font-size: 14px !important; }
+  .dur-btn     { font-size: 12px !important; padding: 10px !important; }
+
+  /* BUY/SELL */
+  .abtn        { font-size: 17px !important; padding: 22px !important; letter-spacing: 3px !important; }
+  .bsub        { font-size: 12px !important; }
+
+  /* Gestão de banca */
+  .ri-val      { font-size: 17px !important; }
+  .ri-lbl      { font-size: 10px !important; }
+  .stop-lbl    { font-size: 11px !important; }
+  .stop-inp    { font-size: 14px !important; }
+
+  /* Semi-auto */
+  .sig-dir        { font-size: 28px !important; }
+  .sig-prob       { font-size: 13px !important; }
+  .semi-stat-val  { font-size: 17px !important; }
+  .semi-stat-lbl  { font-size: 11px !important; }
+  .src-label      { font-size: 10px !important; }
+
+  /* Token */
+  .token-inp   { font-size: 14px !important; }
+  .token-btn   { font-size: 12px !important; }
+
+  /* Histórico */
+  .hist-card   { max-height: 420px; overflow-y: auto; }
+  .hpair       { font-size: 13px !important; }
+  .hval        { font-size: 12px !important; }
+  .hbadge      { font-size: 11px !important; padding: 3px 8px !important; }
+  .htime       { font-size: 10px !important; }
+  .hresult     { font-size: 11px !important; }
+
+  /* Modal */
+  .modal       { max-width: 460px !important; padding: 26px !important; }
+  .modal-title { font-size: 16px !important; }
+  .mg-v        { font-size: 18px !important; }
+  .mg-l        { font-size: 10px !important; }
+}
+
+@media (min-width: 1200px) {
+  .container   { max-width: 860px; }
+  #miniChart   { height: 280px; }
+  .pair-grid   { grid-template-columns: repeat(5, 1fr) !important; }
+  .ind-grid    { grid-template-columns: repeat(6, 1fr) !important; }
+  .abtn        { font-size: 18px !important; }
+}
+
 </style>
 </head>
 <body>
@@ -389,7 +492,8 @@ canvas{width:100%;height:80px;display:block;}
       <div class="mg"><div class="mg-v" id="modalScore" style="color:var(--cyan)">18/25</div><div class="mg-l">SCORE</div></div>
       <div class="mg"><div class="mg-v" id="modalRegime" style="color:var(--yellow)">TENDÊNCIA</div><div class="mg-l">REGIME</div></div>
     </div>
-    <button class="modal-close buy" id="modalBtn" onclick="closeModal()">✅ CONFIRMAR</button>
+    <button class="modal-close buy" id="modalBtn">✅ CONFIRMAR</button>
+    <button onclick="closeModal()" style="width:100%;margin-top:8px;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-family:'Orbitron',monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;">❌ CANCELAR</button>
     <div id="modalCountdown" style="text-align:center;margin-top:10px;font-family:'Orbitron',monospace;font-size:13px;color:#a0c4e8;font-weight:700;display:none;">⏱ Resultado em <span id="cdSecs">60</span>s</div>
   </div>
 </div>
@@ -2158,58 +2262,77 @@ const bm = {
 // Alias para compatibilidade com código existente
 const bankroll = bm;
 
-function openModal(side,ev){
+function openModal(side, ev, proposal){
   const isBuy=side==='BUY';
   const pairObj=PAIRS[S.pair];
   const pair=pairObj.sym+(pairObj.otc?' OTC':pairObj.vol?' VOL':'');
   const time=new Date().toLocaleTimeString('pt-BR',{hour12:false});
   const entryPrice=S.chartTick||1.0873;
   const durSecs=DURATIONS[S_dur].s;
-
-  // Payout dinâmico baseado no par
-  const payoutPct = pairObj.vol ? 0.954 : 0.85;
-
-  // Calcula stake baseado na estratégia
-  const baseStake = parseFloat(ev)||20;
-  const stake = bankroll.getStake(S.strategy, baseStake);
-  const profit = (stake * payoutPct).toFixed(2);
-
-  // Info da estratégia atual
-  const stratInfo = {
-    cons: `🛡 FIXO — US$${stake}`,
-    mart: `📈 MART nível ${bankroll.martLevel+1} — US$${stake}`,
-    soros: `🔄 SOROS nível ${bankroll.sorosLevel+1} — US$${stake}`
+  const payoutPct=pairObj.vol?0.954:0.85;
+  const baseStake=parseFloat(ev)||20;
+  const stake=bankroll.getStake(S.strategy,baseStake);
+  const profit=(stake*payoutPct).toFixed(2);
+  const stratInfo={
+    cons:`🛡 FIXO — US$${stake}`,
+    mart:`📈 MART nível ${bankroll.martLevel+1} — US$${stake}`,
+    soros:`🔄 SOROS nível ${bankroll.sorosLevel+1} — US$${stake}`
   }[S.strategy];
 
-  // Monta modal
   const modal=document.getElementById('modal');
   modal.className='modal '+(isBuy?'buy':'sell');
   document.getElementById('modalIco').textContent=isBuy?'⬆':'⬇';
-  document.getElementById('modalTitle').textContent=isBuy?'✅ COMPRA EXECUTADA':'✅ VENDA EXECUTADA';
+
+  // Título mostra AGUARDANDO — não "executada"
+  document.getElementById('modalTitle').textContent=isBuy?'⬆ CONFIRMAR COMPRA?':'⬇ CONFIRMAR VENDA?';
   document.getElementById('modalTitle').className='modal-title '+(isBuy?'buy':'sell');
   document.getElementById('modalTime').textContent=time+' — '+pair+' — '+S.tf+' — '+DURATIONS[S_dur].l;
   document.getElementById('modalVal').textContent='US$'+stake+' ('+stratInfo+')';
   document.getElementById('modalProb').textContent=S.prob+'%';
   document.getElementById('modalScore').textContent=S.totalScore+'/'+S.totalMax;
   document.getElementById('modalRegime').textContent=S.regime.toUpperCase();
-  document.getElementById('modalBtn').className='modal-close '+(isBuy?'buy':'sell');
-  document.getElementById('modalCountdown').style.display='block';
-  document.getElementById('cdSecs').textContent=durSecs;
+
+  // Botão CONFIRMAR — ao clicar envia a ordem real
+  const btn=document.getElementById('modalBtn');
+  btn.className='modal-close '+(isBuy?'buy':'sell');
+  btn.textContent=isBuy?'✅ SIM — COMPRAR AGORA':'✅ SIM — VENDER AGORA';
+  btn.onclick=()=>{
+    // Executa a ordem real na Deriv
+    if(proposal && proposal.id){
+      derivSend({buy:proposal.id, price:proposal.ask_price});
+      notify('✅ Ordem US$'+stake+' enviada para Deriv!');
+    } else if(window._lastProposal && window._lastProposal.side===side){
+      derivSend({buy:window._lastProposal.id, price:window._lastProposal.price});
+      notify('✅ Ordem US$'+stake+' enviada para Deriv!');
+      window._lastProposal=null;
+    } else {
+      notify('📋 Operação registrada (modo demo)');
+    }
+    // Registra no histórico SOMENTE após confirmação
+    const tradeId=Date.now();
+    tradeMarkers.push({idx:candleOHLC.length-1,side,result:null,id:tradeId});
+    if(tradeMarkers.length>10)tradeMarkers.shift();
+    drawChart();
+    const tradeDate=new Date().toLocaleDateString('pt-BR');
+    tradeHistory.push({id:tradeId,side,pair,val:'US$'+stake,stake,profit,
+      score:S.totalScore+'/'+S.totalMax,time,date:tradeDate,prob:S.prob,
+      result:'pending',remaining:durSecs,entryPrice,isBuy,
+      contractId:null,strat:S.strategy,martLevel:bankroll.martLevel});
+    if(tradeHistory.length>50)tradeHistory.shift();
+    try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
+    renderHistory();
+    // Inicia countdown
+    startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,durSecs);
+    // Fecha modal
+    document.getElementById('modalOverlay').classList.remove('show');
+  };
+
+  // Botão CANCELAR
+  document.getElementById('modalCountdown').style.display='none';
   document.getElementById('modalOverlay').classList.add('show');
+}
 
-  // Adiciona ao histórico
-  const tradeId=Date.now();
-  // Adiciona marcador no gráfico
-  tradeMarkers.push({idx:candleOHLC.length-1,side,result:null,id:tradeId});
-  if(tradeMarkers.length>10)tradeMarkers.shift();
-  drawChart();
-  const tradeDate=new Date().toLocaleDateString('pt-BR');
-  tradeHistory.push({id:tradeId,side,pair,val:'US$'+stake,stake,profit,score:S.totalScore+'/'+S.totalMax,time,date:tradeDate,prob:S.prob,result:'pending',remaining:durSecs,entryPrice,isBuy,contractId:null,strat:S.strategy,martLevel:bankroll.martLevel});
-  if(tradeHistory.length>50)tradeHistory.shift();
-  try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
-  renderHistory();
-
-  // Countdown
+function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,durSecs){
   if(cdInterval)clearInterval(cdInterval);
   let secs=durSecs;
   cdInterval=setInterval(()=>{
@@ -2279,18 +2402,24 @@ function executeTrade(side){
     const reqId=Date.now();
     notify('📡 Enviando US$'+stake+'...');
 
-    // Registra handler na fila global — não substitui onmessage
+    // Registra handler na fila global — NUNCA executa automaticamente
+    // Só guarda o proposal.id para usar SE o usuário confirmar no modal
     window._pendingProposals=window._pendingProposals||{};
     window._pendingProposals[reqId]={side,stake,cb:(proposal)=>{
-      if(proposal.error){notify('❌ '+proposal.error.message);openModal(side,String(stake));return;}
-      derivSend({buy:proposal.id,price:proposal.ask_price});
-      notify('✅ Ordem US$'+stake+' enviada!');
-      openModal(side,String(stake));
+      if(proposal.error){
+        notify('❌ '+proposal.error.message);
+        openModal(side,String(stake),null); // abre modal sem proposal (modo demo)
+        return;
+      }
+      // Guarda proposal para executar SOMENTE quando usuário clicar CONFIRMAR
+      window._lastProposal={id:proposal.id,price:proposal.ask_price,side,stake};
+      notify('📋 Proposta recebida — aguardando confirmação...');
+      openModal(side,String(stake),proposal);
     }};
     setTimeout(()=>{
       if(window._pendingProposals&&window._pendingProposals[reqId]){
         delete window._pendingProposals[reqId];
-        openModal(side,String(stake));
+        openModal(side,String(stake),null);
       }
     },6000);
 
