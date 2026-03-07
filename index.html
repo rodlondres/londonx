@@ -449,11 +449,39 @@ canvas{width:100%;height:80px;display:block;}
   }
 
   /* Sections labels */
-  .slabel { font-size: 10px; letter-spacing: 2.5px; margin-bottom: 6px; }
+  .slabel { font-size: 11px; letter-spacing: 2.5px; margin-bottom: 6px; }
+
+  /* Textos gerais maiores */
+  body { font-size: 15px; }
+  .stat-val { font-size: 22px !important; }
+  .stat-lbl { font-size: 10px !important; }
+  .hpair { font-size: 12px !important; }
+  .hval  { font-size: 12px !important; }
+  .htime { font-size: 10px !important; }
+  .hbadge { font-size: 10px !important; padding: 3px 8px !important; }
+  .hresult { font-size: 11px !important; }
+  .ind-sig { font-size: 10px !important; }
+  .conf-prob { font-size: 13px !important; }
+  .dur-btn { font-size: 11px !important; }
+  .stop-lbl { font-size: 10px !important; }
+  .stop-inp { font-size: 12px !important; }
+  .token-inp { font-size: 13px !important; }
+  .token-btn { font-size: 11px !important; }
+  .ml-v { font-size: 16px !important; }
+  .ml-l { font-size: 9px !important; }
+  .tape-val { font-size: 26px !important; }
+  .sig-prob { font-size: 12px !important; }
+  .semi-stat-lbl { font-size: 10px !important; }
+  .bsub { font-size: 11px !important; }
+  .live-badge { font-size: 11px !important; }
+  .clock { font-size: 15px !important; }
 
   /* Modal maior */
   .modal { max-width: 460px !important; padding: 28px !important; }
   .modal-ico { font-size: 40px !important; }
+  .modal-title { font-size: 16px !important; }
+  .mg-v { font-size: 18px !important; }
+  .mg-l { font-size: 9px !important; }
 }
 
 @media (min-width: 1200px) {
@@ -1723,9 +1751,12 @@ function drawChart(){
   const lo=rawMn-pad,hi=rawMx+pad,rng=hi-lo||0.001;
   const dec=closes[0]>10?2:5;
 
-  const xP=i=>Math.round((i+0.5)*(w/N));
+  // Margem direita: reserva espaço para label de preço e último candle
+  const rightPad=62; // px reservados à direita
+  const plotW=w-rightPad;
+  const xP=i=>Math.round((i+0.5)*(plotW/N));
   const yP=v=>Math.round(h-((v-lo)/rng)*h);
-  const candleW=Math.max(2,Math.floor((w/N)*0.65));
+  const candleW=Math.max(2,Math.floor((plotW/N)*0.65));
 
   // ── Fundo ──
   ctx.fillStyle='#060d1a';ctx.fillRect(0,0,w,h);
@@ -1734,14 +1765,14 @@ function drawChart(){
   ctx.strokeStyle='rgba(30,55,100,.5)';ctx.lineWidth=0.5;
   for(let i=1;i<5;i++){
     const y=Math.round(h/5*i)+0.5;
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(plotW,y);ctx.stroke();
     const price=hi-((y/h)*rng);
     ctx.fillStyle='rgba(130,170,210,.5)';ctx.font='9px monospace';
     ctx.fillText(price.toFixed(dec),3,y-2);
   }
-  // Grid vertical (4 divisões)
+  // Grid vertical (4 divisões) — só na área de plot
   for(let i=1;i<4;i++){
-    const x=Math.round(w/4*i)+0.5;
+    const x=Math.round(plotW/4*i)+0.5;
     ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
   }
 
@@ -1866,20 +1897,23 @@ function drawChart(){
   const lineCol=isBull?'#00e676':'#ff1744';
   ctx.save();
   ctx.setLineDash([4,3]);
-  ctx.strokeStyle=isBull?'rgba(0,230,118,.6)':'rgba(255,23,68,.6)';
+  ctx.strokeStyle=isBull?'rgba(0,230,118,.5)':'rgba(255,23,68,.5)';
   ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(0,lastY);ctx.lineTo(w,lastY);ctx.stroke();
   ctx.setLineDash([]);
 
-  // Label preço — caixa à direita
+  // Label preço — na margem direita reservada
   const priceStr=last.c.toFixed(dec);
-  const tw=ctx.measureText(priceStr).width+10;
+  ctx.font='bold 10px monospace';
+  const tw=ctx.measureText(priceStr).width+8;
+  // Fundo da label
   ctx.fillStyle=lineCol;
-  ctx.fillRect(w-tw-2,lastY-9,tw+2,16);
+  ctx.beginPath();
+  ctx.roundRect(plotW+4,lastY-9,tw,17,3);
+  ctx.fill();
   ctx.fillStyle='#000';
-  ctx.font='bold 9px monospace';
   ctx.textAlign='left';
-  ctx.fillText(priceStr,w-tw+1,lastY+4);
+  ctx.fillText(priceStr,plotW+8,lastY+4);
   ctx.restore();
 
   // RSI val
