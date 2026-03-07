@@ -597,8 +597,8 @@ canvas{width:100%;height:80px;display:block;}
 
 <!-- ACTIONS -->
 <div class="action-row">
-  <button class="abtn buybtn" onclick="executeTrade('BUY')"><span class="bico">⬆</span>COMPRAR<div class="bsub" id="buyTxt">Prob. 74% | R$20</div></button>
-  <button class="abtn sellbtn" onclick="executeTrade('SELL')"><span class="bico">⬇</span>VENDER<div class="bsub" id="sellTxt">Score 18/25</div></button>
+  <button class="abtn buybtn" onclick="executeTrade('BUY')"><span class="bico">⬆</span>COMPRAR<div class="bsub" id="buyTxt">Prob. —% | US$20</div></button>
+  <button class="abtn sellbtn" onclick="executeTrade('SELL')"><span class="bico">⬇</span>VENDER<div class="bsub" id="sellTxt">Prob. —% | US$20</div></button>
 </div>
 
 <!-- HISTÓRICO DE OPERAÇÕES -->
@@ -777,6 +777,7 @@ function derivConnect(){
         const msg=JSON.parse(e.data);
         if(msg.msg_type==='authorize') handleAuthorize(msg.authorize);
         if(msg.msg_type==='balance') handleBalance(msg.balance);
+        if(msg.msg_type==='candles' && msg.subscription) currentSub=msg.subscription.id;
         if(msg.msg_type==='contracts_for') handleContractsFor(msg.contracts_for, msg.echo_req.contracts_for);
         if(msg.msg_type==='active_symbols') handleActiveSymbols(msg.active_symbols);
         if(msg.msg_type==='tick') handleTick(msg.tick);
@@ -865,9 +866,21 @@ function subscribeCandles(){
   try{
     const sym=PAIRS[S.pair].deriv;
     const gran={'1M':60,'3M':180,'5M':300,'15M':900}[S.tf]||300;
-    if(currentSub)derivSend({forget:currentSub});
-    currentSub=null; candleBuffer=[];
-    derivSend({ticks_history:sym,adjust_start_time:1,count:60,end:'latest',granularity:gran,style:'candles',subscribe:1});
+    // Cancela assinatura anterior
+    if(currentSub){derivSend({forget:currentSub});currentSub=null;}
+    candleBuffer=[];
+    candleOHLC=[];
+    S.chartData=[];
+    // Pede histórico + subscribe para candles OHLC
+    derivSend({
+      ticks_history:sym,
+      adjust_start_time:1,
+      count:80,
+      end:'latest',
+      granularity:gran,
+      style:'candles',
+      subscribe:1
+    });
   }catch(e){}
 }
 
@@ -906,13 +919,23 @@ function handleContractsFor(data, symbol){
 }
 
 function handleBalance(bal){
-  if(!bal) return;
+  if(!bal||bal.error) return;
   const balVal=parseFloat(bal.balance||0).toFixed(2);
   const cur=bal.currency||'USD';
-  // Atualiza todos os elementos de saldo
   document.querySelectorAll('.token-bal').forEach(el=>{
     el.textContent=cur+' $'+balVal;
   });
+  // Atualiza também no status de conexão
+  const status=document.getElementById('tokenStatus');
+  if(status){
+    let balEl=status.querySelector('.token-bal');
+    if(!balEl){
+      balEl=document.createElement('span');
+      balEl.className='token-bal';
+      status.appendChild(balEl);
+    }
+    balEl.textContent=cur+' $'+balVal;
+  }
 }
 
 function handleTick(tick){
@@ -1110,10 +1133,14 @@ function renderConf(){
   else if(p>=55){ab.className='alert-b warn';at.textContent='⚠ CONFLUÊNCIA PARCIAL — AGUARDAR MAIS CONFIRMAÇÕES';}
   else{ab.className='alert-b danger';at.textContent='🚫 CONFLUÊNCIA FRACA — NÃO OPERAR AGORA';}
 
-  // Action subtexts
+  // Action subtexts - mostra prob BUY vs SELL para comparar
   const ev=document.getElementById('ecustom').value||'20';
-  document.getElementById('buyTxt').textContent='Prob. '+p+'% | R$'+ev;
-  document.getElementById('sellTxt').textContent='Score '+S.totalScore+'/'+S.totalMax;
+  const buyProb=p;
+  const sellProb=100-p;
+  const buyColor=buyProb>=70?'#00e676':buyProb>=55?'#ffd600':'#ff6b6b';
+  const sellColor=sellProb>=70?'#00e676':sellProb>=55?'#ffd600':'#ff6b6b';
+  document.getElementById('buyTxt').innerHTML='<span style="color:'+buyColor+'">'+buyProb+'%</span> compra | US$'+ev;
+  document.getElementById('sellTxt').innerHTML='<span style="color:'+sellColor+'">'+sellProb+'%</span> venda | US$'+ev;
 
   // Tech score badge
   document.getElementById('techScore').textContent=S.srcScores['tech']+'/'+SOURCES[0].maxPts;
