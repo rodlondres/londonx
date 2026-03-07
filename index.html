@@ -353,6 +353,119 @@ canvas{width:100%;height:80px;display:block;}
 .dur-row{display:flex;gap:6px;flex-wrap:wrap;}
 .dur-btn{flex:1;min-width:50px;background:var(--bg2);border:1px solid var(--border);color:#a0c4e8;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;padding:7px 4px;border-radius:6px;cursor:pointer;text-align:center;transition:all .2s;}
 .dur-btn.active{background:rgba(0,229,255,.15);border-color:var(--cyan);color:var(--cyan);box-shadow:var(--glow-cyan);}
+
+/* ═══════════════════════════════════════════
+   DESKTOP LAYOUT — ≥900px
+   iPhone/mobile: tudo igual abaixo de 900px
+═══════════════════════════════════════════ */
+@media (min-width: 900px) {
+  body { padding: 16px 20px; }
+
+  .container { max-width: 1440px; padding: 0; }
+
+  /* Grid 2 colunas: esquerda análise, direita operação */
+  .desktop-grid {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .col-left  { display:flex; flex-direction:column; gap:10px; }
+  .col-right {
+    display:flex; flex-direction:column; gap:10px;
+    position: sticky; top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  /* Header */
+  .header { padding: 14px 20px; margin-bottom: 10px; }
+  .logo { font-size: 22px !important; }
+  .logo span { font-size: 9px !important; }
+  .clock { font-size: 16px !important; }
+
+  /* Ticker */
+  .ticker-wrap { font-size: 11px; padding: 6px 0; }
+
+  /* Pares — mais colunas */
+  .pair-grid { grid-template-columns: repeat(5, 1fr) !important; gap: 6px !important; }
+  .pair-btn { padding: 10px 6px !important; font-size: 10px !important; }
+
+  /* TF row */
+  .tf-row { gap: 8px; }
+  .tf-btn { font-size: 11px !important; padding: 10px !important; }
+
+  /* Gráfico muito maior */
+  .chart-card { padding: 14px; }
+  #miniChart { height: 260px !important; }
+  #rsiChart  { height: 55px  !important; }
+
+  /* Regime + TF label */
+  .reg-row { gap: 10px; }
+
+  /* Confluence */
+  .conf-card { padding: 16px; }
+  .conf-score { font-size: 56px !important; }
+  .src-label { font-size: 9px !important; }
+
+  /* Indicadores técnicos em 4 colunas */
+  .ind-grid { grid-template-columns: repeat(4,1fr) !important; gap: 6px !important; }
+  .ind-item { padding: 8px !important; }
+  .ind-val  { font-size: 13px !important; }
+
+  /* Tape reading */
+  .tape-flow { grid-template-columns: 1fr 1fr; }
+  .tape-val  { font-size: 24px !important; }
+
+  /* Estratégias em linha */
+  .strat-grid { grid-template-columns: repeat(3,1fr) !important; }
+
+  /* Entry */
+  .esizes { gap: 6px; }
+  .esize  { font-size: 11px !important; padding: 10px 6px !important; }
+
+  /* Botões BUY/SELL — destaque máximo */
+  .action-row { gap: 10px; }
+  .abtn { padding: 20px !important; font-size: 15px !important; letter-spacing: 3px !important; }
+  .bsub { font-size: 11px !important; }
+
+  /* Gestão de banca */
+  .ri-val { font-size: 16px !important; }
+  .ri-lbl { font-size: 9px !important; }
+
+  /* Semi-auto */
+  .semi-stat-val { font-size: 16px !important; }
+  .sig-dir { font-size: 26px !important; }
+
+  /* Histórico scroll */
+  .hist-card {
+    max-height: 350px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  /* Sections labels */
+  .slabel { font-size: 10px; letter-spacing: 2.5px; margin-bottom: 6px; }
+
+  /* Modal maior */
+  .modal { max-width: 460px !important; padding: 28px !important; }
+  .modal-ico { font-size: 40px !important; }
+}
+
+@media (min-width: 1200px) {
+  .desktop-grid { grid-template-columns: 1fr 460px; }
+  .pair-grid { grid-template-columns: repeat(5, 1fr) !important; }
+  #miniChart { height: 300px !important; }
+}
+
+@media (min-width: 1440px) {
+  .desktop-grid { grid-template-columns: 1fr 500px; }
+  .ind-grid { grid-template-columns: repeat(6,1fr) !important; }
+}
 </style>
 </head>
 <body>
@@ -379,7 +492,7 @@ canvas{width:100%;height:80px;display:block;}
 <div class="container">
 
 <!-- HEADER -->
-<div class="header">
+<div class="header desktop-header">
   <div><div class="logo">LONDONX<span>FOREX OTC TRADING BOT v4.0</span></div></div>
   <div style="display:flex;align-items:center;gap:8px;">
     <div class="live-badge"><span class="live-dot"></span>LIVE</div>
@@ -389,6 +502,10 @@ canvas{width:100%;height:80px;display:block;}
 
 <!-- TICKER -->
 <div class="ticker-wrap"><div class="ticker-inner" id="tickerEl"></div></div>
+
+<!-- DESKTOP GRID WRAPPER -->
+<div class="desktop-grid">
+<div class="col-left">
 
 <!-- TOKEN LOGIN -->
 <div class="slabel">🔑 CONEXÃO DERIV</div>
@@ -575,6 +692,9 @@ canvas{width:100%;height:80px;display:block;}
   <div class="dur-row" id="durRow"></div>
 </div>
 
+</div><!-- /col-left -->
+<div class="col-right">
+
 <!-- GESTÃO DE BANCA -->
 <div class="slabel">⚖️ GESTÃO DE BANCA</div>
 <div class="risk-card">
@@ -685,7 +805,10 @@ canvas{width:100%;height:80px;display:block;}
 </div>
 
 <div class="footer">LONDONX BOT • FOREX OTC • USE COM RESPONSABILIDADE<br><span style="color:#a0c4e8;font-size:7px;font-weight:700">CONFLUÊNCIA UNIFICADA 5 FONTES INSTITUCIONAIS • NOT FINANCIAL ADVICE</span></div>
-</div>
+
+</div><!-- /col-right -->
+</div><!-- /desktop-grid -->
+</div><!-- /container -->
 
 <script>
 // ============================================================
@@ -1870,8 +1993,24 @@ function selDur(i){S_dur=i;buildDuration();}
 // ============================================================
 // TRADE HISTORY
 // ============================================================
-let tradeHistory=(()=>{try{const h=localStorage.getItem('londonx_history');return h?JSON.parse(h):[];}catch(e){return [];}})();
-function clearHistory(){tradeHistory=[];renderHistory();}
+let tradeHistory=(()=>{
+  try{
+    const h=localStorage.getItem('londonx_history');
+    if(!h) return [];
+    const arr=JSON.parse(h);
+    // Trades pending de sessões anteriores marcamos como desconhecido
+    return arr.map(t=>{
+      if(t.result==='pending') return {...t, result:'unknown', remaining:0};
+      return t;
+    });
+  }catch(e){return [];}
+})();
+function clearHistory(){
+  tradeHistory=[];
+  try{localStorage.removeItem('londonx_history');}catch(e){}
+  renderHistory();
+  notify('🗑 Histórico limpo');
+}
 function renderHistory(){
   const el=document.getElementById('histList');if(!el)return;
   if(!tradeHistory.length){el.innerHTML='<div class="hist-empty">Nenhuma operação ainda</div>';return;}
@@ -1887,8 +2026,10 @@ function renderHistory(){
       resHtml=`<span class="hresult pend" style="color:${pnlColor}">${pnlIcon} ⏳${t.remaining}s</span>`;
     } else if(t.result==='win'){
       resHtml=`<span class="hresult win">✅ +US$${t.profit}</span>`;
-    } else {
+    } else if(t.result==='loss'){
       resHtml=`<span class="hresult loss">❌ -US$${t.stake}</span>`;
+    } else {
+      resHtml=`<span class="hresult" style="color:var(--text3)">⚪ —</span>`;
     }
     return`<div class="hrow ${t.side.toLowerCase()}">
       <span class="hbadge ${t.side.toLowerCase()}">${t.side==='BUY'?'⬆ BUY':'⬇ SELL'}</span>
@@ -1896,7 +2037,7 @@ function renderHistory(){
       <span class="hval">${t.val}</span>
       <span class="hscore">${t.score}</span>
       ${resHtml}
-      <span class="htime">${t.time}</span>
+      <span class="htime">${t.date?t.date+' ':''} ${t.time}</span>
     </div>`;
   }).join('');
 }
@@ -2159,7 +2300,8 @@ function openModal(side,ev){
   tradeMarkers.push({idx:candleOHLC.length-1,side,result:null,id:tradeId});
   if(tradeMarkers.length>10)tradeMarkers.shift();
   drawChart();
-  tradeHistory.push({id:tradeId,side,pair,val:'US$'+stake,stake,profit,score:S.totalScore+'/'+S.totalMax,time,prob:S.prob,result:'pending',remaining:durSecs,entryPrice,isBuy,contractId:null,strat:S.strategy,martLevel:bankroll.martLevel});
+  const tradeDate=new Date().toLocaleDateString('pt-BR');
+  tradeHistory.push({id:tradeId,side,pair,val:'US$'+stake,stake,profit,score:S.totalScore+'/'+S.totalMax,time,date:tradeDate,prob:S.prob,result:'pending',remaining:durSecs,entryPrice,isBuy,contractId:null,strat:S.strategy,martLevel:bankroll.martLevel});
   if(tradeHistory.length>50)tradeHistory.shift();
   try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
   renderHistory();
@@ -2206,6 +2348,7 @@ function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct=0.85
     t.profit=won?profit:('-'+stake);
     try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
     renderHistory();
+    drawChart();
     // Atualiza marcador no gráfico
     const marker=tradeMarkers.find(m=>m.id===tradeId);
     if(marker) marker.result=won?'win':'loss';
