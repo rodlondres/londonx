@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LONDONX — BACKTEST</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#060d1a;--bg2:#0a1628;--card:#0d1f3c;--cyan:#00e5ff;--green:#00e676;--red:#ff1744;--yellow:#ffd600;--border:rgba(0,229,255,.15);--border2:rgba(0,229,255,.3);--text:#dff0ff;--text2:#a0c4e8;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;padding:12px;}
+.header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border:1px solid var(--border2);border-radius:12px;margin-bottom:10px;}
+.logo{font-family:'Orbitron',monospace;font-size:18px;font-weight:900;color:var(--yellow);letter-spacing:3px;}
+.logo span{display:block;font-size:8px;color:var(--cyan);letter-spacing:4px;font-weight:700;margin-top:2px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+.slabel{font-size:9px;letter-spacing:3px;color:var(--cyan);font-weight:700;margin-bottom:6px;}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.sel{flex:1;min-width:120px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;outline:none;}
+.inp{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none;}
+.inp:focus,.sel:focus{border-color:var(--cyan);}
+.btn{padding:10px 20px;border-radius:8px;border:2px solid;cursor:pointer;font-family:'Orbitron',monospace;font-size:11px;font-weight:900;letter-spacing:2px;transition:all .2s;width:100%;}
+.btn-cyan{background:rgba(0,229,255,.1);border-color:var(--cyan);color:var(--cyan);}
+.btn-cyan:hover{background:rgba(0,229,255,.25);}
+.btn-cyan:disabled{opacity:.35;cursor:not-allowed;}
+.status{font-size:10px;font-weight:700;margin-top:8px;min-height:16px;color:var(--text2);}
+.prog-wrap{background:var(--bg2);border-radius:8px;height:8px;margin:10px 0;overflow:hidden;}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:8px;width:0%;transition:width .4s;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.stat-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;}
+.stat-val{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;}
+.stat-lbl{font-size:9px;letter-spacing:2px;color:var(--text2);font-weight:700;margin-top:3px;}
+.stat-sub{font-size:9px;color:var(--text2);margin-top:2px;}
+canvas{width:100%;border-radius:8px;display:block;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+th{font-size:8px;letter-spacing:2px;color:var(--cyan);font-weight:700;padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;}
+td{padding:7px 6px;border-bottom:1px solid rgba(0,229,255,.05);font-weight:700;}
+.win{color:var(--green);}
+.loss{color:var(--red);}
+.badge{font-size:8px;padding:2px 6px;border-radius:4px;font-weight:900;}
+.badge.buy{background:rgba(0,230,118,.15);color:var(--green);}
+.badge.sell{background:rgba(255,23,68,.15);color:var(--red);}
+.notif{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:10px 20px;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--cyan);letter-spacing:2px;box-shadow:0 8px 32px rgba(0,0,0,.6);opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;white-space:nowrap;}
+.notif.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="notif" class="notif"></div>
+
+<div class="header">
+  <div><div class="logo">LONDONX<span>BACKTEST ENGINE v2.0</span></div></div>
+  <div style="font-family:'Share Tech Mono';font-size:10px;color:var(--cyan)" id="clockEl"></div>
+</div>
+
+<div class="slabel">🔑 CONEXÃO DERIV</div>
+<div class="card">
+  <div class="row">
+    <input class="inp" type="password" id="tokenInp" placeholder="Cole seu token LONDONXDEMO aqui...">
+    <button class="btn btn-cyan" style="width:auto;padding:9px 16px" onclick="doConnect()">CONECTAR</button>
+  </div>
+  <div class="status" id="connStatus">⚪ Não conectado</div>
+</div>
+
+<div class="slabel">⚙️ CONFIGURAÇÃO</div>
+<div class="card">
+  <div class="row">
+    <select class="sel" id="selPair">
+      <option value="frxEURUSD">EUR/USD</option>
+      <option value="frxGBPUSD">GBP/USD</option>
+      <option value="frxUSDJPY">USD/JPY</option>
+      <option value="frxAUDUSD">AUD/USD</option>
+      <option value="frxEURGBP">EUR/GBP</option>
+      <option value="frxUSDCAD">USD/CAD</option>
+      <option value="frxNZDUSD">NZD/USD</option>
+      <option value="frxEURJPY">EUR/JPY</option>
+      <option value="frxGBPJPY">GBP/JPY</option>
+      <option value="frxUSDCHF">USD/CHF</option>
+    </select>
+    <select class="sel" id="selTF">
+      <option value="60">1 min</option>
+      <option value="180" selected>3 min</option>
+      <option value="300">5 min</option>
+    </select>
+  </div>
+  <div class="row">
+    <select class="sel" id="selCount">
+      <option value="100" selected>100 candles</option>
+      <option value="200">200 candles</option>
+      <option value="300">300 candles</option>
+    </select>
+    <select class="sel" id="selStake">
+      <option value="5">US$ 5</option>
+      <option value="10">US$ 10</option>
+      <option value="20" selected>US$ 20</option>
+      <option value="50">US$ 50</option>
+    </select>
+  </div>
+  <div class="prog-wrap"><div class="prog-bar" id="progBar"></div></div>
+  <div class="status" id="progTxt"></div>
+  <br>
+  <button class="btn btn-cyan" id="btnRun" onclick="runBacktest()">▶ RODAR BACKTEST</button>
+</div>
+
+<div id="results" style="display:none">
+  <div class="slabel">📊 RESULTADO</div>
+  <div class="stats-grid">
+    <div class="stat-box"><div class="stat-val" id="sWR">—</div><div class="stat-lbl">WIN RATE</div></div>
+    <div class="stat-box"><div class="stat-val" id="sPL">—</div><div class="stat-lbl">P&L TOTAL</div></div>
+    <div class="stat-box"><div class="stat-val" id="sTot">—</div><div class="stat-lbl">OPERAÇÕES</div><div class="stat-sub" id="sWL">—</div></div>
+    <div class="stat-box"><div class="stat-val" id="sDD">—</div><div class="stat-lbl">MAX DRAWDOWN</div></div>
+  </div>
+  <div class="slabel">📈 CURVA DE CAPITAL</div>
+  <div class="card"><canvas id="eqChart" height="120"></canvas></div>
+  <div class="slabel">📋 OPERAÇÕES</div>
+  <div class="card" style="overflow-x:auto">
+    <table><thead><tr><th>#</th><th>LADO</th><th>ENTRADA</th><th>SAÍDA</th><th>RESULTADO</th><th>P&L</th><th>CAPITAL</th></tr></thead>
+    <tbody id="tBody"></tbody></table>
+  </div>
+</div>
+
+<script>
+setInterval(()=>{document.getElementById('clockEl').textContent=new Date().toLocaleTimeString('pt-BR',{hour12:false});},1000);
+
+let nT;
+function notify(msg){const el=document.getElementById('notif');el.textContent=msg;el.classList.add('show');clearTimeout(nT);nT=setTimeout(()=>el.classList.remove('show'),2500);}
+
+// ============================================================
+// TOKEN — salvo localmente, sem WebSocket persistente
+// ============================================================
+let savedToken=null;
+
+function doConnect(){
+  const t=document.getElementById('tokenInp').value.trim();
+  if(!t){notify('⚠ Cole o token!');return;}
+  savedToken=t;
+  document.getElementById('tokenInp').value='';
+  document.getElementById('tokenInp').placeholder='Token salvo ✅';
+  document.getElementById('connStatus').textContent='🔄 Verificando...';
+  document.getElementById('connStatus').style.color='var(--yellow)';
+
+  // Abre conexão só para verificar
+  const w=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+  const timer=setTimeout(()=>{w.close();setConn(false,'Timeout');},8000);
+  w.onopen=()=>w.send(JSON.stringify({authorize:t}));
+  w.onmessage=(e)=>{
+    clearTimeout(timer);
+    const d=JSON.parse(e.data);
+    if(d.msg_type==='authorize'&&d.authorize&&!d.error){
+      const info=(d.authorize.is_virtual?'DEMO':'REAL')+' — '+d.authorize.currency+' $'+parseFloat(d.authorize.balance||0).toFixed(2);
+      setConn(true,info);
+    } else setConn(false,'Token inválido');
+    w.close();
+  };
+  w.onerror=()=>{clearTimeout(timer);setConn(false,'Erro de conexão');};
+}
+
+function setConn(ok,info){
+  document.getElementById('connStatus').textContent=(ok?'🟢 ':'🔴 ')+info;
+  document.getElementById('connStatus').style.color=ok?'var(--green)':'var(--red)';
+  if(ok) notify('✅ Conectado!'); else {notify('❌ '+info);savedToken=null;}
+}
+
+// ============================================================
+// BUSCA CANDLES — nova conexão a cada vez
+// ============================================================
+function fetchCandles(sym,gran,count,onDone){
+  setProg(20,'Abrindo conexão com Deriv...');
+  const w=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+  const timer=setTimeout(()=>{
+    try{w.close();}catch(e){}
+    onDone(null,'Timeout — tente menos candles ou outro par');
+  },18000);
+
+  w.onopen=()=>{
+    setProg(35,'Autorizando...');
+    w.send(JSON.stringify({authorize:savedToken}));
+  };
+
+  w.onmessage=(e)=>{
+    const d=JSON.parse(e.data);
+    if(d.msg_type==='authorize'){
+      if(d.error){clearTimeout(timer);w.close();onDone(null,'Token inválido');return;}
+      setProg(55,'Buscando '+count+' candles...');
+      w.send(JSON.stringify({ticks_history:sym,adjust_start_time:1,count:count,end:'latest',granularity:gran,style:'candles'}));
+    }
+    if(d.msg_type==='candles'){
+      clearTimeout(timer);
+      setProg(80,'Processando...');
+      w.close();
+      onDone(d.candles,null);
+    }
+    if(d.msg_type==='error'&&d.echo_req&&d.echo_req.ticks_history){
+      clearTimeout(timer);w.close();
+      onDone(null,d.error.message||'Erro da Deriv');
+    }
+  };
+  w.onerror=()=>{clearTimeout(timer);onDone(null,'Erro WebSocket');};
+}
+
+function setProg(pct,txt){
+  document.getElementById('progBar').style.width=pct+'%';
+  document.getElementById('progTxt').textContent=txt;
+}
+
+// ============================================================
+// INDICADORES
+// ============================================================
+function ema(d,p){const k=2/(p+1);let v=d[0];return d.map((x,i)=>{if(i===0)return v;v=x*k+v*(1-k);return v;});}
+function rsi(d,p=14){let g=0,l=0;for(let i=1;i<=p;i++){const x=d[i]-d[i-1];x>0?g+=x:l-=x;}let ag=g/p,al=l/p;const r=[50];for(let i=p+1;i<d.length;i++){const x=d[i]-d[i-1];ag=(ag*(p-1)+(x>0?x:0))/p;al=(al*(p-1)+(x<0?-x:0))/p;r.push(al===0?100:100-(100/(1+(ag/al))));}return r;}
+function macdHist(d){const e12=ema(d,12),e26=ema(d,26),m=e12.map((v,i)=>v-e26[i]),s=ema(m,9);return m.map((v,i)=>v-s[i]);}
+function stoch(cs,p=14){return cs.map((c,i)=>{if(i<p)return 50;const sl=cs.slice(i-p+1,i+1);const hi=Math.max(...sl.map(x=>x.h)),lo=Math.min(...sl.map(x=>x.l));return hi===lo?50:((c.c-lo)/(hi-lo))*100;});}
+
+// ============================================================
+// SINAL
+// ============================================================
+function getSignal(cs,i){
+  if(i<35)return'NONE';
+  const sl=cs.slice(Math.max(0,i-60),i+1);
+  const cl=sl.map(c=>c.c);
+  if(cl.length<25)return'NONE';
+  const n=cl.length-1;
+  const e5=ema(cl,5),e13=ema(cl,13),e34=ema(cl,34);
+  const r=rsi(cl,14),h=macdHist(cl),st=stoch(sl,14);
+  const rV=r[r.length-1]||50,rP=r[r.length-2]||50;
+  const hV=h[n]||0,hP=h[n-1]||0,hP2=h[n-2]||0;
+  const stV=st[st.length-1]||50,stP=st[st.length-2]||50;
+  let B=0,S=0;
+  if(e5[n]>e13[n]&&e13[n]>e34[n])B+=3;else if(e5[n]<e13[n]&&e13[n]<e34[n])S+=3;
+  if(e5[n]>e13[n]&&e5[n-1]<=e13[n-1])B+=2;else if(e5[n]<e13[n]&&e5[n-1]>=e13[n-1])S+=2;
+  if(rV>50&&rP<=50)B+=2;else if(rV<50&&rP>=50)S+=2;
+  else if(rV>55&&rV<75)B+=1;else if(rV<45&&rV>25)S+=1;
+  if(hV>0&&hP<=0)B+=2;else if(hV<0&&hP>=0)S+=2;
+  if(hV>0&&hV>hP&&hP>hP2)B+=1;else if(hV<0&&hV<hP&&hP<hP2)S+=1;
+  if(stV>20&&stP<=20)B+=2;else if(stV<80&&stP>=80)S+=2;
+  else if(stV>50&&stP<=50)B+=1;else if(stV<50&&stP>=50)S+=1;
+  const c=cs[i],cp=cs[i-1];
+  if(c.c>c.o&&c.c>cp.c)B+=1;else if(c.c<c.o&&c.c<cp.c)S+=1;
+  if(B>=8&&B>S+3)return'BUY';
+  if(S>=8&&S>B+3)return'SELL';
+  return'NONE';
+}
+
+// ============================================================
+// BACKTEST
+// ============================================================
+function runBacktest(){
+  if(!savedToken){notify('⚠ Conecte primeiro!');return;}
+  const sym=document.getElementById('selPair').value;
+  const gran=parseInt(document.getElementById('selTF').value);
+  const count=parseInt(document.getElementById('selCount').value);
+  const stake=parseFloat(document.getElementById('selStake').value)||20;
+
+  document.getElementById('btnRun').disabled=true;
+  document.getElementById('btnRun').textContent='⏳ RODANDO...';
+  document.getElementById('results').style.display='none';
+  setProg(5,'Iniciando...');
+
+  fetchCandles(sym,gran,count,(raw,err)=>{
+    if(err||!raw){
+      notify('❌ '+(err||'Sem dados'));
+      resetBtn();return;
+    }
+    setProg(85,'Simulando estratégia...');
+    setTimeout(()=>{
+      const cs=raw.map(c=>({o:parseFloat(c.open),h:parseFloat(c.high),l:parseFloat(c.low),c:parseFloat(c.close)}));
+      simulate(cs,stake);
+    },30);
+  });
+}
+
+function simulate(cs,stake){
+  let cap=1000,maxCap=1000,maxDD=0,W=0,L=0;
+  const trades=[],eq=[1000];
+  for(let i=35;i<cs.length-1;i++){
+    const sig=getSignal(cs,i);
+    if(sig==='NONE')continue;
+    const entry=cs[i].c,exit=cs[i+1].c;
+    const isBuy=sig==='BUY';
+    const won=isBuy?(exit>entry):(exit<entry);
+    const pl=won?+(stake*0.85):-(stake);
+    cap+=pl;eq.push(cap);
+    if(cap>maxCap)maxCap=cap;
+    const dd=((maxCap-cap)/maxCap)*100;
+    if(dd>maxDD)maxDD=dd;
+    won?W++:L++;
+    trades.push({n:trades.length+1,sig,entry,exit,won,pl:pl.toFixed(2),cap:cap.toFixed(2)});
+  }
+  setProg(100,'Concluído!');
+  showResults(trades,W,L,cap,maxDD,eq);
+  resetBtn();
+}
+
+function showResults(trades,W,L,cap,maxDD,eq){
+  const tot=W+L;
+  const wr=tot>0?((W/tot)*100).toFixed(1):0;
+  const pl=(cap-1000).toFixed(2);
+  document.getElementById('sWR').textContent=wr+'%';
+  document.getElementById('sWR').style.color=wr>=58?'var(--green)':wr>=54?'var(--yellow)':'var(--red)';
+  document.getElementById('sPL').textContent=(pl>=0?'+':'')+pl;
+  document.getElementById('sPL').style.color=pl>=0?'var(--green)':'var(--red)';
+  document.getElementById('sTot').textContent=tot;
+  document.getElementById('sWL').textContent=W+'W / '+L+'L';
+  document.getElementById('sDD').textContent=maxDD.toFixed(1)+'%';
+  document.getElementById('sDD').style.color=maxDD<10?'var(--green)':maxDD<20?'var(--yellow)':'var(--red)';
+  drawCurve(eq);
+  document.getElementById('tBody').innerHTML=trades.slice(-50).reverse().map(t=>{
+    const dec=t.entry>10?3:5;
+    return`<tr><td style="color:var(--text2)">${t.n}</td><td><span class="badge ${t.sig.toLowerCase()}">${t.sig}</span></td><td style="font-family:'Share Tech Mono';font-size:10px">${t.entry.toFixed(dec)}</td><td style="font-family:'Share Tech Mono';font-size:10px">${t.exit.toFixed(dec)}</td><td class="${t.won?'win':'loss'}">${t.won?'✅ WIN':'❌ LOSS'}</td><td class="${t.won?'win':'loss'}" style="font-family:'Orbitron';font-size:11px">${t.won?'+':''}${t.pl}</td><td style="font-family:'Share Tech Mono';font-size:10px;color:var(--text2)">${t.cap}</td></tr>`;
+  }).join('');
+  document.getElementById('results').style.display='block';
+  notify('✅ '+tot+' ops — WR '+wr+'%');
+}
+
+function drawCurve(eq){
+  const cv=document.getElementById('eqChart');
+  const dpr=window.devicePixelRatio||1;
+  cv.width=cv.offsetWidth*dpr||400;cv.height=120*dpr;
+  const ctx=cv.getContext('2d'),w=cv.width,h=cv.height;
+  const mn=Math.min(...eq),mx=Math.max(...eq),rng=mx-mn||1;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='rgba(0,229,255,.08)';ctx.lineWidth=1;
+  [0,1,2,3].forEach(i=>{const y=(h/3)*i;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();});
+  const by=h-((1000-mn)/rng)*h;
+  ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(255,214,0,.3)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,by);ctx.lineTo(w,by);ctx.stroke();ctx.setLineDash([]);
+  const profit=eq[eq.length-1]>=1000,col=profit?'#00e676':'#ff1744';
+  const gr=ctx.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,profit?'rgba(0,230,118,.2)':'rgba(255,23,68,.2)');gr.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();eq.forEach((v,i)=>{const x=(i/(eq.length-1))*w,y=h-((v-mn)/rng)*h;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fillStyle=gr;ctx.fill();
+  ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=2*dpr;
+  eq.forEach((v,i)=>{const x=(i/(eq.length-1))*w,y=h-((v-mn)/rng)*h;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();
+}
+
+function resetBtn(){
+  document.getElementById('btnRun').disabled=false;
+  document.getElementById('btnRun').textContent='▶ RODAR BACKTEST';
+}
+</script>
+</body>
+</html>
