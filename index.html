@@ -778,6 +778,7 @@ function derivConnect(){
         if(msg.msg_type==='authorize') handleAuthorize(msg.authorize);
         if(msg.msg_type==='balance') handleBalance(msg.balance);
         if(msg.msg_type==='contracts_for') handleContractsFor(msg.contracts_for, msg.echo_req.contracts_for);
+        if(msg.msg_type==='active_symbols') handleActiveSymbols(msg.active_symbols);
         if(msg.msg_type==='tick') handleTick(msg.tick);
         if(msg.msg_type==='candles') handleCandles(msg.candles);
         if(msg.msg_type==='ohlc') handleOHLC(msg.ohlc);
@@ -813,6 +814,7 @@ function handleAuthorize(auth){
   notify('✅ '+acc+' — '+cur+' $'+bal);
   subscribeAllTickers();
   subscribeCandles();
+  derivSend({balance:1, subscribe:1});
   setTimeout(fetchPayouts, 2000);
 }
 
@@ -869,15 +871,31 @@ function subscribeCandles(){
   }catch(e){}
 }
 
+function handleActiveSymbols(symbols){
+  if(!symbols||!symbols.length) return;
+  symbols.forEach(sym=>{
+    if(sym.pip_size && sym.display_name){
+      // Match symbol to our PAIRS
+      const pair = PAIRS.find(p=>p.deriv===sym.symbol);
+      if(pair && sym.spot_percentage_change){
+        // Use spot data to estimate payout (Deriv doesn't give payout in active_symbols directly)
+        // Fetch contracts_for for each pair
+        derivSend({contracts_for: pair.deriv, currency: 'USD', landing_company: 'virtual', product_type: 'basic'});
+      }
+    }
+  });
+}
+
 function handleContractsFor(data, symbol){
   if(!data || !data.available) return;
-  // Deriv retorna profit_percentage direto
-  const c = data.available.find(c=>c.contract_type==='CALL' || c.contract_type==='MULTUP');
-  if(!c) return;
+  const calls = data.available.filter(c=>c.contract_type==='CALL'||c.contract_type==='DIGITOVER');
+  if(!calls.length) return;
+  const c = calls[0];
   let po = null;
-  if(c.profit_percentage) po = Math.round(parseFloat(c.profit_percentage));
-  else if(c.payout_limit) po = Math.round(parseFloat(c.payout_limit));
-  if(po && po>0 && po<200) updatePairPayout(symbol, po);
+  if(c.payout_limit) po = Math.round(parseFloat(c.payout_limit)*100);
+  if(!po && c.profit_percentage) po = Math.round(parseFloat(c.profit_percentage));
+  if(!po) po = 85; // default fallback
+  if(po>0 && po<=200) updatePairPayout(symbol, po);
 }
 
 function handleBalance(bal){
@@ -954,9 +972,7 @@ const pairPayouts = {};
 
 function fetchPayouts(){
   if(!wsReady) return;
-  PAIRS.forEach(p=>{
-    derivSend({contracts_for: p.deriv, currency: 'USD', landing_company: 'svg', product_type: 'basic'});
-  });
+  derivSend({active_symbols:'brief', product_type:'basic'});
 }
 
 function updatePairPayout(symbol, payout){
@@ -1204,36 +1220,85 @@ const BASE_PRICES={
   frxGBPJPY:189.20,frxUSDCHF:0.8980,frxEURAUD:1.6680,frxGBPAUD:1.9410,
   frxAUDJPY:97.40, frxEURCAD:1.4820,frxUSDMXN:17.15
 };
+// Candle data: array de {o,h,l,c}
+let candleOHLC = [];
+
 function initChart(){
   const base=BASE_PRICES[PAIRS[S.pair].deriv]||1.0873;
   const vol=base>10?0.08:base>2?0.002:0.0003;
   S.chartTick=base; S.chartData=[];
+  candleOHLC=[];
   let p=base;
-  for(let i=0;i<60;i++){p+=(Math.random()-.5)*vol*2;S.chartData.push(p);}
+  for(let i=0;i<50;i++){
+    const o=p;
+    const h=o+(Math.random()*vol*2);
+    const l=o-(Math.random()*vol*2);
+    const c=l+(Math.random()*(h-l));
+    p=c;
+    candleOHLC.push({o,h,l,c});
+    S.chartData.push(c);
+  }
   document.getElementById('chartPrice').textContent=S.chartData[S.chartData.length-1].toFixed(base>10?3:5);
   drawChart();
 }
+
 function drawChart(){
   const c=document.getElementById('miniChart');if(!c)return;
   const dpr=window.devicePixelRatio||1;
   c.width=c.offsetWidth*dpr||440;c.height=80*dpr;
-  const ctx=c.getContext('2d'),d=S.chartData,w=c.width,h=c.height;
-  const mn=Math.min(...d)*.9999,mx=Math.max(...d)*1.0001,rng=mx-mn;
+  const ctx=c.getContext('2d'),w=c.width,h=c.height;
+  const d=candleOHLC.length>0?candleOHLC:S.chartData.map((v,i,a)=>{
+    const prev=a[i-1]||v;return{o:prev,h:Math.max(prev,v),l:Math.min(prev,v),c:v};
+  });
+  if(!d.length)return;
+  const allH=d.map(x=>x.h),allL=d.map(x=>x.l);
+  const mn=Math.min(...allL),mx=Math.max(...allH),rng=mx-mn||0.0001;
   ctx.clearRect(0,0,w,h);
+  // Grid
   ctx.strokeStyle='rgba(26,45,79,.5)';ctx.lineWidth=1;
   for(let i=0;i<4;i++){const y=(h/4)*i;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
-  const gr=ctx.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(0,229,255,.2)');gr.addColorStop(1,'rgba(0,229,255,0)');
-  ctx.beginPath();d.forEach((v,i)=>{const x=(i/(d.length-1))*w,y=h-((v-mn)/rng)*h;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
-  ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fillStyle=gr;ctx.fill();
-  ctx.beginPath();ctx.strokeStyle='#00e5ff';ctx.lineWidth=2*dpr;
-  d.forEach((v,i)=>{const x=(i/(d.length-1))*w,y=h-((v-mn)/rng)*h;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();
-  const lv=d[d.length-1],lx=w,ly=h-((lv-mn)/rng)*h;
-  ctx.beginPath();ctx.arc(lx-4*dpr,ly,4*dpr,0,Math.PI*2);ctx.fillStyle='#00e5ff';ctx.fill();
+  // Candles
+  const cw=Math.max(2,(w/d.length)*0.7);
+  d.forEach((cd,i)=>{
+    const x=(i+0.5)*(w/d.length);
+    const isGreen=cd.c>=cd.o;
+    const color=isGreen?'#00e676':'#ff1744';
+    const oy=h-((cd.o-mn)/rng)*h;
+    const cy=h-((cd.c-mn)/rng)*h;
+    const hy=h-((cd.h-mn)/rng)*h;
+    const ly=h-((cd.l-mn)/rng)*h;
+    // Wick
+    ctx.strokeStyle=color;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(x,ly);ctx.stroke();
+    // Body
+    const bodyY=Math.min(oy,cy);
+    const bodyH=Math.max(Math.abs(cy-oy),2);
+    ctx.fillStyle=color;
+    ctx.fillRect(x-cw/2,bodyY,cw,bodyH);
+  });
+  // Preço atual
+  const last=d[d.length-1];
+  const ly2=h-((last.c-mn)/rng)*h;
+  ctx.beginPath();ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(255,214,0,.5)';ctx.lineWidth=1;
+  ctx.moveTo(0,ly2);ctx.lineTo(w,ly2);ctx.stroke();ctx.setLineDash([]);
 }
+
 function updateChart(){
-  S.chartTick+=(Math.random()-.5)*.0004;S.chartData.push(S.chartTick);
+  const base=S.chartTick||1.0873;
+  const vol=base>10?0.04:base>2?0.001:0.00015;
+  S.chartTick+=(Math.random()-.5)*vol;
+  const last=candleOHLC[candleOHLC.length-1];
+  if(last){
+    last.c=S.chartTick;
+    last.h=Math.max(last.h,S.chartTick);
+    last.l=Math.min(last.l,S.chartTick);
+  } else {
+    candleOHLC.push({o:S.chartTick,h:S.chartTick,l:S.chartTick,c:S.chartTick});
+  }
+  S.chartData.push(S.chartTick);
   if(S.chartData.length>80)S.chartData.shift();
-  drawChart();document.getElementById('chartPrice').textContent=S.chartTick.toFixed(5);
+  drawChart();
+  document.getElementById('chartPrice').textContent=S.chartTick.toFixed(base>10?3:5);
 }
 
 // ============================================================
@@ -1279,11 +1344,17 @@ function renderHistory(){
   el.innerHTML=tradeHistory.slice().reverse().map(t=>{
     let resHtml='';
     if(t.result==='pending'){
-      resHtml=`<span class="hresult pend">⏳ ${t.remaining}s</span>`;
+      // Calcula P&L parcial em tempo real
+      const cur=S.chartTick||t.entryPrice;
+      const diff=cur-t.entryPrice;
+      const winning=t.isBuy?(diff>0):(diff<0);
+      const pnlColor=winning?'#00e676':'#ff1744';
+      const pnlIcon=winning?'📈':'📉';
+      resHtml=`<span class="hresult pend" style="color:${pnlColor}">${pnlIcon} ⏳${t.remaining}s</span>`;
     } else if(t.result==='win'){
-      resHtml=`<span class="hresult win">+R$${t.profit}</span>`;
+      resHtml=`<span class="hresult win">✅ +US$${t.profit}</span>`;
     } else {
-      resHtml=`<span class="hresult loss">-R$${t.stake}</span>`;
+      resHtml=`<span class="hresult loss">❌ -US$${t.stake}</span>`;
     }
     return`<div class="hrow ${t.side.toLowerCase()}">
       <span class="hbadge ${t.side.toLowerCase()}">${t.side==='BUY'?'⬆ BUY':'⬇ SELL'}</span>
@@ -1362,7 +1433,7 @@ function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit){
     notify(won?`✅ GANHOU +US$${profit}`:`❌ PERDEU -US$${stake}`);
   }
   // Atualiza saldo real da conta
-  if(wsReady && userToken) derivSend({balance:1, account:'current'});
+  if(wsReady && userToken) derivSend({balance:1});
 }
 
 function closeModal(){
