@@ -1378,157 +1378,186 @@ function calcChartRSI(data,p=14){
 }
 
 function drawChart(){
-  const c=document.getElementById('miniChart');if(!c)return;
-  const dpr=window.devicePixelRatio||1;
-  const chartW=c.parentElement?c.parentElement.clientWidth:440;
-  c.width=(chartW||440)*dpr;
-  c.height=140*dpr;
-  c.style.width=(chartW||440)+'px';
-  c.style.height='140px';
-  const ctx=c.getContext('2d'),w=c.width,h=c.height;
+  const c=document.getElementById('miniChart');
+  if(!c||!c.parentElement)return;
 
+  const dpr=window.devicePixelRatio||1;
+  // Usa offsetWidth do card pai para evitar travamento
+  const parent=c.parentElement;
+  const W=Math.floor(parent.offsetWidth||360);
+  const H=150;
+
+  // Só redimensiona se mudou — evita travamento
+  if(c.width!==W*dpr||c.height!==H*dpr){
+    c.width=W*dpr;
+    c.height=H*dpr;
+    c.style.width=W+'px';
+    c.style.height=H+'px';
+  }
+
+  const ctx=c.getContext('2d');
+  const w=c.width,h=c.height;
+
+  // Dados
   const d=candleOHLC.length>0?candleOHLC:S.chartData.map((v,i,a)=>{
     const prev=a[i-1]||v;return{o:prev,h:Math.max(prev,v),l:Math.min(prev,v),c:v};
   });
-  if(!d.length)return;
+  if(!d||!d.length){ctx.clearRect(0,0,w,h);return;}
 
-  const closes=d.map(x=>x.c);
-  const ema5=calcChartEMA(closes,5);
-  const ema13=calcChartEMA(closes,13);
+  // Mostra últimos 60 candles para melhor visualização
+  const visible=d.slice(-60);
+  const closes=visible.map(x=>x.c);
+  const ema5arr=calcChartEMA(closes,5);
+  const ema13arr=calcChartEMA(closes,13);
   const rsiData=calcChartRSI(closes,14);
   const lastRSI=rsiData[rsiData.length-1]||50;
 
-  // Update RSI value display
+  // RSI display
   const rsiEl=document.getElementById('rsiVal');
   if(rsiEl){
     rsiEl.textContent=lastRSI.toFixed(1);
     rsiEl.style.color=lastRSI>70?'#ff1744':lastRSI<30?'#00e676':'#00e5ff';
   }
 
-  const allH=d.map(x=>x.h),allL=d.map(x=>x.l);
-  const mn=Math.min(...allL)*0.9999,mx=Math.max(...allH)*1.0001,rng=mx-mn||0.0001;
+  const allH=visible.map(x=>x.h),allL=visible.map(x=>x.l);
+  const mn=Math.min(...allL),mx=Math.max(...allH);
+  const pad=(mx-mn)*0.05||0.0001;
+  const lo=mn-pad,hi=mx+pad,rng=hi-lo;
 
   ctx.clearRect(0,0,w,h);
 
-  // Background grid
-  ctx.strokeStyle='rgba(26,45,79,.4)';ctx.lineWidth=1;
+  // Fundo
+  ctx.fillStyle='#060d1a';ctx.fillRect(0,0,w,h);
+
+  // Grid horizontal
+  ctx.strokeStyle='rgba(26,45,79,.6)';ctx.lineWidth=1;
+  const dec=closes[0]>10?2:5;
   for(let i=0;i<=4;i++){
-    const y=(h/4)*i;
+    const y=Math.floor((h/4)*i)+0.5;
     ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
-    // Price label
-    const price=mx-((y/h)*rng);
-    ctx.fillStyle='rgba(160,196,232,.5)';ctx.font=`${9*dpr}px Share Tech Mono`;
-    ctx.fillText(price.toFixed(closes[0]>10?3:5),4,y-3);
+    const price=hi-((y/h)*rng);
+    ctx.fillStyle='rgba(160,196,232,.4)';
+    ctx.font=`${Math.floor(8*dpr)}px monospace`;
+    ctx.fillText(price.toFixed(dec),3,y-2);
   }
 
-  const cw=Math.max(2*dpr,(w/d.length)*0.65);
-  const xPos=(i)=>(i+0.5)*(w/d.length);
-  const yPos=(v)=>h-((v-mn)/rng)*h;
+  const N=visible.length;
+  const candleW=Math.max(2,(w/N)*0.7);
+  const xP=(i)=>Math.floor((i+0.5)*(w/N));
+  const yP=(v)=>Math.floor(h-((v-lo)/rng)*h);
 
   // Candles
-  d.forEach((cd,i)=>{
-    const x=xPos(i);
-    const isGreen=cd.c>=cd.o;
-    const color=isGreen?'#00e676':'#ff1744';
-    const oy=yPos(cd.o),cy=yPos(cd.c),hy=yPos(cd.h),ly=yPos(cd.l);
+  visible.forEach((cd,i)=>{
+    const x=xP(i);
+    const bull=cd.c>=cd.o;
+    const col=bull?'#00e676':'#ff1744';
+    const oy=yP(cd.o),cy=yP(cd.c),hy=yP(cd.h),ly=yP(cd.l);
     // Wick
-    ctx.strokeStyle=color;ctx.lineWidth=Math.max(1,dpr*0.8);
-    ctx.beginPath();ctx.moveTo(x,hy);ctx.lineTo(x,ly);ctx.stroke();
+    ctx.strokeStyle=col;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x+0.5,hy);ctx.lineTo(x+0.5,ly);ctx.stroke();
     // Body
-    const bodyY=Math.min(oy,cy);
-    const bodyH=Math.max(Math.abs(cy-oy),2*dpr);
-    ctx.fillStyle=color;
-    ctx.fillRect(x-cw/2,bodyY,cw,bodyH);
+    const by=Math.min(oy,cy);
+    const bh=Math.max(Math.abs(cy-oy),2);
+    ctx.fillStyle=bull?'#00e676':'#ff1744';
+    ctx.fillRect(x-candleW/2,by,candleW,bh);
   });
 
-  // EMA 5 — cyan
-  ctx.beginPath();ctx.strokeStyle='rgba(0,229,255,.8)';ctx.lineWidth=1.5*dpr;
-  ema5.forEach((v,i)=>{const x=xPos(i),y=yPos(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  // EMA 5 cyan
+  ctx.beginPath();ctx.strokeStyle='rgba(0,229,255,.9)';ctx.lineWidth=1.5;
+  ema5arr.forEach((v,i)=>{const x=xP(i),y=yP(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
   ctx.stroke();
 
-  // EMA 13 — yellow
-  ctx.beginPath();ctx.strokeStyle='rgba(255,214,0,.8)';ctx.lineWidth=1.5*dpr;
-  ema13.forEach((v,i)=>{const x=xPos(i),y=yPos(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  // EMA 13 yellow
+  ctx.beginPath();ctx.strokeStyle='rgba(255,214,0,.9)';ctx.lineWidth=1.5;
+  ema13arr.forEach((v,i)=>{const x=xP(i),y=yP(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
   ctx.stroke();
 
   // Trade markers
   tradeMarkers.forEach(m=>{
-    const i=Math.min(m.idx,d.length-1);
-    const x=xPos(i);
+    const idx=visible.length-1-(d.length-1-m.idx);
+    if(idx<0||idx>=visible.length)return;
+    const x=xP(idx);
     const isBuy=m.side==='BUY';
-    const baseY=isBuy?yPos(d[i].l)+12*dpr:yPos(d[i].h)-12*dpr;
-    // Arrow
-    ctx.fillStyle=isBuy?'#00e676':'#ff1744';
-    ctx.font=`${14*dpr}px Arial`;
+    ctx.font=`${12*dpr}px Arial`;
     ctx.textAlign='center';
-    ctx.fillText(isBuy?'▲':'▼',x,baseY);
-    // Result badge if resolved
+    ctx.fillStyle=isBuy?'#00e676':'#ff1744';
+    const my=isBuy?yP(visible[idx].l)+10:yP(visible[idx].h)-10;
+    ctx.fillText(isBuy?'▲':'▼',x,my);
     if(m.result){
-      ctx.font=`bold ${9*dpr}px Orbitron`;
+      ctx.font=`bold ${9*dpr}px Arial`;
       ctx.fillStyle=m.result==='win'?'#00e676':'#ff1744';
-      ctx.fillText(m.result==='win'?'W':'L',x,baseY+(isBuy?14:-14)*dpr);
+      ctx.fillText(m.result==='win'?'W':'L',x,my+(isBuy?12:-12));
     }
     ctx.textAlign='left';
   });
 
-  // Current price line
-  const last=d[d.length-1];
-  const lastY=yPos(last.c);
-  const isUp=last.c>=last.o;
-  ctx.beginPath();ctx.setLineDash([3,3]);
-  ctx.strokeStyle=isUp?'rgba(0,230,118,.6)':'rgba(255,23,68,.6)';
+  // Linha de preço atual
+  const last=visible[visible.length-1];
+  const ly2=yP(last.c);
+  const bull2=last.c>=last.o;
+  ctx.setLineDash([4,4]);
+  ctx.strokeStyle=bull2?'rgba(0,230,118,.5)':'rgba(255,23,68,.5)';
   ctx.lineWidth=1;
-  ctx.moveTo(0,lastY);ctx.lineTo(w,lastY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,ly2);ctx.lineTo(w,ly2);ctx.stroke();
   ctx.setLineDash([]);
 
-  // Price label on right
-  ctx.fillStyle=isUp?'#00e676':'#ff1744';
-  ctx.font=`bold ${10*dpr}px Share Tech Mono`;
-  ctx.fillText(last.c.toFixed(last.c>10?3:5),w-80*dpr,lastY-3);
+  // Label preço
+  const priceStr=last.c.toFixed(dec);
+  const labelW=priceStr.length*6*dpr+8;
+  ctx.fillStyle=bull2?'#00e676':'#ff1744';
+  ctx.fillRect(w-labelW,ly2-8,labelW,14);
+  ctx.fillStyle='#000';
+  ctx.font=`bold ${9*dpr}px monospace`;
+  ctx.fillText(priceStr,w-labelW+4,ly2+3);
 
-  // Draw RSI chart
   drawRSI(rsiData);
 }
 
 function drawRSI(rsiData){
-  const c=document.getElementById('rsiChart');if(!c)return;
+  const c=document.getElementById('rsiChart');
+  if(!c||!c.parentElement)return;
   const dpr=window.devicePixelRatio||1;
-  const rsiW=c.parentElement?c.parentElement.clientWidth:440;
-  c.width=(rsiW||440)*dpr;c.height=40*dpr;
-  c.style.width=(rsiW||440)+'px';c.style.height='40px';
+  const W=Math.floor(c.parentElement.offsetWidth||360);
+  const H=40;
+  if(c.width!==W*dpr||c.height!==H*dpr){
+    c.width=W*dpr;c.height=H*dpr;
+    c.style.width=W+'px';c.style.height=H+'px';
+  }
   const ctx=c.getContext('2d'),w=c.width,h=c.height;
   ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='rgba(6,13,26,.8)';ctx.fillRect(0,0,w,h);
 
-  // Background
-  ctx.fillStyle='rgba(6,13,26,.5)';ctx.fillRect(0,0,w,h);
+  const y70=h*(1-0.7),y30=h*(1-0.3),y50=h*0.5;
+  ctx.fillStyle='rgba(255,23,68,.06)';ctx.fillRect(0,0,w,y70);
+  ctx.fillStyle='rgba(0,230,118,.06)';ctx.fillRect(0,y30,w,h-y30);
 
-  // Overbought/oversold zones
-  const y70=h-((70/100)*h),y30=h-((30/100)*h);
-  ctx.fillStyle='rgba(255,23,68,.08)';ctx.fillRect(0,0,w,y70);
-  ctx.fillStyle='rgba(0,230,118,.08)';ctx.fillRect(0,y30,w,h-y30);
-
-  // Lines
-  ctx.strokeStyle='rgba(255,23,68,.3)';ctx.lineWidth=1;ctx.setLineDash([2,2]);
+  ctx.setLineDash([3,3]);ctx.lineWidth=1;
+  ctx.strokeStyle='rgba(255,23,68,.25)';
   ctx.beginPath();ctx.moveTo(0,y70);ctx.lineTo(w,y70);ctx.stroke();
-  ctx.strokeStyle='rgba(0,230,118,.3)';
+  ctx.strokeStyle='rgba(0,230,118,.25)';
   ctx.beginPath();ctx.moveTo(0,y30);ctx.lineTo(w,y30);ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,255,.1)';
+  ctx.beginPath();ctx.moveTo(0,y50);ctx.lineTo(w,y50);ctx.stroke();
   ctx.setLineDash([]);
 
-  // RSI line
+  if(!rsiData||rsiData.length<2)return;
   const last=rsiData[rsiData.length-1]||50;
-  const color=last>70?'#ff1744':last<30?'#00e676':'#00e5ff';
-  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.5*dpr;
+  const col=last>70?'#ff1744':last<30?'#00e676':'#00e5ff';
+  ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=1.5;
   rsiData.forEach((v,i)=>{
-    const x=(i/(rsiData.length-1))*w;
-    const y=h-((v/100)*h);
+    const x=(i/(rsiData.length-1||1))*w;
+    const y=h-((Math.min(100,Math.max(0,v))/100)*h);
     i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   });
   ctx.stroke();
 
-  // Labels
-  ctx.fillStyle='rgba(160,196,232,.6)';ctx.font=`${8*dpr}px Share Tech Mono`;
-  ctx.fillText('70',2,y70-2);
-  ctx.fillText('30',2,y30-2);
+  ctx.fillStyle='rgba(160,196,232,.5)';
+  ctx.font=`${Math.floor(7*dpr)}px monospace`;
+  ctx.fillText('70',2,y70-1);
+  ctx.fillText('30',2,y30-1);
+  ctx.fillStyle=col;
+  ctx.font=`bold ${Math.floor(8*dpr)}px monospace`;
+  ctx.fillText(last.toFixed(0),w-22,8);
 }
 
 function updateChart(){
