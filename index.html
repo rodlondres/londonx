@@ -887,36 +887,52 @@ function handleActiveSymbols(symbols){
 }
 
 function handleContractsFor(data, symbol){
-  if(!data || !data.available) return;
-  const calls = data.available.filter(c=>c.contract_type==='CALL'||c.contract_type==='DIGITOVER');
+  if(!data||!data.available) return;
+  // Pega contrato CALL de maior payout
+  const calls=data.available.filter(c=>c.contract_type==='CALL');
   if(!calls.length) return;
-  const c = calls[0];
-  let po = null;
-  if(c.payout_limit) po = Math.round(parseFloat(c.payout_limit)*100);
-  if(!po && c.profit_percentage) po = Math.round(parseFloat(c.profit_percentage));
-  if(!po) po = 85; // default fallback
-  if(po>0 && po<=200) updatePairPayout(symbol, po);
+  // Deriv retorna payout como número ex: 1.85 = 85% de lucro
+  let po=null;
+  calls.forEach(c=>{
+    if(c.payout_limit){
+      const v=parseFloat(c.payout_limit);
+      // Se for ex 1.85, converte para 85%
+      const pct = v>1 && v<3 ? Math.round((v-1)*100) : Math.round(v);
+      if(pct>50 && pct<100 && (!po||pct>po)) po=pct;
+    }
+  });
+  if(!po) po=85;
+  updatePairPayout(symbol, po);
 }
 
 function handleBalance(bal){
   if(!bal) return;
-  const status=document.getElementById('tokenStatus');
-  if(status){
-    const balVal=parseFloat(bal.balance).toFixed(2);
-    const cur=bal.currency||'USD';
-    const balEl=status.querySelector('.token-bal');
-    if(balEl) balEl.textContent=cur+' $'+balVal;
-  }
+  const balVal=parseFloat(bal.balance||0).toFixed(2);
+  const cur=bal.currency||'USD';
+  // Atualiza todos os elementos de saldo
+  document.querySelectorAll('.token-bal').forEach(el=>{
+    el.textContent=cur+' $'+balVal;
+  });
 }
 
 function handleTick(tick){
   tickerPrices[tick.symbol]=tick.quote;
   if(tick.symbol===PAIRS[S.pair].deriv){
-    S.chartTick=tick.quote;
-    S.chartData.push(tick.quote);
+    const price=tick.quote;
+    S.chartTick=price;
+    S.chartData.push(price);
     if(S.chartData.length>80)S.chartData.shift();
+    // Atualiza último candle com tick real
+    if(candleOHLC.length>0){
+      const last=candleOHLC[candleOHLC.length-1];
+      if(!last._open) last._open=price;
+      last.c=price;
+      last.h=Math.max(last.h,price);
+      last.l=Math.min(last.l,price);
+    }
     drawChart();
-    document.getElementById('chartPrice').textContent=tick.quote.toFixed(5);
+    const decimals=price>10?3:5;
+    document.getElementById('chartPrice').textContent=price.toFixed(decimals);
   }
   buildTickerFromReal();
 }
@@ -972,7 +988,12 @@ const pairPayouts = {};
 
 function fetchPayouts(){
   if(!wsReady) return;
-  derivSend({active_symbols:'brief', product_type:'basic'});
+  // Busca payout par a par
+  PAIRS.forEach((p,i)=>{
+    setTimeout(()=>{
+      derivSend({contracts_for: p.deriv, currency:'USD', landing_company:'virtual', product_type:'basic'});
+    }, i*300);
+  });
 }
 
 function updatePairPayout(symbol, payout){
