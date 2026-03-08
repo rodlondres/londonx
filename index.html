@@ -2421,9 +2421,9 @@ function closeModal(){
 }
 
 function executeTrade(side){
-  const dirProb = side==='BUY' ? (S.probBuy||S.prob) : (S.probSell||S.prob);
-  if(dirProb<55){notify('⚠ PROB. '+side+' BAIXA ('+dirProb+'%) — NÃO OPERADO');return;}
   if(bm.blocked){notify(bm.blockReason);return;}
+  const dirProb = side==='BUY' ? (S.probBuy||S.prob) : (S.probSell||S.prob);
+  if(dirProb<55) notify('⚠ PROB. BAIXA ('+dirProb+'%) — operando por decisão manual');
   const baseStake=parseFloat(document.getElementById('ecustom').value||'20');
   const stake=bankroll.getStake(S.strategy, baseStake);
   const btn=document.querySelector(side==='BUY'?'.buybtn':'.sellbtn');
