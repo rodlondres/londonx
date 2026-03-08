@@ -746,6 +746,10 @@ canvas{width:100%;display:block;}
       <div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,.3)"></div>
     </div>
   </div>
+  <!-- Botão fora do overflow:hidden para aparecer no iPhone -->
+  <button onclick="bm.resetDay()" style="display:block;width:100%;margin-top:12px;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-family:'Orbitron',monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;-webkit-appearance:none;appearance:none;box-sizing:border-box;">
+    🔄 RESETAR DIA
+  </button>
 </div>
 
 <!-- FILTERS -->
@@ -1501,14 +1505,18 @@ function renderConf(){
   else if(p>=55){ab.className='alert-b warn';at.textContent='⚠ CONFLUÊNCIA PARCIAL — AGUARDAR MAIS CONFIRMAÇÕES';}
   else{ab.className='alert-b danger';at.textContent='🚫 CONFLUÊNCIA FRACA — NÃO OPERAR AGORA';}
 
-  // Action subtexts - mostra prob BUY vs SELL para comparar
-  const ev=document.getElementById('ecustom').value||'20';
-  const buyProb=p;
-  const sellProb=100-p;
-  const buyColor=buyProb>=70?'#00e676':buyProb>=55?'#ffd600':'#ff6b6b';
-  const sellColor=sellProb>=70?'#00e676':sellProb>=55?'#ffd600':'#ff6b6b';
-  document.getElementById('buyTxt').innerHTML='<span style="color:'+buyColor+'">'+buyProb+'%</span> compra | US$'+ev;
-  document.getElementById('sellTxt').innerHTML='<span style="color:'+sellColor+'">'+sellProb+'%</span> venda | US$'+ev;
+  // Botões BUY/SELL — usa probBuy e probSell reais e independentes
+  const baseEv = parseFloat(document.getElementById('ecustom').value||'20');
+  const martStake = bankroll.getStake(S.strategy, baseEv);
+  const stratLbl = {cons:'',mart:` M${bankroll.martLevel+1}`,soros:` S${bankroll.sorosLevel+1}`}[S.strategy]||'';
+  const buyProb  = S.probBuy  || p;
+  const sellProb = S.probSell || (100-p);
+  const buyColor  = buyProb>=70?'#00e676':buyProb>=55?'#ffd600':'#ff6b6b';
+  const sellColor = sellProb>=70?'#00e676':sellProb>=55?'#ffd600':'#ff6b6b';
+  document.getElementById('buyTxt').innerHTML =
+    '<span style="color:'+buyColor+'">'+buyProb+'%</span> compra | US$'+martStake+stratLbl;
+  document.getElementById('sellTxt').innerHTML =
+    '<span style="color:'+sellColor+'">'+sellProb+'%</span> venda | US$'+martStake+stratLbl;
 
   // Tech score badge
   document.getElementById('techScore').textContent=S.srcScores['tech']+'/'+SOURCES[0].maxPts;
@@ -2228,14 +2236,28 @@ const bm = {
       const data = JSON.parse(raw);
       const today = new Date().toDateString();
       if(data.date === today){
-        // Mesmo dia — restaura estado
         this.dayStartBal = data.dayStartBal;
         this.dayPnl = data.dayPnl;
         this.dayWins = data.dayWins;
         this.dayLosses = data.dayLosses;
       }
-      // Outro dia — começa do zero (dayStartBal=null, será setado no primeiro saldo)
     }catch(e){}
+  },
+
+  resetDay(){
+    if(!confirm('Resetar o dia? Stop/Meta/Perdas sequenciais serão zerados.')) return;
+    this.dayPnl      = 0;
+    this.dayWins     = 0;
+    this.dayLosses   = 0;
+    this.seqLosses   = 0;
+    this.blocked     = false;
+    this.blockReason = '';
+    this.dayStartBal = null; // será setado no próximo saldo recebido
+    this.martLevel   = 0;
+    this.sorosLevel  = 0;
+    try{localStorage.removeItem('londonx_bm_day');}catch(e){}
+    this.updatePanel();
+    notify('🔄 Dia resetado — pode operar novamente!');
   },
 
   // --- Stake calculation ---
@@ -2297,7 +2319,8 @@ function openModal(side, ev, proposal){
   document.getElementById('modalTitle').className='modal-title '+(isBuy?'buy':'sell');
   document.getElementById('modalTime').textContent=time+' — '+pair+' — '+S.tf+' — '+DURATIONS[S_dur].l;
   document.getElementById('modalVal').textContent='US$'+stake+' ('+stratInfo+')';
-  document.getElementById('modalProb').textContent=S.prob+'%';
+  const dirProbModal = isBuy ? (S.probBuy||S.prob) : (S.probSell||S.prob);
+  document.getElementById('modalProb').textContent=dirProbModal+'%';
   document.getElementById('modalScore').textContent=S.totalScore+'/'+S.totalMax;
   document.getElementById('modalRegime').textContent=S.regime.toUpperCase();
 
@@ -2398,7 +2421,8 @@ function closeModal(){
 }
 
 function executeTrade(side){
-  if(S.prob<60){notify('⚠ PROB. BAIXA — NÃO OPERADO');return;}
+  const dirProb = side==='BUY' ? (S.probBuy||S.prob) : (S.probSell||S.prob);
+  if(dirProb<55){notify('⚠ PROB. '+side+' BAIXA ('+dirProb+'%) — NÃO OPERADO');return;}
   if(bm.blocked){notify(bm.blockReason);return;}
   const baseStake=parseFloat(document.getElementById('ecustom').value||'20');
   const stake=bankroll.getStake(S.strategy, baseStake);
@@ -2613,6 +2637,12 @@ function analyzeSignal(){
   // Probabilidade baseada em score E confluência de fontes
   const prob = Math.min(95, Math.round(38 + (score/totalMax)*38 + sourcesConfirming*4));
 
+  // Probabilidades reais e independentes para cada direção
+  const srcConfBuy  = Object.keys(buyPts).filter(k=>Math.min(buyPts[k],maxPts[k]) > Math.min(selPts[k]||0,maxPts[k])).length;
+  const srcConfSell = Object.keys(selPts).filter(k=>Math.min(selPts[k],maxPts[k]) > Math.min(buyPts[k]||0,maxPts[k])).length;
+  const probBuy  = Math.min(95, Math.round(38 + (totalBuy/totalMax)*38  + srcConfBuy*4));
+  const probSell = Math.min(95, Math.round(38 + (totalSell/totalMax)*38 + srcConfSell*4));
+
   // Atualiza S com os scores reais
   S.srcScores = {
     tech:  Math.min(srcScores.tech,  maxPts.tech),
@@ -2621,7 +2651,12 @@ function analyzeSignal(){
     quant: Math.min(srcScores.quant, maxPts.quant),
     ml:    Math.min(srcScores.ml,    maxPts.ml),
   };
-  S.dir = dir;
+  S.dir      = dir;
+  S.probBuy  = probBuy;
+  S.probSell = probSell;
+  S.totalBuy  = totalBuy;
+  S.totalSell = totalSell;
+
   if(!window._silentAnalysis){
     computeScore();
     renderConf();
@@ -2629,6 +2664,7 @@ function analyzeSignal(){
 
   return {
     dir, prob, score, totalMax, sourcesConfirming,
+    probBuy, probSell,
     reasons: allReasons,
     rsi: rNow.toFixed(1),
     zScore: zScore.toFixed(2),
@@ -2754,83 +2790,56 @@ const semiAuto = {
     if(this.currentSignal) return;
     this.ensureVol75();
 
-    this.setWaiting('🔍 Buscando VOL 75 · 1M, 3M, 5M...');
+    const tfLabel = S.tf || '3M';
+    const gran = {'1M':60,'3M':180,'5M':300,'15M':900}[tfLabel] || 180;
+    const count = {'1M':100,'3M':80,'5M':60,'15M':40}[tfLabel] || 80;
 
-    // Busca os 3 TFs em paralelo
-    const [c1m, c3m, c5m] = await Promise.all([
-      this.fetchCandlesTF(60,  100),
-      this.fetchCandlesTF(180, 80),
-      this.fetchCandlesTF(300, 60),
-    ]);
+    this.setWaiting(`🔍 Analisando VOL 75 · ${tfLabel}...`);
 
-    if(!this.active) return; // pode ter sido desativado enquanto buscava
+    // Busca candles do TF atual selecionado
+    const candles = await this.fetchCandlesTF(gran, count);
 
-    // Analisa cada TF
-    const sig1m = this.analyzeCandles(c1m);
-    const sig3m = this.analyzeCandles(c3m);
-    const sig5m = this.analyzeCandles(c5m);
+    if(!this.active) return;
 
-    const sigs = [
-      sig1m ? {tf:'1M', ...sig1m} : null,
-      sig3m ? {tf:'3M', ...sig3m} : null,
-      sig5m ? {tf:'5M', ...sig5m} : null,
-    ].filter(Boolean);
-
-    if(sigs.length===0){
-      this.setWaiting('VOL 75 · Dados insuficientes — aguardando...');
+    if(!candles || candles.length < 25){
+      this.setWaiting(`VOL 75 · ${tfLabel} · Aguardando dados...`);
       return;
     }
 
-    // Conta quantos TFs apontam para BUY e SELL
-    const buyTFs  = sigs.filter(s=>s.dir==='BUY');
-    const sellTFs = sigs.filter(s=>s.dir==='SELL');
-    const dominantDir = buyTFs.length >= sellTFs.length ? 'BUY' : 'SELL';
-    const dominantTFs = dominantDir==='BUY' ? buyTFs : sellTFs;
+    const sig = this.analyzeCandles(candles);
 
-    // Exige pelo menos 2/3 TFs alinhados
-    if(dominantTFs.length < 2){
-      const info=`VOL 75 · TFs divididos: ${buyTFs.length} BUY / ${sellTFs.length} SELL · aguardando alinhamento`;
-      this.setWaiting(info);
+    if(!sig){
+      this.setWaiting(`VOL 75 · ${tfLabel} · Erro na análise`);
       return;
     }
 
-    // Pega o sinal do TF mais confiável (maior score * fontes)
-    const best = dominantTFs.reduce((a,b)=>(b.score*b.sourcesConfirming > a.score*a.sourcesConfirming)?b:a);
-
-    // Verifica confluência mínima no melhor TF
-    if(best.sourcesConfirming < this.minSources || best.prob < this.minProb){
-      const info=`VOL 75 · ${dominantTFs.length}/3 TFs · melhor: ${best.tf} ${best.sourcesConfirming}/5 fontes ${best.prob}%`;
-      this.setWaiting(info);
+    // Mostra status mesmo sem sinal
+    if(sig.sourcesConfirming < this.minSources || sig.prob < this.minProb){
+      const dir = sig.dir==='BUY' ? '⬆' : '⬇';
+      this.setWaiting(`VOL 75 · ${tfLabel} · ${dir} ${sig.prob}% · ${sig.sourcesConfirming}/5 fontes — aguardando confluência`);
       return;
     }
 
-    // ✅ SINAL VALIDADO — multi-TF alinhado
-    best.alignedTFs = dominantTFs.map(s=>s.tf).join('+');
-    best.tfScores   = {
-      '1M': sig1m ? `${sig1m.dir==='BUY'?'⬆':'⬇'} ${sig1m.prob}%` : '—',
-      '3M': sig3m ? `${sig3m.dir==='BUY'?'⬆':'⬇'} ${sig3m.prob}%` : '—',
-      '5M': sig5m ? `${sig5m.dir==='BUY'?'⬆':'⬇'} ${sig5m.prob}%` : '—',
-    };
+    // ✅ SINAL VALIDADO no TF selecionado
+    sig.alignedTFs = tfLabel;
+    sig.tfScores   = { [tfLabel]: `${sig.dir==='BUY'?'⬆':'⬇'} ${sig.prob}%` };
 
-    // Muda para o TF do melhor sinal para o gráfico
-    if(S.tf !== best.tf) selectTF(best.tf);
-
-    this.currentSignal = best;
+    this.currentSignal = sig;
     this.stats.signals++;
     this.updateStats();
-    this.showSignal(best);
+    this.showSignal(sig);
     this.startSignalTimer(45);
-    this.playAlert(best.dir);
+    this.playAlert(sig.dir);
     try{ if(navigator.vibrate) navigator.vibrate([200,100,200,100,400]); }catch(e){}
     try{
       if(Notification.permission==='granted'){
         new Notification('🤖 LONDONX — SINAL VOL 75', {
-          body:`${best.dir==='BUY'?'⬆ COMPRAR':'⬇ VENDER'} · ${best.prob}% · ${best.alignedTFs} alinhados`,
+          body:`${sig.dir==='BUY'?'⬆ COMPRAR':'⬇ VENDER'} · ${sig.prob}% · ${tfLabel}`,
           tag:'londonx-signal', requireInteraction:true
         });
       }
     }catch(e){}
-    this.startPulse(best.dir);
+    this.startPulse(sig.dir);
   },
 
   playAlert(dir){
