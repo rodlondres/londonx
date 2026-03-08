@@ -672,17 +672,17 @@ canvas{width:100%;display:block;}
   </div>
 </div>
 
-<!-- ML -->
-<div class="slabel">🤖 MACHINE LEARNING — Contribuição: 16%</div>
+<!-- VOLATILIDADE -->
+<div class="slabel">📊 VOLATILIDADE / BB — Contribuição: 16%</div>
 <div class="ml-card">
   <div style="display:flex;justify-content:space-between;align-items:center">
-    <div><span class="ml-spin"></span><span style="font-size:9px;letter-spacing:2px;color:var(--purple)">MODELO ADAPTATIVO ATIVO</span></div>
-    <span style="font-size:9px;color:#a0c4e8;font-family:'Share Tech Mono'">v2.4.1</span>
+    <div><span class="ml-spin" style="border-top-color:#ff9800"></span><span style="font-size:9px;letter-spacing:2px;color:#ff9800">ANÁLISE DE VOLATILIDADE ATIVA</span></div>
+    <span id="volSignalLbl" style="font-size:9px;color:#a0c4e8;font-family:'Share Tech Mono'">—</span>
   </div>
   <div class="ml-grid">
-    <div class="ml-item"><div class="ml-v" id="mlAcc">71.4%</div><div class="ml-l">PRECISÃO</div></div>
-    <div class="ml-item"><div class="ml-v" id="mlSamples">1,847</div><div class="ml-l">AMOSTRAS</div></div>
-    <div class="ml-item"><div class="ml-v" id="mlAdapt">+2.1%</div><div class="ml-l">ADAPTAÇÃO</div></div>
+    <div class="ml-item"><div class="ml-v" style="color:#ff9800" id="volBBW">—</div><div class="ml-l">BB WIDTH</div></div>
+    <div class="ml-item"><div class="ml-v" style="color:#ff9800" id="volATR">—</div><div class="ml-l">ATR</div></div>
+    <div class="ml-item"><div class="ml-v" style="color:#ff9800" id="volState">—</div><div class="ml-l">ESTADO</div></div>
   </div>
 </div>
 
@@ -854,7 +854,7 @@ const SOURCES=[
   {id:'price', name:'PRICE ACTION',  icon:'🕯', color:'#00e676', maxPts:5, wt:'20%'},
   {id:'tape',  name:'TAPE READING',  icon:'📡', color:'#ffd600', maxPts:5, wt:'20%'},
   {id:'quant', name:'QUANTITATIVA',  icon:'📐', color:'#ff6d00', maxPts:5, wt:'20%'},
-  {id:'ml',    name:'MACHINE LEARN.',icon:'🤖', color:'#7c4dff', maxPts:4, wt:'16%'},
+  {id:'ml',    name:'VOLATILIDADE',  icon:'📊', color:'#ff9800', maxPts:4, wt:'16%'},
 ];
 
 const INDICATORS=[
@@ -903,7 +903,7 @@ const ADATA={
     {l:'Correlação par',   v:'0.76',          c:'bull',bar:76,sc:1},
   ],
   ml:[
-    {l:'Predição ML',      v:'COMPRA',        c:'bull',bar:71,sc:1},
+    {l:'BB Width',         v:'EXPANDINDO',    c:'bull',bar:71,sc:1},
     {l:'Confiança',        v:'71.4%',         c:'bull',bar:71,sc:1},
     {l:'Match Padrão',     v:'87%',           c:'bull',bar:87,sc:1},
     {l:'Adaptação',        v:'POSITIVA',      c:'bull',bar:64,sc:1},
@@ -1992,7 +1992,7 @@ function randomAll(){
   computeScore();renderConf();buildAContent();updateTape();
   document.getElementById('mlAcc').textContent=(65+Math.random()*10).toFixed(1)+'%';
   document.getElementById('mlSamples').textContent=(1800+Math.floor(Math.random()*200)).toLocaleString();
-  document.getElementById('mlAdapt').textContent=(Math.random()>.5?'+':'-')+(Math.random()*3).toFixed(1)+'%';
+  // volState atualizado em analyzeSignal
   document.getElementById('adxVal').textContent=(20+Math.random()*15).toFixed(1);
   document.getElementById('atrVal').textContent=(0.001+Math.random()*.0005).toFixed(4);
   document.getElementById('bbwVal').textContent=(0.003+Math.random()*.001).toFixed(4);
@@ -2606,13 +2606,65 @@ function analyzeSignal(){
   // ATR adequado para entrar
   if(atr>0){buyPts.quant+=1;selPts.quant+=1;} // mercado tem movimento suficiente
 
-  // 🤖 ML / PADRÃO ADAPTATIVO (max 4)
-  // Simula score ML baseado em padrão combinado real
-  const mlBuy  = (buyPts.tech + buyPts.price*1.2 + buyPts.tape*0.8 + buyPts.quant) / 4;
-  const mlSell = (selPts.tech + selPts.price*1.2 + selPts.tape*0.8 + selPts.quant) / 4;
-  const mlScore = Math.max(mlBuy, mlSell);
-  if(mlBuy > mlSell && mlScore>1.5){buyPts.ml+=Math.min(4,Math.round(mlScore));reasons.buy.push('Padrão ML confirma BUY ('+mlScore.toFixed(1)+')');}
-  if(mlSell > mlBuy && mlScore>1.5){selPts.ml+=Math.min(4,Math.round(mlScore));reasons.sell.push('Padrão ML confirma SELL ('+mlScore.toFixed(1)+')');}
+  // 📊 VOLATILIDADE / BB (max 4)
+  // BB Width = (upper - lower) / middle — mede compressão/expansão
+  const bbWArr = closes.map((v,i)=>{
+    if(i<19) return null;
+    const sl=closes.slice(i-19,i+1);
+    const m=sl.reduce((a,b)=>a+b,0)/20;
+    const s=Math.sqrt(sl.reduce((a,b)=>a+(b-m)**2,0)/20)||0.0001;
+    return (m+2*s - (m-2*s)) / m; // BB width %
+  }).filter(Boolean);
+  const bbWNow  = bbWArr[bbWArr.length-1]  || 0;
+  const bbWPrev = bbWArr[bbWArr.length-4]  || bbWNow;
+  const bbWMean = bbWArr.slice(-20).reduce((a,b)=>a+b,0) / Math.min(bbWArr.length,20);
+  const bbExpanding = bbWNow > bbWPrev * 1.02;   // BB expandindo
+  const bbContracting = bbWNow < bbWPrev * 0.98; // BB contraindo
+  const bbSqueeze = bbWNow < bbWMean * 0.7;      // compressão forte — explosão vem
+  const bbExhaust = bbWNow > bbWMean * 1.8;      // muito expandida — exaustão
+  // ATR relativo — está crescendo ou caindo?
+  const atrNow  = atr;
+  const atrArr  = closes.slice(-10).map((v,i,a)=>i>0?Math.abs(v-a[i-1]):0);
+  const atrPrev = atrArr.slice(0,-1).reduce((a,b)=>a+b,0) / (atrArr.length-1) || atr;
+  const atrGrowing = atrNow > atrPrev * 1.05;
+
+  // Pontuação: entrada ideal = BB expandindo + ATR crescendo + sem exaustão
+  if(bbExhaust){
+    // Mercado exausto — não favorece nenhuma direção
+    reasons.buy.push && null; // não adiciona razão
+  } else if(bbSqueeze){
+    // Squeeze: explosão iminente — favorece direção dominante
+    if(totalBuy > totalSell){ buyPts.ml+=2; reasons.buy.push('BB Squeeze — explosão bullish iminente'); }
+    else                     { selPts.ml+=2; reasons.sell.push('BB Squeeze — explosão bearish iminente'); }
+  } else if(bbExpanding && atrGrowing){
+    // Expansão + ATR crescendo = tendência forte
+    if(bull){ buyPts.ml+=3; reasons.buy.push('BB expandindo + ATR crescendo ↑'); }
+    else    { selPts.ml+=3; reasons.sell.push('BB expandindo + ATR crescendo ↓'); }
+    if(buyPts.ml>0||selPts.ml>0){ buyPts.ml > selPts.ml ? buyPts.ml++ : selPts.ml++; }
+  } else if(bbExpanding){
+    // Só expandindo
+    if(bull){ buyPts.ml+=2; reasons.buy.push('BB expandindo — volatilidade favorável ↑'); }
+    else    { selPts.ml+=2; reasons.sell.push('BB expandindo — volatilidade favorável ↓'); }
+  } else if(!bbContracting){
+    // Estável — 1pt neutro para direção dominante
+    if(totalBuy>=totalSell){ buyPts.ml+=1; } else { selPts.ml+=1; }
+  }
+
+  // Atualiza painel de volatilidade
+  if(!window._silentAnalysis){
+    const bbwPct=(bbWNow*100).toFixed(2);
+    const atrD=atr.toFixed(closes[0]>10?2:5);
+    const state=bbExhaust?'EXAUSTO':bbSqueeze?'SQUEEZE':bbExpanding?'EXPANDINDO':'ESTÁVEL';
+    const stateCol=bbExhaust?'#ff1744':bbSqueeze?'#ffd600':bbExpanding?'#00e676':'#a0c4e8';
+    const el=id=>document.getElementById(id);
+    if(el('volBBW'))   el('volBBW').textContent=bbwPct+'%';
+    if(el('volATR'))   el('volATR').textContent=atrD;
+    if(el('volState')){ el('volState').textContent=state; el('volState').style.color=stateCol; }
+    if(el('volSignalLbl')){
+      const sigTxt=buyPts.ml>selPts.ml?'📈 FAVORECE COMPRA':selPts.ml>buyPts.ml?'📉 FAVORECE VENDA':'⚪ NEUTRO';
+      el('volSignalLbl').textContent=sigTxt;
+    }
+  }
 
   // ── Total ──
   const maxPts = {tech:6,price:5,tape:5,quant:5,ml:4};
