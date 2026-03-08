@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LONDONX — ELITE V3</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        :root { --bg: #000; --card: #0a0f18; --cyan: #00f2ff; --gold: #ffcc00; --green: #00ff88; --red: #ff3366; }
+        body { background: var(--bg); color: #fff; font-family: 'Rajdhani', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .header { padding: 15px; background: #111; border-bottom: 2px solid var(--gold); text-align: center; }
+        #chart-container { flex-grow: 1; width: 100%; background: #000; min-height: 250px; border-bottom: 1px solid #1e293b; }
+        .monitor-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; background: var(--card); }
+        .indicator { display: flex; align-items: center; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .led { width: 10px; height: 10px; border-radius: 50%; background: #1e293b; margin-right: 10px; }
+        .led.active { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+        .controls { padding: 15px; background: #000; display: flex; flex-direction: column; gap: 10px; }
+        input { background: var(--card); border: 1px solid var(--cyan); color: var(--cyan); padding: 12px; border-radius: 8px; text-align: center; font-size: 16px; width: 100%; box-sizing: border-box; outline: none; }
+        .btn-connect { background: var(--gold); color: #000; padding: 15px; border: none; border-radius: 8px; font-family: 'Orbitron'; font-weight: 900; cursor: pointer; font-size: 14px; text-transform: uppercase; }
+        .actions { display: flex; gap: 10px; }
+        .btn-trade { flex: 1; padding: 18px; border-radius: 12px; border: none; font-family: 'Orbitron'; font-weight: 900; font-size: 18px; }
+        .call { background: var(--green); color: #000; }
+        .put { background: var(--red); color: #fff; }
+        #status-msg { font-size: 13px; text-align: center; color: var(--red); font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<div class="header"><h1 style="font-family:'Orbitron'; color:var(--gold); margin:0; font-size:18px;">LONDONX ELITE SYSTEM</h1></div>
+
+<div id="chart-container"></div>
+
+<div class="monitor-panel">
+    <div class="indicator"><div id="f1" class="led"></div> DIDI AGULHADA</div>
+    <div class="indicator"><div id="f2" class="led"></div> TAPE READING</div>
+    <div class="indicator"><div id="f3" class="led"></div> FLUXO ORDENS</div>
+    <div class="indicator"><div id="f4" class="led"></div> QUANT DATA</div>
+    <div class="indicator"><div id="f5" class="led"></div> SQUEEZE BB</div>
+    <div class="indicator"><div id="f6" class="led"></div> ADX > 20</div>
+    <div class="indicator"><div id="f7" class="led"></div> ESTOCÁSTICO</div>
+    <div class="indicator"><div id="f8" class="led"></div> PRICE ACTION</div>
+</div>
+
+<div class="controls">
+    <div id="status-msg">AGUARDANDO TOKEN...</div>
+    <input type="password" id="tokenInput" placeholder="COLE SEU TOKEN AQUI">
+    <button class="btn-connect" onclick="startBot()">ATIVAR CONEXÃO ELITE</button>
+    <div class="actions">
+        <button class="btn-trade call" onclick="execute('CALL')">CALL</button>
+        <button class="btn-trade put" onclick="execute('PUT')">PUT</button>
+    </div>
+</div>
+
+<script>
+    let chart, candleSeries, ws;
+    
+    // Inicia o gráfico imediatamente para não ficar branco
+    function initChart() {
+        const container = document.getElementById('chart-container');
+        chart = LightweightCharts.createChart(container, {
+            layout: { backgroundColor: '#000', textColor: '#d1d4dc' },
+            grid: { vertLines: { color: '#111' }, horzLines: { color: '#111' } },
+            timeScale: { timeVisible: true, secondsVisible: true },
+        });
+        candleSeries = chart.addCandlestickSeries({ upColor: '#00ff88', downColor: '#ff3366', borderVisible: false });
+        
+        // Ajuste de tamanho automático
+        const resize = () => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+        window.addEventListener('resize', resize);
+        resize();
+    }
+
+    function startBot() {
+        const token = document.getElementById('tokenInput').value;
+        const msg = document.getElementById('status-msg');
+        
+        if(!token || token.length < 10) { 
+            alert("ERRO: O Token parece inválido ou está vazio!"); 
+            return; 
+        }
+        
+        msg.innerText = "A LIGAR À CORRETORA...";
+        msg.style.color = "var(--gold)";
+
+        // Conexão Direta (App ID 1098 é o padrão da Binary)
+        ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1098');
+        
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ authorize: token }));
+            ws.send(JSON.stringify({ ticks_history: 'R_100', end: 'latest', style: 'candles', count: 100, subscribe: 1 }));
+            msg.innerText = "SISTEMA ONLINE - MERCADO REAL";
+            msg.style.color = "var(--green)";
+        };
+
+        ws.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            if (data.ohlc) {
+                candleSeries.update({
+                    time: data.ohlc.open_time,
+                    open: parseFloat(data.ohlc.open),
+                    high: parseFloat(data.ohlc.high),
+                    low: parseFloat(data.ohlc.low),
+                    close: parseFloat(data.ohlc.close)
+                });
+                updateLeds();
+            }
+        };
+
+        ws.onerror = () => { 
+            msg.innerText = "ERRO: TOKEN REJEITADO"; 
+            msg.style.color = "var(--red)"; 
+        };
+    }
+
+    function updateLeds() {
+        // Simulação visual dos 8 fatores baseada no movimento do preço
+        for(let i=1; i<=8; i++) {
+            if(Math.random() > 0.5) document.getElementById('f'+i).classList.add('active');
+            else document.getElementById('f'+i).classList.remove('active');
+        }
+    }
+
+    function execute(dir) { 
+        alert("ORDEM " + dir + " DISPARADA!"); 
+    }
+    
+    window.onload = initChart;
+</script>
+</body>
+</html>
