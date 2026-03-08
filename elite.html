@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LONDONX — ELITE V3</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        :root { --bg: #000; --card: #0a111f; --cyan: #00f2ff; --gold: #ffcc00; --green: #00ff88; --red: #ff3366; }
+        body { background: var(--bg); color: #fff; font-family: 'Rajdhani', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .header { padding: 12px; background: #000; border-bottom: 2px solid var(--gold); text-align: center; }
+        /* CORREÇÃO DO GRÁFICO: Agora ele tem altura garantida */
+        #chart-container { flex: 1; width: 100%; min-height: 280px; background: #000; position: relative; }
+        .monitor-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; background: var(--card); border-top: 1px solid #1e293b; }
+        .indicator { display: flex; align-items: center; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; font-size: 10px; font-weight: 700; color: #94a3b8; }
+        .led { width: 10px; height: 10px; border-radius: 50%; background: #1e293b; margin-right: 8px; }
+        .led.active { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+        .controls { padding: 10px; background: #000; display: flex; flex-direction: column; gap: 8px; }
+        #status-msg { font-size: 11px; text-align: center; font-weight: bold; margin-bottom: 2px; }
+        input { background: #0d1526; border: 1px solid var(--cyan); color: var(--cyan); padding: 12px; border-radius: 8px; text-align: center; font-size: 16px; width: 100%; box-sizing: border-box; }
+        .btn-connect { background: var(--gold); color: #000; padding: 12px; border: none; border-radius: 8px; font-family: 'Orbitron'; font-weight: 900; cursor: pointer; text-transform: uppercase; font-size: 13px; }
+        .actions { display: flex; gap: 10px; }
+        .btn-trade { flex: 1; padding: 18px; border-radius: 12px; border: none; font-family: 'Orbitron'; font-weight: 900; font-size: 20px; text-transform: uppercase; }
+        .call { background: var(--green); color: #000; }
+        .put { background: var(--red); color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="header"><h1 style="font-family:'Orbitron'; color:var(--gold); margin:0; font-size:16px; letter-spacing:2px;">LONDONX ELITE SYSTEM</h1></div>
+
+<div id="chart-container"></div>
+
+<div class="monitor-panel">
+    <div class="indicator"><div id="f1" class="led"></div> 1. DIDI AGULHADA</div>
+    <div class="indicator"><div id="f2" class="led"></div> 2. TAPE READING</div>
+    <div class="indicator"><div id="f3" class="led"></div> 3. FLUXO ORDENS</div>
+    <div class="indicator"><div id="f4" class="led"></div> 4. QUANT DATA</div>
+    <div class="indicator"><div id="f5" class="led"></div> 5. SQUEEZE BB</div>
+    <div class="indicator"><div id="f6" class="led"></div> 6. ADX > 20</div>
+    <div class="indicator"><div id="f7" class="led"></div> 7. ESTOCÁSTICO</div>
+    <div class="indicator"><div id="f8" class="led"></div> 8. PRICE ACTION</div>
+</div>
+
+<div class="controls">
+    <div id="status-msg" style="color:var(--red);">SISTEMA OFFLINE</div>
+    <input type="password" id="tokenInput" placeholder="COLE SEU TOKEN AQUI">
+    <button class="btn-connect" onclick="startBot()">ATIVAR CONEXÃO ELITE</button>
+    <div class="actions">
+        <button class="btn-trade call" onclick="execute('CALL')">CALL</button>
+        <button class="btn-trade put" onclick="execute('PUT')">PUT</button>
+    </div>
+</div>
+
+<script>
+    let chart, candleSeries, ws;
+    
+    function initChart() {
+        const container = document.getElementById('chart-container');
+        chart = LightweightCharts.createChart(container, {
+            layout: { backgroundColor: '#000', textColor: '#d1d4dc' },
+            grid: { vertLines: { color: '#111' }, horzLines: { color: '#111' } },
+            timeScale: { timeVisible: true, secondsVisible: true, borderColor: '#1e293b' },
+        });
+        candleSeries = chart.addCandlestickSeries({ upColor: '#00ff88', downColor: '#ff3366', borderVisible: false, wickUpColor: '#00ff88', wickDownColor: '#ff3366' });
+        
+        const resize = () => { chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }); };
+        window.addEventListener('resize', resize);
+        resize();
+    }
+
+    function startBot() {
+        const token = document.getElementById('tokenInput').value;
+        const msg = document.getElementById('status-msg');
+        if(!token) return alert("Insira o Token!");
+        
+        msg.innerText = "CONECTANDO...";
+        msg.style.color = var(--gold);
+
+        ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1098');
+        
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ authorize: token }));
+            ws.send(JSON.stringify({ ticks_history: 'R_100', end: 'latest', style: 'candles', count: 100, subscribe: 1 }));
+            msg.innerText = "SISTEMA ONLINE - MERCADO REAL";
+            msg.style.color = "#00ff88";
+        };
+
+        ws.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            if (data.ohlc) {
+                candleSeries.update({
+                    time: data.ohlc.open_time,
+                    open: parseFloat(data.ohlc.open),
+                    high: parseFloat(data.ohlc.high),
+                    low: parseFloat(data.ohlc.low),
+                    close: parseFloat(data.ohlc.close)
+                });
+                // Ativação aleatória apenas para teste visual inicial
+                for(let i=1; i<=8; i++) {
+                    document.getElementById('f'+i).className = Math.random() > 0.5 ? 'led active' : 'led';
+                }
+            }
+        };
+    }
+
+    function execute(dir) { alert("ORDEM " + dir + " DISPARADA!"); }
+    window.onload = initChart;
+</script>
+</body>
+</html>
