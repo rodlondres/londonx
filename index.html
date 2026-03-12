@@ -1260,7 +1260,7 @@ function computeScore(){
     const pts=Math.min(S.srcScores[s.id]||0, s.maxPts);
     t+=pts; m+=s.maxPts;
   });
-  S.totalScore=t; S.totalMax=m; // m=57 com 12 fontes
+  S.totalScore=t; S.totalMax=m; // m=57 com 13 fontes
   const pct=m>0?t/m:0;
   S.prob=Math.min(95,Math.round(38+pct*57));
 }
@@ -2235,7 +2235,7 @@ function renderConf(){
   var adxStr=(S.adxNow||0).toFixed(0);
   var adxLimitLbl=(agu_bull||agu_bear)?'20':'25';
   var isVolDisp = PAIRS[S.pair] && PAIRS[S.pair].vol;
-  var confTxt=nConf+'/12 | '+sessName+(isVolDisp?'':' | ADX '+adxStr+'>'+adxLimitLbl)+' | '+trendStr;
+  var confTxt=nConf+'/13 | '+sessName+(isVolDisp?'':' | ADX '+adxStr+'>'+adxLimitLbl)+' | '+trendStr;
 
   // Sinal FORTE: 9/13 + sessão ativa + tendência + ADX > 25
   var trendOkBtn = S.trendOk!==false;
@@ -2275,7 +2275,7 @@ function renderConf(){
     var waitMsg=!sessOk?'🕐 Sessão fechada':
                 !trendOk?'📈 Tendência '+Math.max(tBC2,tSC2)+'/3 — aguardando 2':
                 (!adxOk&&!isVolBtn)?'📊 ADX '+adxNowVal.toFixed(0)+' — aguardando >'+(adxLimit)+((agu_bull||agu_bear)?' 🎯 Agulhada':''):
-                '⏳ '+nConf+'/12 — aguardando 8';
+                '⏳ '+nConf+'/13 — aguardando 9';
     if(buyBtn){buyBtn.style.opacity='0.75';buyBtn.style.filter='none';buyBtn.style.boxShadow='none';}
     if(sellBtn){sellBtn.style.opacity='0.75';sellBtn.style.filter='none';sellBtn.style.boxShadow='none';}
     document.getElementById('buyTxt').innerHTML=
@@ -5506,7 +5506,7 @@ const semiAuto = {
   scanInterval: null,
   fetchInterval: null,
   stats: { signals:0, confirmed:0, ignored:0 },
-  minSources: 8,         // mínimo 8/12 fontes alinhadas
+  minSources: 9,         // mínimo 9/13 fontes alinhadas
   minProb: 65,           // probabilidade mínima
   scanEvery: 15000,      // escaneia a cada 15s (era 20s)
   // Semi-auto analisa qualquer par selecionado pelo usuário
@@ -5660,7 +5660,7 @@ const semiAuto = {
     const sessOkSemi = sig.sessOk !== false;
     const trendOkSemi = sig.trendOk !== false;
     const adxOkSemi = (PAIRS[S.pair]&&PAIRS[S.pair].vol) ? true : (sig.adxNow||0) >= ((sig.agulhadaBull||sig.agulhadaBear) ? 20 : 25);
-    const threshOkSemi = sig.thresholdOk === true; // já inclui 8/12 + sessão + tendência + ADX
+    const threshOkSemi = sig.thresholdOk === true; // já inclui 9/13 + sessão + tendência + ADX
     const probOkSemi = sig.prob >= this.minProb;
     const allConditions = threshOkSemi && probOkSemi;
 
@@ -5669,7 +5669,7 @@ const semiAuto = {
       const why = !sessOkSemi ? '🕐 Sessão fechada' :
                   !trendOkSemi ? '📈 Tendência insuficiente' :
                   !adxOkSemi ? '📊 ADX '+(sig.adxNow||0).toFixed(0)+' — sem tendência' :
-                  sig.sourcesConfirming < this.minSources ? sig.sourcesConfirming+'/12 — aguardando 8' :
+                  sig.sourcesConfirming < this.minSources ? sig.sourcesConfirming+'/13 — aguardando 9' :
                   '⏳ prob '+sig.prob+'% — aguardando 65%';
       this.setWaiting(`${PAIRS[S.pair].sym} · ${tfLabel} · ${dir} ${sig.prob}% · ${why}`);
       return;
@@ -5760,7 +5760,7 @@ const semiAuto = {
     const tfHTML = sig.tfScores
       ? Object.entries(sig.tfScores).map(([tf,v])=>`<span style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">${tf} ${v}</span>`).join(' ')
       : '';
-    prob.innerHTML = `<b style="color:${col};font-size:15px">${sig.prob}%</b> &nbsp;·&nbsp; ${sig.score}/${sig.totalMax} pts &nbsp;·&nbsp; <b style="color:${col}">${sig.sourcesConfirming}/12 fontes</b>`
+    prob.innerHTML = `<b style="color:${col};font-size:15px">${sig.prob}%</b> &nbsp;·&nbsp; ${sig.score}/${sig.totalMax} pts &nbsp;·&nbsp; <b style="color:${col}">${sig.sourcesConfirming}/13 fontes</b>`
       + (sig.alignedTFs ? `<br><span style="font-size:9px;color:var(--text2);margin-top:3px;display:block">TFs alinhados: <b style="color:${col}">${sig.alignedTFs}</b> &nbsp; ${tfHTML}</span>` : '');
 
     const srcMeta = [
@@ -5912,13 +5912,13 @@ window.addEventListener('resize',drawChart);
 <div id="helpInner">
   <button class="hclose" onclick="document.getElementById('helpModal').style.display='none'">✕ FECHAR</button>
   <h2>⚡ LONDONX — GUIA DE INTERPRETAÇÃO</h2>
-  <div class="hsub">12 Fontes Institucionais · Threshold 8/12 · 3 Condições Obrigatórias</div>
+  <div class="hsub">13 Fontes Institucionais · Threshold 9/13 · 3 Condições Obrigatórias</div>
 
   <h3>1. O QUE SIGNIFICA CADA PERCENTUAL</h3>
   <table>
     <tr><th>FAIXA %</th><th>SINAL</th><th>FORÇA</th><th>SIGNIFICADO</th><th>AÇÃO</th></tr>
     <tr><td><b style="color:#ff1744">0%</b></td><td><span class="hbadge sell">SELL</span></td><td>Mínimo</td><td>Fonte apontando venda com máxima intensidade</td><td>Confirmar com outras fontes</td></tr>
-    <tr><td>1–30%</td><td><span class="hbadge sell">SELL</span></td><td>Fraco</td><td>Pressão vendedora sem convicção</td><td>Só vender se 8+/12 confirmarem</td></tr>
+    <tr><td>1–30%</td><td><span class="hbadge sell">SELL</span></td><td>Fraco</td><td>Pressão vendedora sem convicção</td><td>Só vender se 9+/13 confirmarem</td></tr>
     <tr><td>31–50%</td><td><span class="hbadge sell">SELL</span></td><td>Limite</td><td>Zona de incerteza — mercado indeciso</td><td>Evitar. Aguardar definição</td></tr>
     <tr><td>51–65%</td><td><span class="hbadge neu">NEU</span></td><td>Neutro</td><td>Sem direção clara nesta fonte</td><td>Não conta para buy nem sell</td></tr>
     <tr><td>66–80%</td><td><span class="hbadge buy">BUY</span></td><td>Bom</td><td>Pressão compradora relevante</td><td>Fonte confirma compra</td></tr>
@@ -5946,11 +5946,11 @@ window.addEventListener('resize',drawChart);
   <h3>3. REGRAS DE DECISÃO</h3>
   <table>
     <tr><th>CONDIÇÃO</th><th>RESULTADO</th><th>EXPLICAÇÃO</th></tr>
-    <tr><td>✅ 8+/12 · ✅ Sessão · ✅ Tendência 2/3</td><td><span class="hbadge ok">🟢 SINAL VÁLIDO</span></td><td>Bot habilita botão. Entrar com confiança.</td></tr>
+    <tr><td>✅ 9+/13 · ✅ Sessão · ✅ Tendência 2/3</td><td><span class="hbadge ok">🟢 SINAL VÁLIDO</span></td><td>Bot habilita botão. Entrar com confiança.</td></tr>
     <tr><td>✅ tudo acima + 🎯 Didi agulhada</td><td><span class="hbadge ok">🟢🎯 SINAL OURO</span></td><td>Melhor setup possível. Considerar Soros.</td></tr>
     <tr><td>❌ Sessão fechada / Dead zone</td><td><span class="hbadge block">🔴 BLOQUEADO</span></td><td>Mercado inativo. Forex fecha fim de semana.</td></tr>
     <tr><td>❌ Tendência &lt; 2/3 períodos</td><td><span class="hbadge block">🔴 BLOQUEADO</span></td><td>Entrar contra tendência = maior causa de perda.</td></tr>
-    <tr><td>⏳ Fontes &lt; 8/12</td><td><span class="hbadge wait">🟡 AGUARDAR</span></td><td>Confluência insuficiente. Próximo candle.</td></tr>
+    <tr><td>⏳ Fontes &lt; 9/13</td><td><span class="hbadge wait">🟡 AGUARDAR</span></td><td>Confluência insuficiente. Próximo candle.</td></tr>
     <tr><td>⚠️ Tendência BUY vs resto SELL</td><td><span class="hbadge wait">🟡 CORREÇÃO</span></td><td>Mercado em correção dentro de tendência. Não entrar.</td></tr>
   </table>
 
@@ -5964,7 +5964,7 @@ window.addEventListener('resize',drawChart);
   </table>
 
   <div class="hrule">
-    💡 <b>REGRA DE OURO:</b> Nunca entrar contra Tendência Multi. Nunca entrar fora de sessão. Sempre aguardar 8/12. Didi agulhada = bônus raro — quando aparece junto com as 3 obrigatórias, é o melhor setup possível.
+    💡 <b>REGRA DE OURO:</b> Nunca entrar contra Tendência Multi. Nunca entrar fora de sessão. Sempre aguardar 9/13. Didi agulhada = bônus raro — quando aparece junto com as 3 obrigatórias, é o melhor setup possível.
   </div>
 </div>
 </div>
