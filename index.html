@@ -2221,22 +2221,16 @@ function renderConf(){
     } else {
       // Lógica correta: compara buyPts vs sellPts desta fonte
       if(bPts===0 && sPts===0){
-        // Nenhum dado → neutro
         sig='neut'; sigTxt='—'; pct=0;
       } else if(bPts>sPts){
-        // Fonte confirma BUY — intensidade determina label
-        var buyPct=Math.round((bPts/max)*100);
-        pct=buyPct;
-        sig=buyPct>=65?'bull':'neut';
-        sigTxt=buyPct>=65?'BUY':'NEU';
+        pct=Math.round((bPts/max)*100);
+        sig='bull'; sigTxt='BUY';
       } else if(sPts>bPts){
-        // Fonte confirma SELL — intensidade determina label
-        var sellPct=Math.round((sPts/max)*100);
-        pct=sellPct;
-        sig=sellPct>=65?'bear':'neut';
-        sigTxt=sellPct>=65?'SELL':'NEU';
+        pct=Math.round((sPts/max)*100);
+        sig='bear'; sigTxt='SELL';
       } else {
         // Empate → neutro
+        pct=Math.round((bPts/max)*100);
         sig='neut'; sigTxt='NEU';
       }
     }
@@ -3890,8 +3884,14 @@ function randomAll(){
     return;
   }
   // Offline: scores simulados para feedback visual
+  if(!S.srcBuyPts)  S.srcBuyPts  = {};
+  if(!S.srcSellPts) S.srcSellPts = {};
   SOURCES.forEach(src=>{
-    S.srcScores[src.id]=Math.floor(Math.random()*(src.maxPts+1));
+    var b=Math.floor(Math.random()*(src.maxPts+1));
+    var s=Math.floor(Math.random()*(src.maxPts+1));
+    S.srcScores[src.id]  = Math.max(b,s);
+    S.srcBuyPts[src.id]  = b;
+    S.srcSellPts[src.id] = s;
   });
   computeScore();renderConf();buildAContent();updateTape();buildIndicators();
   // Indicadores simulados (offline apenas)
