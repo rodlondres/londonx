@@ -1296,8 +1296,10 @@ let S={
   dir:'up', aTab:'tech',
   slActive:false, sgActive:false, entryIdx:2,
   chartData:[], chartTick:1.08734,
-  srcScores:{tech:5,price:4,tape:4,quant:4,ml:3,candle:3,trend:3,didi:2,smc:0,fib:0,sess:2,news:2,harm:0},
-  totalScore:22, totalMax:27, prob:78,
+  srcScores:{tech:0,price:0,tape:0,quant:0,ml:0,candle:0,trend:0,didi:0,smc:0,fib:0,sess:0,news:0,harm:0},
+  srcBuyPts: {tech:0,price:0,tape:0,quant:0,ml:0,candle:0,trend:0,didi:0,smc:0,fib:0,sess:0,news:0,harm:0},
+  srcSellPts:{tech:0,price:0,tape:0,quant:0,ml:0,candle:0,trend:0,didi:0,smc:0,fib:0,sess:0,news:0,harm:0},
+  totalScore:0, totalMax:62, prob:0,
 };
 
 function computeScore(){
@@ -2202,24 +2204,43 @@ function renderConf(){
   }
 
   SOURCES.forEach(src=>{
-    var pts=S.srcScores[src.id], max=src.maxPts;
-    var pct=Math.round((pts/max)*100);
+    var pts=S.srcScores[src.id]||0, max=src.maxPts;
+    var bPts=(S.srcBuyPts||{})[src.id]||0;
+    var sPts=(S.srcSellPts||{})[src.id]||0;
+    // Barra: mostra o lado vencedor (maior entre buy e sell)
+    var domPts=Math.max(bPts,sPts);
+    var pct=Math.round((domPts/max)*100);
     var sig,sigTxt;
-    // DIDI: só mostra BUY ou SELL se agulhada 100%, senão mostra neutro
+    // DIDI: só BUY/SELL se agulhada 100% confirmada, senão neutro
     if(src.id==='didi'){
       var aguC=S._aguC||{};
-      if(aguC.bull){sig='bull';sigTxt='BUY';pts=4;}
-      else if(aguC.bear){sig='bear';sigTxt='SELL';pts=4;pct=100;}
-      else {sig='neut';sigTxt='—';pts=0;pct=0;}
-      S.srcScores['didi']=pts;
-    } else if(src.id==='fib'||src.id==='smc'){
-      // SMC e Fibonacci: neutro se 0 pts (não há sinal, não é SELL)
-      if(pts===0){sig='neut';sigTxt='—';}
-      else {sig=pct>=65?'bull':pct>=40?'neut':'bear'; sigTxt=pct>=65?'BUY':pct>=40?'NEU':'SELL';}
+      if(aguC.bull){sig='bull';sigTxt='BUY';domPts=4;pct=100;}
+      else if(aguC.bear){sig='bear';sigTxt='SELL';domPts=4;pct=100;}
+      else {sig='neut';sigTxt='—';domPts=0;pct=0;}
+      S.srcScores['didi']=aguC.bull?4:0;
     } else {
-      sig=pct>=65?'bull':pct>=40?'neut':'bear';
-      sigTxt=pct>=65?'BUY':pct>=40?'NEU':'SELL';
+      // Lógica correta: compara buyPts vs sellPts desta fonte
+      if(bPts===0 && sPts===0){
+        // Nenhum dado → neutro
+        sig='neut'; sigTxt='—'; pct=0;
+      } else if(bPts>sPts){
+        // Fonte confirma BUY — intensidade determina label
+        var buyPct=Math.round((bPts/max)*100);
+        pct=buyPct;
+        sig=buyPct>=65?'bull':'neut';
+        sigTxt=buyPct>=65?'BUY':'NEU';
+      } else if(sPts>bPts){
+        // Fonte confirma SELL — intensidade determina label
+        var sellPct=Math.round((sPts/max)*100);
+        pct=sellPct;
+        sig=sellPct>=65?'bear':'neut';
+        sigTxt=sellPct>=65?'SELL':'NEU';
+      } else {
+        // Empate → neutro
+        sig='neut'; sigTxt='NEU';
+      }
     }
+    pts=domPts;
     if(sig==='bull') buyScore+=pts; else if(sig==='bear') sellScore+=(max-pts);
     sh+=`<div class="src-row">
       <span class="src-ico">${src.icon}</span>
@@ -5537,6 +5558,9 @@ function analyzeSignal(){
   S.probSell = probSell;
   S.totalBuy  = totalBuy;
   S.totalSell = totalSell;
+  // Salva scores do lado oposto para renderConf calcular direção real por fonte
+  S.srcBuyPts  = { tech:Math.min(buyPts.tech||0,6),  price:Math.min(buyPts.price||0,5), tape:Math.min(buyPts.tape||0,5),  quant:Math.min(buyPts.quant||0,5), ml:Math.min(buyPts.ml||0,4),    candle:Math.min(buyPts.candle||0,5), trend:Math.min(buyPts.trend||0,5), didi:Math.min(buyPts.didi||0,4), smc:Math.min(buyPts.smc||0,5),  fib:Math.min(buyPts.fib||0,5),  sess:Math.min(buyPts.sess||0,4),  news:Math.min(buyPts.news||0,4),  harm:Math.min(buyPts.harm||0,5)  };
+  S.srcSellPts = { tech:Math.min(selPts.tech||0,6),  price:Math.min(selPts.price||0,5), tape:Math.min(selPts.tape||0,5),  quant:Math.min(selPts.quant||0,5), ml:Math.min(selPts.ml||0,4),    candle:Math.min(selPts.candle||0,5), trend:Math.min(selPts.trend||0,5), didi:Math.min(selPts.didi||0,4), smc:Math.min(selPts.smc||0,5),  fib:Math.min(selPts.fib||0,5),  sess:Math.min(selPts.sess||0,4),  news:Math.min(selPts.news||0,4),  harm:Math.min(selPts.harm||0,5)  };
 
   if(!window._silentAnalysis){
     computeScore();
