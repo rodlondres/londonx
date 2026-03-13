@@ -2216,12 +2216,12 @@ function renderConf(){
       var aguC=S._aguC||{};
       if(aguC.bull){sig='bull';sigTxt='BUY';domPts=4;pct=100;}
       else if(aguC.bear){sig='bear';sigTxt='SELL';domPts=4;pct=100;}
-      else {sig='neut';sigTxt='—';domPts=0;pct=0;}
+      else {sig='neut';sigTxt='NEU';domPts=0;pct=0;}
       S.srcScores['didi']=aguC.bull?4:0;
     } else {
       // Lógica correta: compara buyPts vs sellPts desta fonte
       if(bPts===0 && sPts===0){
-        sig='neut'; sigTxt='—'; pct=0;
+        sig='neut'; sigTxt='NEU'; pct=0;
       } else if(bPts>sPts){
         pct=Math.round((bPts/max)*100);
         sig='bull'; sigTxt='BUY';
