@@ -5079,7 +5079,9 @@ function calcSessionScore(pair){
 
   if(dow===5&&utcT>=20){pts=Math.max(0,pts-2);reasons.push('Sexta tarde — risco de gap');}
 
-  return {bull:pts,bear:pts,pts,active,session,reasons};
+  // Sessão não tem direção (bull/bear) — pts vai só para bull (favorece entrada)
+  // bear sempre 0 para não causar empate e NEU perpétuo
+  return {bull:pts,bear:0,pts,active,session,reasons};
 }
 
 // ============================================================
@@ -5139,15 +5141,16 @@ function analyzeSignal(){
   // ── Indicadores base ──
   const rsi14  = calcChartRSI(closes, 14);
   const rsi7   = calcChartRSI(closes, 7);
-  const ema5   = calcChartEMA(closes, 5);
-  const ema13  = calcChartEMA(closes, 13);
+  const ema9   = calcChartEMA(closes, 9);
   const ema21  = calcChartEMA(closes, 21);
+  const ema50  = calcChartEMA(closes, 50);
 
   const rNow   = rsi14[n-1]||50, rPrev = rsi14[n-2]||50;
   const r7Now  = rsi7[n-1]||50,  r7Prev= rsi7[n-2]||50;
-  const e5     = ema5[n-1],  e5p  = ema5[n-2];
-  const e13    = ema13[n-1], e13p = ema13[n-2];
-  const e21    = ema21[n-1];
+  // Aliases para compatibilidade com código abaixo (e5=EMA9, e13=EMA21, e21=EMA50)
+  const e5     = ema9[n-1],  e5p  = ema9[n-2];
+  const e13    = ema21[n-1], e13p = ema21[n-2];
+  const e21    = ema50[n-1];
   const price  = closes[n-1], pricePrev = closes[n-2];
 
   // BB 20
@@ -5192,22 +5195,29 @@ function analyzeSignal(){
   const breakDown = pricePrev>swingL && price<swingL;
 
   // ── Pontuação por fonte ──
-  let buyPts={tech:0,price:0,tape:0,quant:0,ml:0,candle:0,trend:0,didi:0,smc:0,fib:0,sess:0,news:0};
-  let selPts={tech:0,price:0,tape:0,quant:0,ml:0,candle:0,trend:0,didi:0,smc:0,fib:0,sess:0,news:0};
+  let buyPts={tech:0,price:0,tape:0,quant:0,ml:0,candle:0,trend:0,didi:0,smc:0,fib:0,sess:0,news:0,harm:0};
+  let selPts={tech:0,price:0,tape:0,quant:0,ml:0,candle:0,trend:0,didi:0,smc:0,fib:0,sess:0,news:0,harm:0};
   const reasons = {buy:[], sell:[]};
 
-  // 📊 TÉCNICA (max 6)
-  if(rPrev<30 && rNow>=30){buyPts.tech+=2;reasons.buy.push('RSI14 saiu de oversold ('+rNow.toFixed(0)+')');}
-  else if(rNow<45 && rNow>rPrev){buyPts.tech+=1;}
-  if(rPrev>70 && rNow<=70){selPts.tech+=2;reasons.sell.push('RSI14 saiu de overbought ('+rNow.toFixed(0)+')');}
-  else if(rNow>55 && rNow<rPrev){selPts.tech+=1;}
-  if(r7Now>r7Prev && r7Now>50){buyPts.tech+=1;} else if(r7Now<r7Prev && r7Now<50){selPts.tech+=1;}
-  if(e5p<=e13p && e5>e13){buyPts.tech+=2;reasons.buy.push('EMA5 cruzou EMA13 ↑');}
-  if(e5p>=e13p && e5<e13){selPts.tech+=2;reasons.sell.push('EMA5 cruzou EMA13 ↓');}
-  if(e5>e13 && e13>e21){buyPts.tech+=1;reasons.buy.push('Tendência EMA alinhada ↑');}
-  if(e5<e13 && e13<e21){selPts.tech+=1;reasons.sell.push('Tendência EMA alinhada ↓');}
-  if(price>e5 && price>e13){buyPts.tech+=1;reasons.buy.push('Preço acima das EMAs ↑');}
-  else if(price<e5 && price<e13){selPts.tech+=1;reasons.sell.push('Preço abaixo das EMAs ↓');}
+  // 📊 TÉCNICA (max 6) — condições contínuas, sempre refletem estado atual
+  // [1] RSI14 acima/abaixo de 50 — direção dominante (SEMPRE dispara)
+  if(rNow>52){buyPts.tech+=1;reasons.buy.push('RSI14 bullish ('+rNow.toFixed(0)+')');}
+  else if(rNow<48){selPts.tech+=1;reasons.sell.push('RSI14 bearish ('+rNow.toFixed(0)+')');}
+  // [2] RSI14 momentum — subindo ou caindo
+  if(rNow>rPrev+0.3){buyPts.tech+=1;reasons.buy.push('RSI14 acelerando ↑');}
+  else if(rNow<rPrev-0.3){selPts.tech+=1;reasons.sell.push('RSI14 acelerando ↓');}
+  // [3] EMA9 vs EMA21 — direção de curto prazo (SEMPRE dispara)
+  if(e5>e13){buyPts.tech+=1;reasons.buy.push('EMA9 > EMA21 ↑');}
+  else if(e5<e13){selPts.tech+=1;reasons.sell.push('EMA9 < EMA21 ↓');}
+  // [4] EMA21 vs EMA50 — direção de médio prazo (SEMPRE dispara)
+  if(e13>e21){buyPts.tech+=1;reasons.buy.push('EMA21 > EMA50 ↑');}
+  else if(e13<e21){selPts.tech+=1;reasons.sell.push('EMA21 < EMA50 ↓');}
+  // [5] Preço vs EMA21 — posição atual do preço (SEMPRE dispara)
+  if(price>e13){buyPts.tech+=1;reasons.buy.push('Preço acima EMA21 ↑');}
+  else if(price<e13){selPts.tech+=1;reasons.sell.push('Preço abaixo EMA21 ↓');}
+  // [6] Bônus: EMA9 cruzou EMA21 (sinal forte de mudança)
+  if(e5p<=e13p && e5>e13){buyPts.tech+=1;reasons.buy.push('EMA9 cruzou EMA21 ↑ (bônus)');}
+  else if(e5p>=e13p && e5<e13){selPts.tech+=1;reasons.sell.push('EMA9 cruzou EMA21 ↓ (bônus)');}
   buyPts.tech=Math.min(buyPts.tech,6); selPts.tech=Math.min(selPts.tech,6);
 
   // 🕯 PRICE ACTION (max 5)
@@ -5233,7 +5243,8 @@ function analyzeSignal(){
   if(lastBears>=3){selPts.tape+=2;reasons.sell.push('3+ candles de baixa consecutivos');}
   // BB width — volatilidade
   const bbwPct = bbW/bbMean;
-  if(bbwPct>0.004){buyPts.tape+=1;selPts.tape+=1;} // mercado com vol suficiente
+  // Vol suficiente: favorece direção atual do candle
+  if(bbwPct>0.004){if(bull){buyPts.tape+=1;}else{selPts.tape+=1;}}
 
   // 📐 QUANTITATIVA (max 5)
   // Z-score do preço em relação à BB
@@ -5245,8 +5256,9 @@ function analyzeSignal(){
   const rsiDir   = rNow>rsi14[n-4] ? 1 : -1;
   if(priceDir<0 && rsiDir>0){buyPts.quant+=2;reasons.buy.push('Divergência bullish RSI/preço');}
   if(priceDir>0 && rsiDir<0){selPts.quant+=2;reasons.sell.push('Divergência bearish RSI/preço');}
-  // ATR adequado para entrar
-  if(atr>0){buyPts.quant+=1;selPts.quant+=1;} // mercado tem movimento suficiente
+  // Momentum 4 candles — condição contínua
+  const q4dir = price > closes[n-4];
+  if(q4dir){buyPts.quant+=1;reasons.buy.push('Momentum 4c positivo');}  else {selPts.quant+=1;reasons.sell.push('Momentum 4c negativo');}
 
   // 📊 VOLATILIDADE / BB (max 4)
   // BB Width = (upper - lower) / middle — mede compressão/expansão
@@ -5372,17 +5384,17 @@ function analyzeSignal(){
   }
 
   // ── FONTE 7: TENDÊNCIA MULTI-PERÍODO (max 5) ──
-  // Reutiliza ema5/ema13 já calculados, adiciona ema34 e ema89
+  // Tendência Multi usa EMA9/21 (alinhados com painel) + EMA34/89 para médio/longo
   const ema34arr = calcChartEMA(closes, 34);
   const ema89arr = calcChartEMA(closes, 89);
-  const ema5v  = ema5[n-1]  || price;
-  const ema13v = ema13[n-1] || price;
+  const ema5v  = ema9[n-1]  || price;   // EMA9 = curto prazo
+  const ema13v = ema21[n-1] || price;   // EMA21 = médio prazo
   const ema34v = ema34arr[ema34arr.length-1] || price;
   const ema89v = ema89arr[ema89arr.length-1] || price;
-  // Curto prazo: EMA5 vs EMA13
+  // Curto prazo: EMA9 vs EMA21
   const shortBull = ema5v > ema13v;
   const shortBear = ema5v < ema13v;
-  // Médio prazo: EMA13 vs EMA34
+  // Médio prazo: EMA21 vs EMA34
   const midBull = ema13v > ema34v;
   const midBear = ema13v < ema34v;
   // Longo prazo: EMA34 vs EMA89
