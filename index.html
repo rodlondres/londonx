@@ -3096,19 +3096,35 @@ function calcADX(highs,lows,closes,period){return calcADXFull(highs,lows,closes,
 function detectDidiAgulhada(didi, adxVal){
   const n=didi.length;
   if(n<3) return {bull:false,bear:false,bullAlign:false,bearAlign:false,adxOk:false};
-  const cur=didi[n-1], prv=didi[n-2];
+  const cur=didi[n-1];
   const adxOk = (adxVal||0) >= 20;
-  // Agulhada COMPRA: azul(fast) cruza amarelo(mid=1.0) de baixo pra cima + vermelho(slow) abaixo de 1.0
-  const bullCross = prv.fast <= 1.0 && cur.fast > 1.0;
-  const slowBelow = cur.slow < 1.0;
-  // Agulhada VENDA: azul cruza amarelo de cima pra baixo + vermelho acima de 1.0
-  const bearCross = prv.fast >= 1.0 && cur.fast < 1.0;
-  const slowAbove = cur.slow > 1.0;
+
+  // Busca cruzamento nos últimos 4 candles (janela de confirmação)
+  // Isso captura a agulhada enquanto ela é visível no gráfico
+  let bullCross=false, bearCross=false;
+  const window = Math.min(4, n-1);
+  for(let i=1; i<=window; i++){
+    const c = didi[n-i], p = didi[n-i-1];
+    if(!p) break;
+    if(p.fast <= 1.0 && c.fast > 1.0) bullCross = true;
+    if(p.fast >= 1.0 && c.fast < 1.0) bearCross = true;
+  }
+
+  // Confirmação estrutural atual (linhas ainda separadas)
+  const slowBelow = cur.slow < 1.0;  // slow abaixo da referência = bull
+  const slowAbove = cur.slow > 1.0;  // slow acima da referência = bear
+  const fastAbove = cur.fast > 1.0;  // fast acima = bull ativo
+  const fastBelow = cur.fast < 1.0;  // fast abaixo = bear ativo
+
+  // Agulhada válida: cruzamento recente (4c) + estrutura ainda ativa
+  const bull = bullCross && slowBelow && fastAbove && adxOk;
+  const bear = bearCross && slowAbove && fastBelow && adxOk;
+
   return {
-    bull: bullCross && slowBelow && adxOk,
-    bear: bearCross && slowAbove && adxOk,
-    bullAlign: cur.fast > 1.0 && cur.slow < 1.0,
-    bearAlign: cur.fast < 1.0 && cur.slow > 1.0,
+    bull,
+    bear,
+    bullAlign: fastAbove && slowBelow,  // linhas alinhadas bull (sem cruzamento recente)
+    bearAlign: fastBelow && slowAbove,  // linhas alinhadas bear
     adxOk,
   };
 }
