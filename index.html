@@ -2193,10 +2193,25 @@ function renderConf(){
     var _adxNowC=_adxRC.adx[_adxRC.adx.length-1]||0;
     var _didiC=calcDidiIndex(_sc);
     var _aguC=detectDidiAgulhada(_didiC,_adxNowC);
-    // Score didi = 4 só se agulhada 100% confirmada, 0 caso contrário
-    if(_aguC.bull)       S.srcScores['didi']=4;
-    else if(_aguC.bear)  S.srcScores['didi']=0; // bear conta no sell abaixo
-    else                 S.srcScores['didi']=0;  // sem agulhada = neutro/zero
+    // Atualiza srcBuyPts e srcSellPts para renderConf usar corretamente
+    if(!S.srcBuyPts)  S.srcBuyPts  = {};
+    if(!S.srcSellPts) S.srcSellPts = {};
+    if(_aguC.bull){
+      S.srcBuyPts['didi']=4; S.srcSellPts['didi']=0;
+      S.srcScores['didi']=4;
+    } else if(_aguC.bear){
+      S.srcBuyPts['didi']=0; S.srcSellPts['didi']=4;
+      S.srcScores['didi']=4;
+    } else if(_aguC.bullAlign){
+      S.srcBuyPts['didi']=1; S.srcSellPts['didi']=0;
+      S.srcScores['didi']=1;
+    } else if(_aguC.bearAlign){
+      S.srcBuyPts['didi']=0; S.srcSellPts['didi']=1;
+      S.srcScores['didi']=1;
+    } else {
+      S.srcBuyPts['didi']=0; S.srcSellPts['didi']=0;
+      S.srcScores['didi']=0;
+    }
     S._aguC=_aguC; // guarda para uso no sigTxt
   } else {
     S.srcScores['didi']=0;
@@ -4085,7 +4100,7 @@ const bm = {
   // --- Limites configuráveis ---
   stopPct: 5,          // stop loss diário %
   metaPct: 10,         // meta diária %
-  maxSeq: 3,           // max perdas consecutivas
+  maxSeq: 2,           // max perdas consecutivas — pausa obrigatória 15min
 
   updateLimits(){
     this.stopPct  = parseFloat(document.getElementById('slInp')?.value||5);
@@ -4138,12 +4153,59 @@ const bm = {
       this.showBlock();
     } else if(this.seqLosses >= this.maxSeq){
       this.blocked = true;
-      this.blockReason = `❌ ${this.maxSeq} PERDAS SEGUIDAS — PAUSE!`;
+      // Inicia pausa obrigatória de 15 minutos se não estiver já em pausa
+      if(!this._pauseUntil || Date.now() > this._pauseUntil){
+        this._pauseUntil = Date.now() + 15*60*1000;
+        this._startPauseTimer();
+      }
+      this.blockReason = `⏸ ${this.maxSeq} PERDAS SEGUIDAS — PAUSA 15 MIN`;
       this.showBlock();
     } else {
       this.blocked = false;
       this.blockReason = '';
     }
+  },
+
+  _startPauseTimer(){
+    // Atualiza o countdown a cada segundo
+    if(this._pauseInterval) clearInterval(this._pauseInterval);
+    this._pauseInterval = setInterval(()=>{
+      const remaining = this._pauseUntil - Date.now();
+      if(remaining <= 0){
+        clearInterval(this._pauseInterval);
+        this._pauseInterval = null;
+        this._pauseUntil = null;
+        this.seqLosses = 0;   // zera perdas após pausa cumprida
+        this.blocked = false;
+        this.blockReason = '';
+        this.updateButtons();
+        this.updatePanel();
+        notify('✅ Pausa concluída! Pode operar novamente.');
+        // Toca som de liberação
+        try{const a=new AudioContext();const o=a.createOscillator();const g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.setValueAtTime(0.3,a.currentTime);g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.5);o.start();o.stop(a.currentTime+0.5);}catch(e){}
+        return;
+      }
+      const mins = Math.floor(remaining/60000);
+      const secs = Math.floor((remaining%60000)/1000);
+      const timeStr = `${mins}:${secs.toString().padStart(2,'0')}`;
+      this.blockReason = `⏸ PAUSA OBRIGATÓRIA — ${timeStr} restantes`;
+      const lbl = document.getElementById('bm-bar-label');
+      if(lbl) lbl.textContent = this.blockReason;
+      // Atualiza badge de seq perdas com countdown
+      const seqEl = document.getElementById('bm-seq');
+      if(seqEl) seqEl.textContent = timeStr;
+    }, 1000);
+    // Toca som de alerta
+    try{
+      const a=new AudioContext();
+      const o=a.createOscillator();const g=a.createGain();
+      o.connect(g);g.connect(a.destination);
+      o.frequency.value=440;
+      o.type='square';
+      g.gain.setValueAtTime(0.2,a.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+1.0);
+      o.start();o.stop(a.currentTime+1.0);
+    }catch(e){}
   },
 
   showBlock(){
@@ -4281,6 +4343,9 @@ const bm = {
     this.dayStartBal = null;
     this.martLevel   = 0;
     this.sorosLevel  = 0;
+    // Limpa pausa obrigatória se existir
+    if(this._pauseInterval){ clearInterval(this._pauseInterval); this._pauseInterval=null; }
+    this._pauseUntil = null;
     try{localStorage.removeItem('londonx_bm_day');}catch(e){}
     this.updateButtons();
     this.updatePanel();
