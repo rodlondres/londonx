@@ -5201,11 +5201,14 @@ function analyzeSignal(){
   else if(rNow<45 && rNow>rPrev){buyPts.tech+=1;}
   if(rPrev>70 && rNow<=70){selPts.tech+=2;reasons.sell.push('RSI14 saiu de overbought ('+rNow.toFixed(0)+')');}
   else if(rNow>55 && rNow<rPrev){selPts.tech+=1;}
-  if(r7Now>r7Prev){buyPts.tech+=1;} else {selPts.tech+=1;}
+  if(r7Now>r7Prev && r7Now>50){buyPts.tech+=1;} else if(r7Now<r7Prev && r7Now<50){selPts.tech+=1;}
   if(e5p<=e13p && e5>e13){buyPts.tech+=2;reasons.buy.push('EMA5 cruzou EMA13 ↑');}
   if(e5p>=e13p && e5<e13){selPts.tech+=2;reasons.sell.push('EMA5 cruzou EMA13 ↓');}
   if(e5>e13 && e13>e21){buyPts.tech+=1;reasons.buy.push('Tendência EMA alinhada ↑');}
   if(e5<e13 && e13<e21){selPts.tech+=1;reasons.sell.push('Tendência EMA alinhada ↓');}
+  if(price>e5 && price>e13){buyPts.tech+=1;reasons.buy.push('Preço acima das EMAs ↑');}
+  else if(price<e5 && price<e13){selPts.tech+=1;reasons.sell.push('Preço abaixo das EMAs ↓');}
+  buyPts.tech=Math.min(buyPts.tech,6); selPts.tech=Math.min(selPts.tech,6);
 
   // 🕯 PRICE ACTION (max 5)
   if(price<=bbL && pricePrev>bbL){buyPts.price+=2;reasons.buy.push('Preço tocou BB inferior');}
