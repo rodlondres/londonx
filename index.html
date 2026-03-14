@@ -6418,6 +6418,90 @@ window.addEventListener('resize', function(){
 </div>
 
 <div id="debugToggle" onclick="var p=document.getElementById('debugPanel');p.style.display=p.style.display==='none'?'block':'none'">DEBUG</div>
+
+<!-- LondonX Bot Intelligence Improvements Module -->
+<script>
+(function(){
+
+function bollingerWidth(upper, lower, middle){
+    return (upper - lower) / middle;
+}
+
+function detectCompression(ema3, ema8, ema20, atr){
+    return Math.abs(ema3-ema8) < atr*0.1 && Math.abs(ema8-ema20) < atr*0.1;
+}
+
+function detectExpansion(ema3, ema8, ema20, p3, p8, p20){
+    return (ema3-ema8) > (p3-p8) && (ema8-ema20) > (p8-p20);
+}
+
+function didiNeedle(ema3, ema8, ema20, p3, p8, p20, atr, adx, bbwIncreasing){
+    const compression = detectCompression(ema3,ema8,ema20,atr);
+    const expansion = detectExpansion(ema3,ema8,ema20,p3,p8,p20);
+    return compression && expansion && adx>20 && bbwIncreasing;
+}
+
+function fakeBreakout(prevClose, close, upperBand){
+    return prevClose > upperBand && close < upperBand;
+}
+
+function marketQuality(adx, atr, price, bbw){
+    let score = (adx/50)+(atr/price)+(1-bbw);
+    return score;
+}
+
+function signalStrength(factors){
+    if(factors>=13) return "SNIPER";
+    if(factors==12) return "VERY_STRONG";
+    if(factors==11) return "STRONG";
+    if(factors==10) return "NORMAL";
+    return "WEAK";
+}
+
+window.LondonXImprovements = {
+    bollingerWidth,
+    didiNeedle,
+    fakeBreakout,
+    marketQuality,
+    signalStrength
+};
+
+})();
+</script>
+
+
+<!-- Stop Hunt / Market Maker Trap Detector -->
+<script>
+(function(){
+
+function detectStopHunt(candle, upperBand, lowerBand, atr){
+
+let body = Math.abs(candle.close - candle.open);
+let upperWick = candle.high - Math.max(candle.close, candle.open);
+let lowerWick = Math.min(candle.close, candle.open) - candle.low;
+
+let wickThreshold = atr * 0.6;
+
+let stopHuntUp =
+candle.high > upperBand &&
+upperWick > wickThreshold &&
+candle.close < upperBand;
+
+let stopHuntDown =
+candle.low < lowerBand &&
+lowerWick > wickThreshold &&
+candle.close > lowerBand;
+
+return stopHuntUp || stopHuntDown;
+}
+
+window.LondonXStopHunt = {
+    detectStopHunt
+};
+
+})();
+</script>
+
 </body>
 </html>
 <script>
