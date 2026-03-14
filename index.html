@@ -6502,6 +6502,45 @@ window.LondonXStopHunt = {
 })();
 </script>
 
+
+<!-- LondonX Advanced Market Filters -->
+<script>
+window.LondonXEnhancements = {
+
+  bollingerSettings:{
+    period:20,
+    deviation:2.2,
+    compressionThreshold:0.015
+  },
+
+  bandwidth:function(upper,lower,middle){
+    if(!middle) return 0;
+    return (upper-lower)/middle;
+  },
+
+  isBollingerCompressed:function(upper,lower,middle){
+    const bw=this.bandwidth(upper,lower,middle);
+    return bw < this.bollingerSettings.compressionThreshold;
+  },
+
+  didiNeedleValidation:function(mme3,mme8,mme20,upper,lower,middle,adx){
+
+    const mmeCompression =
+      Math.abs(mme3-mme8) < 0.0005 &&
+      Math.abs(mme8-mme20) < 0.0005;
+
+    const bbCompression =
+      this.isBollingerCompressed(upper,lower,middle);
+
+    const trendStrength =
+      adx && adx > 20;
+
+    return mmeCompression && bbCompression && trendStrength;
+  }
+
+};
+</script>
+
 </body>
 </html>
 <script>
