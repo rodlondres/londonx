@@ -1184,7 +1184,7 @@ const TFS=['1M','3M','5M','15M','30M','1H','2H','1D','1W'];
 const STRATEGIES=[
   {id:'cons',icon:'🛡',name:'CONSERVADORA',desc:'>70% prob\nEntrada fixa\nSem martingale',color:'cons',lvl:1,max:1},
   {id:'mart',icon:'📈',name:'MARTINGALE',  desc:'3 níveis máx\nR$20→40→80\n>65% prob',   color:'mart',lvl:3,max:3},
-  {id:'soros',icon:'🔄',name:'SOROS',      desc:'Reinvest.\nR$20→36→65\n2 níveis máx',  color:'soros',lvl:2,max:2}
+  {id:'soros',icon:'🔄',name:'SOROS',      desc:'Reinvest. lucro\nNível 0→1→2\nReset automático',  color:'soros',lvl:2,max:2}
 ];
 const ENTRY_SIZES=['US$5','US$10','US$20','US$50','US$100'];
 const FILTERS=[
@@ -4361,8 +4361,22 @@ const bm = {
       return baseStake * mult[Math.min(this.martLevel, mult.length-1)];
     }
     if(strategy==='soros'){
-      if(this.sorosLevel===0) return baseStake;
-      return parseFloat((baseStake + baseStake*0.954).toFixed(2));
+      // Soros Protegido — 2 níveis com trava de exposição máxima (10% da banca)
+      const payout = 0.954; // VOL 75 payout padrão
+      const maxExp = Math.max(baseStake, (this.currentBal||1000)*0.10); // teto 10% da banca
+      if(this.sorosLevel===0){
+        // Nível 0 → entrada base
+        return Math.min(baseStake, maxExp);
+      } else if(this.sorosLevel===1){
+        // Nível 1 → base + lucro anterior reinvestido
+        const lvl1 = parseFloat((baseStake + baseStake*payout).toFixed(2));
+        return Math.min(lvl1, maxExp);
+      } else {
+        // Nível 2 → reinveste lucro do nível 1
+        const lvl1 = parseFloat((baseStake + baseStake*payout).toFixed(2));
+        const lvl2 = parseFloat((lvl1 + lvl1*payout).toFixed(2));
+        return Math.min(lvl2, maxExp);
+      }
     }
     return baseStake;
   },
@@ -4393,7 +4407,22 @@ const bm = {
       }
     }
     if(strategy==='soros'){
-      this.sorosLevel = (won && this.sorosLevel===0) ? 1 : 0;
+      if(won){
+        // Ganhou: sobe nível até máximo de 2, depois faz reset e embolsa
+        if(this.sorosLevel < 2){
+          this.sorosLevel++;
+        } else {
+          // Atingiu nível máximo → reset, lucro embolsado
+          this.sorosLevel = 0;
+          notify('🔄 SOROS: nível máximo atingido — lucro embolsado, voltando à base');
+        }
+      } else {
+        // Perdeu: zera sempre (Soros não dobra na perda)
+        if(this.sorosLevel > 0){
+          notify('⚠️ SOROS N'+this.sorosLevel+': perda — voltando ao valor base');
+        }
+        this.sorosLevel = 0;
+      }
     }
     this.save();
   },
