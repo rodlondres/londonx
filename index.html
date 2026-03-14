@@ -745,6 +745,9 @@ canvas{width:100%;display:block;}
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
+  // ── FIREBASE: inicializa com proteção total contra falha de carregamento ──
+  let db = null;
+  try{
   const firebaseConfig = {
     apiKey: "AIzaSyCp3_rnBoaTCYpX-y3-q9gqfJ4k7SvuTVo",
     authDomain: "londonx-94855.firebaseapp.com",
@@ -753,8 +756,13 @@ canvas{width:100%;display:block;}
     messagingSenderId: "542310758805",
     appId: "1:542310758805:web:fea1f3e6a842892efb5e9c"
   };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+  if(typeof firebase !== 'undefined'){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  } else {
+    console.warn('Firebase não carregado — sync desativado (modo offline)');
+  }
+  }catch(e){ console.warn('Firebase init error:', e); }
   const DEVICE_ID = (()=>{
     let id = localStorage.getItem('londonx_device_id');
     if(!id){ id = 'dev_'+Date.now()+'_'+Math.random().toString(36).substr(2,6); localStorage.setItem('londonx_device_id',id); }
@@ -769,7 +777,7 @@ canvas{width:100%;display:block;}
 
     // Salva histórico + ML + banca no Firestore
     async push(reason){
-      if(!this._syncEnabled) return;
+      if(!this._syncEnabled || !db) return;
       const now = Date.now();
       if(now - this._lastPush < 2000) return; // throttle 2s
       this._lastPush = now;
@@ -793,7 +801,7 @@ canvas{width:100%;display:block;}
 
     // Carrega dados do Firestore e mescla com local
     async pull(){
-      if(!this._syncEnabled) return;
+      if(!this._syncEnabled || !db) return;
       try{
         window._fbStatus('⟳ Sincronizando...', '#00e5ff');
         const doc = await db.doc(USER_DOC).get();
@@ -850,6 +858,7 @@ canvas{width:100%;display:block;}
 
     // Listener em tempo real — atualiza automaticamente quando outro dispositivo opera
     startListener(){
+      if(!db) return;
       db.doc(USER_DOC).onSnapshot(snap=>{
         if(!snap.exists) return;
         const data = snap.data();
@@ -1644,14 +1653,14 @@ function derivConnect(){
 
 function scheduleReconnect(){
   clearTimeout(_reconnectTimer);
-  if(!userToken) return; // sem token não reconecta
+  // CORRIGIDO: reconecta sempre, com ou sem token (dados de mercado necessários)
   _reconnectAttempts++;
   // Backoff: 2s → 4s → 8s → 16s → 30s (máx)
   _reconnectDelay=Math.min(30000, _reconnectDelay*(_reconnectAttempts>1?1.5:1));
   const secs=Math.round(_reconnectDelay/1000);
   updateConnectionStatus(false,`Reconectando em ${secs}s... (tentativa ${_reconnectAttempts})`);
   _reconnectTimer=setTimeout(()=>{
-    if(userToken) derivConnect();
+    derivConnect();
   },_reconnectDelay);
 }
 
@@ -1672,18 +1681,20 @@ document.addEventListener('visibilitychange',()=>{
       }
     });
   }
-  if(document.visibilityState==='visible' && userToken && !wsReady){
+  if(document.visibilityState==='visible' && !wsReady){
     notify('👁 Página ativa — verificando conexão...');
     _reconnectDelay=2000;
+    _reconnectAttempts=0;
     derivConnect();
   }
 });
 
 // Detecta quando volta a ficar online
 window.addEventListener('online',()=>{
-  if(userToken && !wsReady){
+  if(!wsReady){
     notify('🌐 Internet restaurada — reconectando...');
     _reconnectDelay=2000;
+    _reconnectAttempts=0;
     derivConnect();
   }
 });
@@ -2556,7 +2567,7 @@ function renderConf(){
     var pct = S.candlePositionPct||0;
     var posCol = pct<5?'#ff9800':pct>65?'#ff1744':'#00e676';
     var posZone = pct<5?'ABRINDO':pct>65?'FINAL ⚠':'IDEAL ✅';
-    posEl.innerHTML = '<span style="font-size:11px;color:'+posCol+';font-family:'Share Tech Mono',monospace">'
+    posEl.innerHTML = '<span style="font-size:11px;color:'+posCol+';font-family:monospace">'
       +'CANDLE '+pct+'% · '+posZone+'</span>'
       +'<div style="height:4px;background:#1e3055;border-radius:2px;margin-top:3px;overflow:hidden">'
       +'<div style="height:100%;width:'+pct+'%;background:'+posCol+';border-radius:2px;transition:width .5s"></div></div>'
