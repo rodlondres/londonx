@@ -734,6 +734,139 @@ canvas{width:100%;display:block;}
   box-shadow:0 4px 20px rgba(0,230,118,.4);min-width:110px;}
 #sorosBadge.show{display:block;}
 </style>
+
+  <!-- ═══ FIREBASE SYNC ═══ -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCp3_rnBoaTCYpX-y3-q9gqfJ4k7SvuTVo",
+    authDomain: "londonx-94855.firebaseapp.com",
+    projectId: "londonx-94855",
+    storageBucket: "londonx-94855.firebasestorage.app",
+    messagingSenderId: "542310758805",
+    appId: "1:542310758805:web:fea1f3e6a842892efb5e9c"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const DEVICE_ID = (()=>{
+    let id = localStorage.getItem('londonx_device_id');
+    if(!id){ id = 'dev_'+Date.now()+'_'+Math.random().toString(36).substr(2,6); localStorage.setItem('londonx_device_id',id); }
+    return id;
+  })();
+  const USER_DOC = 'users/londonx_user';
+
+  // ── SYNC ENGINE ──────────────────────────────────────
+  window.FB = {
+    _syncEnabled: true,
+    _lastPush: 0,
+
+    // Salva histórico + ML + banca no Firestore
+    async push(reason){
+      if(!this._syncEnabled) return;
+      const now = Date.now();
+      if(now - this._lastPush < 2000) return; // throttle 2s
+      this._lastPush = now;
+      try{
+        const data = {
+          history:   JSON.stringify(typeof tradeHistory!=='undefined'?tradeHistory:[]),
+          ml:        localStorage.getItem('londonx_ml_weights')||'{}',
+          bm_day:    localStorage.getItem('londonx_bm_day')||'{}',
+          bm:        localStorage.getItem('londonx_bm')||'{}',
+          device:    DEVICE_ID,
+          updated:   new Date().toISOString(),
+          reason:    reason||'auto'
+        };
+        await db.doc(USER_DOC).set(data, {merge:true});
+        window._fbStatus('✅ Sync', '#00e676');
+      }catch(e){
+        window._fbStatus('⚠ Sync erro', '#ffd600');
+        console.warn('Firebase push error:', e);
+      }
+    },
+
+    // Carrega dados do Firestore e mescla com local
+    async pull(){
+      if(!this._syncEnabled) return;
+      try{
+        window._fbStatus('⟳ Sincronizando...', '#00e5ff');
+        const doc = await db.doc(USER_DOC).get();
+        if(!doc.exists){
+          window._fbStatus('☁ Nuvem vazia', '#4a6080');
+          return;
+        }
+        const data = doc.data();
+
+        // Merge histórico — une local + nuvem, remove duplicatas por id
+        const remoteHistory = JSON.parse(data.history||'[]');
+        const localHistory  = typeof tradeHistory!=='undefined' ? tradeHistory : [];
+        const merged = [...localHistory];
+        remoteHistory.forEach(rt=>{
+          if(!merged.find(lt=>lt.id===rt.id)) merged.push(rt);
+        });
+        merged.sort((a,b)=>new Date(a.date+' '+a.time)-new Date(b.date+' '+b.time));
+        if(typeof tradeHistory!=='undefined'){
+          tradeHistory.length=0;
+          merged.forEach(t=>tradeHistory.push(t));
+          try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
+        }
+
+        // ML weights — usa o mais recente
+        const remoteML = JSON.parse(data.ml||'{}');
+        const localML  = JSON.parse(localStorage.getItem('londonx_ml_weights')||'{}');
+        const remoteDate = remoteML.updated ? new Date(remoteML.updated) : new Date(0);
+        const localDate  = localML.updated  ? new Date(localML.updated)  : new Date(0);
+        if(remoteDate > localDate){
+          localStorage.setItem('londonx_ml_weights', data.ml);
+          if(typeof ML!=='undefined') ML.load();
+        }
+
+        // Banca do dia — usa local se mesmo dia, senão usa nuvem
+        const today = new Date().toDateString();
+        const localBmDay = JSON.parse(localStorage.getItem('londonx_bm_day')||'{}');
+        const remoteBmDay = JSON.parse(data.bm_day||'{}');
+        if(remoteBmDay.date === today && localBmDay.date !== today){
+          localStorage.setItem('londonx_bm_day', data.bm_day);
+        }
+
+        // Atualiza UI
+        if(typeof renderHistory!=='undefined') setTimeout(renderHistory, 100);
+        if(typeof ML!=='undefined') setTimeout(()=>ML.update(), 200);
+        if(typeof bm!=='undefined'){ bm.loadDay(); bm.updatePanel(); }
+
+        window._fbStatus('✅ Sync '+merged.length+' trades', '#00e676');
+        console.log('Firebase pull OK —', merged.length, 'trades mesclados');
+      }catch(e){
+        window._fbStatus('⚠ Sync erro', '#ffd600');
+        console.warn('Firebase pull error:', e);
+      }
+    },
+
+    // Listener em tempo real — atualiza automaticamente quando outro dispositivo opera
+    startListener(){
+      db.doc(USER_DOC).onSnapshot(snap=>{
+        if(!snap.exists) return;
+        const data = snap.data();
+        if(data.device === DEVICE_ID) return; // ignora updates do próprio dispositivo
+        console.log('Firebase: update de outro dispositivo — sincronizando...');
+        this.pull();
+      }, err=>console.warn('Firestore listener error:', err));
+    }
+  };
+
+  window._fbStatus = function(txt, col){
+    const el = document.getElementById('fb-status');
+    if(el){ el.textContent = txt; el.style.color = col||'#00e5ff'; }
+  };
+
+  // Auto-pull ao carregar + listener em tempo real
+  window.addEventListener('DOMContentLoaded', ()=>{
+    setTimeout(()=>{
+      window.FB.pull();
+      window.FB.startListener();
+    }, 1500);
+  });
+  </script>
 </head>
 <body>
 <div class="scan-line"></div>
@@ -818,6 +951,7 @@ canvas{width:100%;display:block;}
 </div>
 
 <!-- STATS -->
+<div style="text-align:right;padding:2px 10px 0;"><span id="fb-status" style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a6080;letter-spacing:1px;">☁ Firebase...</span></div>
 <div class="stats-row">
   <div class="stat-item"><div class="stat-val" id="top-wr" style="color:var(--green)">—</div><div class="stat-lbl">Win Rate</div></div>
   <div class="stat-item"><div class="stat-val" id="top-ops" style="color:var(--cyan)">0</div><div class="stat-lbl">Ops Hoje</div></div>
@@ -4300,7 +4434,7 @@ const bm = {
   saveDay(){
     const today = new Date().toDateString();
     const data = {date:today, dayStartBal:this.dayStartBal, dayPnl:this.dayPnl, dayWins:this.dayWins, dayLosses:this.dayLosses};
-    try{localStorage.setItem('londonx_bm_day', JSON.stringify(data));}catch(e){}
+    try{localStorage.setItem('londonx_bm_day', JSON.stringify(data));if(typeof window.FB!=='undefined') window.FB.push('bm_day');}catch(e){}
   },
 
   loadDay(){
@@ -4583,6 +4717,7 @@ function openModal(side, ev, proposal){
     if(tradeHistory.length>50)tradeHistory.shift();
     try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
     renderHistory();
+    if(typeof window.FB!=='undefined') window.FB.push('new_trade');
     // Inicia countdown — cancela qualquer trade pendente anterior
     // Não cancela cdInterval global — startTradeCountdown gerencia por tradeId
     startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,durSecs);
@@ -6617,6 +6752,7 @@ var ML = (function(){
         weights: weights, meta: meta, mlActive: mlActive,
         updated: new Date().toISOString()
       }));
+      if(typeof window.FB!=='undefined') window.FB.push('ml_update');
     }catch(e){}
   }
 
