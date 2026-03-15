@@ -6542,93 +6542,99 @@ window.LondonXEnhancements = {
 </script>
 
 
-<!-- === LONDONX UPGRADE MODULE (Deriv + Didi Needle) === -->
+<!-- === LONDONX UPGRADE MODULE (Didi Needle — usa conexão principal) === -->
 <script>
 (function(){
 
-const DERIV_WS = "wss://ws.derivws.com/websockets/v3?app_id=1089";
-let ws=null;
-let prices=[];
+// ── USA OS PREÇOS JÁ COLETADOS PELA CONEXÃO PRINCIPAL ──────────
+// Não abre nova conexão WebSocket — evita conflito e consumo duplo
+let prices = [];
 
-function connectDeriv(symbol="R_75"){
-    ws = new WebSocket(DERIV_WS);
-    ws.onopen = ()=>{
-        ws.send(JSON.stringify({ticks:symbol,subscribe:1}));
-        console.log("Deriv connected:",symbol);
-    };
-    ws.onmessage = (msg)=>{
-        try{
-            const data = JSON.parse(msg.data);
-            if(data.tick){
-                const p = data.tick.quote;
-                prices.push(p);
-                if(prices.length>200) prices.shift();
-                detectDidi();
-            }
-        }catch(e){}
-    };
-    ws.onerror = e=>console.log("Deriv error",e);
-}
+// Alimenta com preços que chegam via handleTick da conexão principal
+var _origHandleTick = window.handleTick;
+window.handleTick = function(tick){
+  if(typeof _origHandleTick === 'function') _origHandleTick(tick);
+  if(tick && tick.quote){
+    prices.push(parseFloat(tick.quote));
+    if(prices.length > 200) prices.shift();
+    detectDidi();
+  }
+};
 
-function ema(period,data){
-    if(data.length<period) return null;
-    let k = 2/(period+1);
-    let ema = data[0];
-    for(let i=1;i<data.length;i++){
-        ema = data[i]*k + ema*(1-k);
+// Também alimenta via candleBuffer se disponível
+setInterval(function(){
+  try{
+    if(typeof candleBuffer !== 'undefined' && candleBuffer.length > prices.length){
+      prices = candleBuffer.slice(-200);
+      detectDidi();
     }
-    return ema;
+  }catch(e){}
+}, 5000);
+
+function ema(period, data){
+  if(data.length < period) return null;
+  let k = 2 / (period + 1);
+  let v = data[0];
+  for(let i = 1; i < data.length; i++){
+    v = data[i] * k + v * (1 - k);
+  }
+  return v;
 }
 
 function detectDidi(){
+  if(prices.length < 25) return;
+  const slice = prices.slice(-20);
+  const e3  = ema(3,  slice);
+  const e8  = ema(8,  slice);
+  const e20 = ema(20, slice);
+  if(!e3 || !e8 || !e20) return;
 
-    if(prices.length<25) return;
+  const max = Math.max(e3, e8, e20);
+  const min = Math.min(e3, e8, e20);
+  const compression = Math.abs(max - min);
+  const lastPrice = prices[prices.length - 1];
 
-    const e3  = ema(3,prices.slice(-20));
-    const e8  = ema(8,prices.slice(-20));
-    const e20 = ema(20,prices.slice(-20));
-
-    if(!e3||!e8||!e20) return;
-
-    const max = Math.max(e3,e8,e20);
-    const min = Math.min(e3,e8,e20);
-    const compression = Math.abs(max-min);
-
-    if(compression < (prices[prices.length-1]*0.0003)){
-        console.log("DIDI COMPRESSION DETECTED");
-        showSignal("PREPARE");
-    }
-
+  if(compression < (lastPrice * 0.0003)){
+    // Determina direção pelo alinhamento das EMAs
+    var dir = e3 > e8 && e8 > e20 ? 'CALL' : e3 < e8 && e8 < e20 ? 'PUT' : 'PREPARE';
+    showDidiSignal(dir, e3, e8, e20);
+  }
 }
 
-function showSignal(type){
-    try{
-        const el=document.getElementById("signalBox")||document.body;
-        let div=document.createElement("div");
-        div.innerHTML="⚡ "+type;
-        div.style.position="fixed";
-        div.style.right="20px";
-        div.style.bottom="20px";
-        div.style.background="#00e676";
-        div.style.color="#000";
-        div.style.padding="10px 14px";
-        div.style.fontWeight="700";
-        div.style.zIndex=99999;
-        div.style.borderRadius="6px";
-        document.body.appendChild(div);
-        setTimeout(()=>div.remove(),4000);
-    }catch(e){}
+function showDidiSignal(type, e3, e8, e20){
+  // Remove alerta anterior se existir
+  var old = document.getElementById('didiAlert');
+  if(old) old.remove();
+
+  var col = type==='CALL' ? '#00e676' : type==='PUT' ? '#ff1744' : '#ffd600';
+  var ico = type==='CALL' ? '⬆' : type==='PUT' ? '⬇' : '⚡';
+
+  var div = document.createElement('div');
+  div.id = 'didiAlert';
+  div.innerHTML = ico + ' DIDI ' + type;
+  div.style.cssText = [
+    'position:fixed','bottom:80px','left:50%',
+    'transform:translateX(-50%)',
+    'background:' + col,
+    'color:#000','padding:10px 20px',
+    'font-weight:900','font-size:13px',
+    'letter-spacing:2px','z-index:99999',
+    'border-radius:8px',
+    'box-shadow:0 4px 20px rgba(0,0,0,.5)',
+    'font-family:Orbitron,monospace'
+  ].join(';');
+  document.body.appendChild(div);
+  setTimeout(function(){ var el=document.getElementById('didiAlert'); if(el) el.remove(); }, 5000);
 }
 
-window.LondonXUpgrade={
-    start:function(symbol="R_75"){
-        connectDeriv(symbol);
-    }
+window.LondonXUpgrade = {
+  // API pública — pode ser chamada manualmente se necessário
+  feedPrice: function(p){ prices.push(p); if(prices.length>200) prices.shift(); detectDidi(); },
+  getPrices: function(){ return prices.slice(); },
+  forceDetect: detectDidi
 };
 
-setTimeout(()=>{
-    if(window.LondonXUpgrade) LondonXUpgrade.start();
-},2000);
+console.log('LondonX Upgrade: Didi Needle ativo — usando conexão principal');
 
 })();
 </script>
