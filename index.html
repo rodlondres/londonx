@@ -6599,7 +6599,7 @@ function showDidiSignal(type){
   var div=document.createElement('div');
   div.id='didiAlert';
   div.innerHTML=ico+' DIDI '+type;
-  div.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:'+col+';color:#000;padding:10px 20px;font-weight:900;font-size:13px;letter-spacing:2px;z-index:99999;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.5);font-family:Orbitron,monospace';
+  div.style.cssText='position:fixed;bottom:20px;right:20px;background:'+col+';color:#000;padding:10px 14px;font-weight:900;font-size:13px;letter-spacing:2px;z-index:99999;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.5);font-family:Orbitron,monospace';
   document.body.appendChild(div);
   setTimeout(function(){var el=document.getElementById('didiAlert');if(el)el.remove();},5000);
 }
