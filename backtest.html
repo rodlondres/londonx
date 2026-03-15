@@ -247,11 +247,15 @@ function connectDeriv(){
         }
         // Candles chegaram
         if(m.msg_type==='candles'&&m.req_id!==undefined){
+          console.log('✅ CANDLES req_id='+m.req_id+' n='+(m.candles||[]).length);
           var cb=_pending[m.req_id];
           if(cb){delete _pending[m.req_id];cb(m.candles||[]);}
+          else console.warn('sem callback para req_id='+m.req_id);
         }
-        // Erro de mercado fechado
-        if(m.error&&m.req_id!==undefined){
+        // Erro da Deriv
+        if(m.error){
+          console.error('❌ ERRO Deriv:',m.error.code,m.error.message,'req_id='+m.req_id);
+          setS('❌ Erro Deriv: '+m.error.message,0);
           var cb2=_pending[m.req_id];
           if(cb2){delete _pending[m.req_id];cb2([]);}
         }
