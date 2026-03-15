@@ -1,753 +1,366 @@
+
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simulador LondonX — Setup Recomendado</title>
+<title>Deriv Pro Signal Bot</title>
+
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Exo+2:wght@300;400;600;700&display=swap');
-:root{
-  --bg:#060b14;--panel:#0b1420;--panel2:#0e1a2e;--border:#162440;--border2:#1e3055;
-  --cyan:#00e5ff;--green:#00e676;--red:#ff1744;--yellow:#ffd600;--orange:#ff6d00;
-  --purple:#7c4dff;--white:#e8f0fe;--dim:#4a6080;--dim2:#2a3a55;
+body{
+background:#020617;
+color:#e2e8f0;
+font-family:Arial, Helvetica, sans-serif;
+margin:0;
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--white);font-family:'Exo 2',sans-serif;min-height:100vh;padding:14px;
-  background-image:radial-gradient(ellipse at 15% 0%,rgba(0,229,255,.07) 0%,transparent 55%),
-    radial-gradient(ellipse at 85% 100%,rgba(0,230,118,.05) 0%,transparent 55%);}
 
-.hdr{text-align:center;margin-bottom:18px;}
-.hdr h1{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;color:var(--cyan);letter-spacing:3px;text-shadow:0 0 20px rgba(0,229,255,.3);}
-.hdr .sub{font-size:10px;color:var(--dim);letter-spacing:2px;margin-top:4px;}
+header{
+background:#0f172a;
+padding:15px;
+border-bottom:1px solid #1e293b;
+}
 
-/* PRESET BADGE */
-.preset-banner{background:linear-gradient(135deg,rgba(0,230,118,.08),rgba(0,229,255,.05));
-  border:1px solid rgba(0,230,118,.25);border-radius:10px;padding:12px 16px;
-  margin-bottom:14px;display:flex;align-items:center;gap:12px;}
-.preset-icon{font-size:20px;}
-.preset-text{flex:1;}
-.preset-title{font-family:'Orbitron',monospace;font-size:11px;color:var(--green);letter-spacing:1px;margin-bottom:2px;}
-.preset-desc{font-size:11px;color:var(--dim);line-height:1.5;}
+.container{
+padding:20px;
+}
 
-/* LAYOUT */
-.layout{display:grid;grid-template-columns:300px 1fr;gap:12px;}
-@media(max-width:860px){.layout{grid-template-columns:1fr;}}
-.sidebar{display:flex;flex-direction:column;gap:10px;}
-.main{display:flex;flex-direction:column;gap:10px;}
+#chart{
+width:100%;
+height:420px;
+}
 
-/* SECTIONS */
-.section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;}
-.sec-title{font-family:'Orbitron',monospace;font-size:9px;color:var(--dim);letter-spacing:2px;
-  margin-bottom:12px;display:flex;align-items:center;gap:8px;}
-.sec-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent);}
+.panel{
+margin-top:20px;
+background:#0f172a;
+padding:15px;
+border-radius:8px;
+}
 
-/* CONFIG ROWS */
-.cfg-row{display:flex;align-items:center;justify-content:space-between;
-  padding:9px 0;border-bottom:1px solid var(--border);}
-.cfg-row:last-child{border-bottom:none;}
-.cfg-left{}
-.cfg-name{font-size:12px;color:var(--white);font-weight:600;}
-.cfg-why{font-size:10px;color:var(--dim);margin-top:2px;line-height:1.4;}
-.cfg-val{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);
-  background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);
-  border-radius:6px;padding:4px 10px;white-space:nowrap;}
-.cfg-val.green{color:var(--green);background:rgba(0,230,118,.07);border-color:rgba(0,230,118,.2);}
-.cfg-val.yellow{color:var(--yellow);background:rgba(255,214,0,.07);border-color:rgba(255,214,0,.2);}
-.cfg-val.orange{color:var(--orange);background:rgba(255,109,0,.07);border-color:rgba(255,109,0,.2);}
+.grid{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:10px;
+}
 
-/* ADJUSTABLE */
-.adj-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);}
-.adj-row:last-child{border-bottom:none;}
-.adj-label{flex:1;}
-.adj-name{font-size:12px;color:var(--white);font-weight:600;}
-.adj-why{font-size:10px;color:var(--dim);margin-top:2px;}
-.adj-ctrl{display:flex;align-items:center;gap:6px;}
-input[type=number].adj-inp{width:72px;background:#080f1c;border:1px solid var(--border2);
-  border-radius:6px;color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:12px;
-  padding:5px 8px;outline:none;text-align:center;}
-input[type=number].adj-inp:focus{border-color:var(--cyan);}
-.adj-unit{font-size:10px;color:var(--dim);}
+select{
+width:100%;
+padding:6px;
+}
 
-/* BUTTONS */
-.btns{display:flex;gap:8px;}
-.btn{flex:1;padding:12px;border:none;border-radius:8px;font-family:'Orbitron',monospace;
-  font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;}
-.btn-sim{background:linear-gradient(135deg,#00b8d4,#0066cc);color:#000;
-  box-shadow:0 4px 18px rgba(0,229,255,.2);}
-.btn-sim:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(0,229,255,.35);}
-.btn-mc{background:rgba(124,77,255,.15);border:1px solid rgba(124,77,255,.35);color:var(--purple);}
-.btn-mc:hover{border-color:var(--purple);}
-.btn-reset{background:transparent;border:1px solid var(--border);color:var(--dim);}
-.btn-reset:hover{border-color:var(--cyan);color:var(--cyan);}
+.signal{
+font-size:28px;
+font-weight:bold;
+margin-top:10px;
+}
 
-/* KPI */
-.kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
-.kpi{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;position:relative;overflow:hidden;}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
-.kpi.soros::before{background:linear-gradient(90deg,var(--green),var(--cyan));}
-.kpi.prot::before{background:linear-gradient(90deg,var(--orange),var(--yellow));}
-.kpi.cons::before{background:linear-gradient(90deg,var(--cyan),var(--purple));}
-.kpi-lbl{font-size:8px;color:var(--dim);letter-spacing:1.5px;font-weight:700;margin-bottom:6px;}
-.kpi-val{font-family:'Share Tech Mono',monospace;font-size:17px;font-weight:700;}
-.kpi-sub{font-size:9px;color:var(--dim);margin-top:3px;}
-.kpi-roi{font-family:'Share Tech Mono',monospace;font-size:10px;margin-top:4px;
-  display:inline-block;padding:2px 7px;border-radius:10px;}
-
-/* WINNER */
-#winner{border-radius:10px;padding:11px 16px;margin-bottom:10px;display:none;
-  font-family:'Orbitron',monospace;font-size:10px;text-align:center;letter-spacing:1px;}
-#winner.show{display:block;animation:sIn .3s ease;}
-@keyframes sIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
-#winner.soros-win{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.3);color:var(--green);}
-#winner.prot-win{background:rgba(255,109,0,.08);border:1px solid rgba(255,109,0,.3);color:var(--orange);}
-#winner.conserv-win{background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.3);color:var(--cyan);}
-#winner.tie{background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.3);color:var(--yellow);}
-
-/* METERS */
-.meters{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.meter{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;}
-.meter-lbl{font-size:8px;color:var(--dim);letter-spacing:1.5px;margin-bottom:6px;font-weight:700;}
-.meter-track{background:var(--dim2);border-radius:4px;height:5px;overflow:hidden;margin-bottom:5px;}
-.meter-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1);}
-.meter-val{font-family:'Share Tech Mono',monospace;font-size:11px;}
-
-/* SEQ */
-#seqBox{display:flex;flex-wrap:wrap;gap:3px;min-height:28px;}
-.op{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;
-  font-family:'Share Tech Mono',monospace;font-size:9px;font-weight:700;animation:pop .1s ease;}
-.op.g{background:rgba(0,230,118,.15);border:1px solid rgba(0,230,118,.5);color:var(--green);}
-.op.p{background:rgba(255,23,68,.15);border:1px solid rgba(255,23,68,.5);color:var(--red);}
-.op.blocked{background:rgba(255,109,0,.1);border:1px solid rgba(255,109,0,.4);color:var(--orange);font-size:8px;}
-@keyframes pop{from{transform:scale(0);}to{transform:scale(1);}}
-
-/* CHART */
-canvas{display:block;border-radius:8px;}
-
-/* TABLE */
-#tblWrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);}
-table{width:100%;border-collapse:collapse;font-size:10px;min-width:540px;}
-th{background:#080f1c;color:var(--dim);font-size:8px;letter-spacing:1.5px;padding:7px 8px;text-align:right;font-weight:700;}
-th:first-child{text-align:center;}
-td{padding:5px 8px;border-top:1px solid var(--border);text-align:right;font-family:'Share Tech Mono',monospace;font-size:10px;}
-td:first-child{text-align:center;color:var(--dim);}
-tr.ganha td{background:rgba(0,230,118,.03);}
-tr.perde td{background:rgba(255,23,68,.03);}
-tr.bloq td{background:rgba(255,109,0,.05);}
-
-/* MC */
-.mc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
-.mc-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;}
-.mc-lbl{font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:5px;}
-.mc-val{font-family:'Share Tech Mono',monospace;font-size:13px;font-weight:700;}
-.mc-sub{font-size:8px;color:var(--dim);margin-top:2px;}
-.mc-dist{display:flex;align-items:flex-end;gap:2px;height:44px;margin-top:8px;}
-.mc-bar{flex:1;border-radius:2px 2px 0 0;min-width:2px;}
-
-/* ANÁLISE */
-.ana{font-size:12px;line-height:1.7;color:#b0c4d8;}
-.ana strong{color:var(--cyan);}
-.box-ok{border-left:2px solid var(--green);padding:9px 12px;background:rgba(0,230,118,.05);border-radius:0 6px 6px 0;margin-top:8px;font-size:11px;color:#a0d8b0;}
-.box-tip{border-left:2px solid var(--yellow);padding:9px 12px;background:rgba(255,214,0,.05);border-radius:0 6px 6px 0;margin-top:8px;font-size:11px;color:#d8c880;}
-.box-warn{border-left:2px solid var(--red);padding:9px 12px;background:rgba(255,23,68,.05);border-radius:0 6px 6px 0;margin-top:8px;font-size:11px;color:#d88090;}
-
-/* PROGRESS */
-#mcProg{display:none;background:var(--dim2);border-radius:4px;height:3px;margin:6px 0;overflow:hidden;}
-#mcProg.show{display:block;}
-#mcBar{height:100%;background:linear-gradient(90deg,var(--purple),var(--cyan));width:0%;transition:width .1s;}
-
-/* KELLY */
-.kelly{background:rgba(124,77,255,.06);border:1px solid rgba(124,77,255,.18);border-radius:8px;padding:11px 14px;}
-.kelly-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;}
-.kelly-lbl{font-size:11px;color:var(--dim);}
-.kelly-val{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--purple);}
-
-/* STREAK */
-.streak-bars{display:flex;gap:6px;align-items:flex-end;height:56px;margin-top:8px;}
-.sb-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
-.sb-bar{width:100%;border-radius:3px 3px 0 0;min-height:2px;}
-.sb-lbl{font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;}
-.sb-pct{font-size:9px;font-family:'Share Tech Mono',monospace;}
+.call{color:#22c55e;}
+.put{color:#ef4444;}
+.wait{color:#94a3b8;}
 </style>
 </head>
+
 <body>
 
-<div class="hdr">
-  <h1>⚡ LONDONX — SETUP RECOMENDADO</h1>
-  <div class="sub">Configurações validadas · VOL 75 · 5M · WR 65%+</div>
+<header>
+<h2>Deriv Volatility Signal Terminal</h2>
+</header>
+
+<div class="container">
+
+<div id="chart"></div>
+
+<div class="panel">
+<div class="grid">
+
+<div>
+<b>Asset</b>
+<select id="asset">
+<option value="R_75">Volatility 75</option>
+<option value="R_50">Volatility 50</option>
+<option value="R_25">Volatility 25</option>
+<option value="R_100">Volatility 100</option>
+</select>
 </div>
 
-<div class="preset-banner">
-  <div class="preset-icon">🎯</div>
-  <div class="preset-text">
-    <div class="preset-title">Setup validado LondonX Bot v5.0</div>
-    <div class="preset-desc">Configurações baseadas em 50+ operações reais com 64% de win rate. Ajuste apenas a banca e valor base conforme sua conta demo.</div>
-  </div>
+<div>
+<b>Timeframe</b>
+<select id="tf">
+<option value="60">1m</option>
+<option value="300">5m</option>
+<option value="900">15m</option>
+<option value="1800">30m</option>
+<option value="3600">1h</option>
+</select>
 </div>
 
-<div class="layout">
-<div class="sidebar">
+<div>
+<b>Status</b>
+<div id="status">connecting...</div>
+</div>
 
-  <!-- CONFIGURAÇÕES FIXAS -->
-  <div class="section">
-    <div class="sec-title">CONFIGURAÇÕES FIXAS (recomendadas)</div>
+<div>
+<b>Score</b>
+<div id="score">0</div>
+</div>
 
-    <div class="cfg-row">
-      <div class="cfg-left">
-        <div class="cfg-name">Win Rate</div>
-        <div class="cfg-why">Validado em 50+ ops reais com o bot</div>
-      </div>
-      <div class="cfg-val green">65%</div>
-    </div>
-    <div class="cfg-row">
-      <div class="cfg-left">
-        <div class="cfg-name">Payout Deriv</div>
-        <div class="cfg-why">Payout padrão VOL 75 na Deriv</div>
-      </div>
-      <div class="cfg-val">95%</div>
-    </div>
-    <div class="cfg-row">
-      <div class="cfg-left">
-        <div class="cfg-name">Níveis Soros</div>
-        <div class="cfg-why">2 níveis = equilíbrio risco/retorno</div>
-      </div>
-      <div class="cfg-val green">2 níveis</div>
-    </div>
-    <div class="cfg-row">
-      <div class="cfg-left">
-        <div class="cfg-name">Após nível máximo</div>
-        <div class="cfg-why">Volta à base — protege o lucro acumulado</div>
-      </div>
-      <div class="cfg-val green">Reset → base</div>
-    </div>
-    <div class="cfg-row">
-      <div class="cfg-left">
-        <div class="cfg-name">Stop sequência</div>
-        <div class="cfg-why">Pausa 15min após 2 perdas seguidas</div>
-      </div>
-      <div class="cfg-val yellow">2 perdas</div>
-    </div>
-    <div class="cfg-row">
-      <div class="cfg-left">
-        <div class="cfg-name">Stop drawdown diário</div>
-        <div class="cfg-why">Para tudo se perder 5% da banca no dia</div>
-      </div>
-      <div class="cfg-val yellow">5%</div>
-    </div>
-    <div class="cfg-row">
-      <div class="cfg-left">
-        <div class="cfg-name">Exposição máxima</div>
-        <div class="cfg-why">Entrada Soros nunca passa 10% da banca</div>
-      </div>
-      <div class="cfg-val orange">10% por op</div>
-    </div>
-    <div class="cfg-row">
-      <div class="cfg-left">
-        <div class="cfg-name">Meta diária</div>
-        <div class="cfg-why">Para após atingir — não force a sorte</div>
-      </div>
-      <div class="cfg-val green">+10%</div>
-    </div>
-  </div>
+</div>
+</div>
 
-  <!-- AJUSTÁVEIS -->
-  <div class="section">
-    <div class="sec-title">AJUSTE CONFORME SUA CONTA</div>
-    <div class="adj-row">
-      <div class="adj-label">
-        <div class="adj-name">Banca (US$)</div>
-        <div class="adj-why">Saldo atual da conta demo</div>
-      </div>
-      <div class="adj-ctrl">
-        <input type="number" class="adj-inp" id="cfgBanca" value="1000" min="100" step="100">
-        <span class="adj-unit">US$</span>
-      </div>
-    </div>
-    <div class="adj-row">
-      <div class="adj-label">
-        <div class="adj-name">Valor base (US$)</div>
-        <div class="adj-why">Entrada conservadora padrão</div>
-      </div>
-      <div class="adj-ctrl">
-        <input type="number" class="adj-inp" id="cfgBase" value="5" min="1" step="1">
-        <span class="adj-unit">US$</span>
-      </div>
-    </div>
-    <div class="adj-row">
-      <div class="adj-label">
-        <div class="adj-name">Nº operações</div>
-        <div class="adj-why">Quantas ops na sessão</div>
-      </div>
-      <div class="adj-ctrl">
-        <input type="number" class="adj-inp" id="cfgOps" value="30" min="10" max="200" step="5">
-        <span class="adj-unit">ops</span>
-      </div>
-    </div>
-    <div class="adj-row">
-      <div class="adj-label">
-        <div class="adj-name">Sequência</div>
-        <div class="adj-why">Como testar os cenários</div>
-      </div>
-      <div class="adj-ctrl">
-        <select id="cfgMode" style="width:110px;background:#080f1c;border:1px solid var(--border2);border-radius:6px;color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 6px;outline:none;">
-          <option value="random">Aleatória</option>
-          <option value="badstart">Perdas 1º</option>
-          <option value="worstcase">Pior caso</option>
-          <option value="grouped">Ganhos 1º</option>
-        </select>
-      </div>
-    </div>
-  </div>
+<div class="panel">
+<div><b>Trend:</b> <span id="trend">-</span></div>
+<div><b>Volatility:</b> <span id="volatility">-</span></div>
+<div class="signal wait" id="signal">WAIT</div>
+</div>
 
-  <div class="btns">
-    <button class="btn btn-sim" onclick="simular()">▶ SIMULAR</button>
-    <button class="btn btn-reset" onclick="resetar()">↺</button>
-  </div>
-  <div class="btns">
-    <button class="btn btn-mc" onclick="runMC()">🎲 MONTE CARLO 500×</button>
-  </div>
-  <div id="mcProg"><div id="mcBar"></div></div>
-
-  <!-- KELLY -->
-  <div class="section">
-    <div class="sec-title">CRITÉRIO DE KELLY</div>
-    <div class="kelly" id="kellyBox">
-      <div class="kelly-row"><span class="kelly-lbl">Kelly completo</span><span class="kelly-val" id="kFull">—</span></div>
-      <div class="kelly-row"><span class="kelly-lbl">Half-Kelly (use este)</span><span class="kelly-val" id="kHalf">—</span></div>
-      <div class="kelly-row"><span class="kelly-lbl">Entrada ideal</span><span class="kelly-val" id="kVal">—</span></div>
-    </div>
-    <div style="font-size:9px;color:var(--dim);margin-top:8px;line-height:1.5;">
-      Half-Kelly = tamanho de entrada matematicamente ótimo para maximizar crescimento de longo prazo sem arriscar ruína.
-    </div>
-  </div>
-
-  <!-- STREAK -->
-  <div class="section">
-    <div class="sec-title">RISCO DE SEQUÊNCIAS</div>
-    <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">Prob. de ter N perdas seguidas em <span id="nOpsLbl">30</span> ops com WR 65%</div>
-    <div class="streak-bars" id="streakBars"></div>
-    <div style="margin-top:8px;font-size:9px;color:var(--dim);">
-      Risco de tocar stop de 2 perdas: <span id="streakRisk" style="color:var(--orange);font-family:'Share Tech Mono',monospace;">—</span>
-    </div>
-  </div>
-
-</div><!-- /sidebar -->
-
-<div class="main">
-
-  <div id="winner"></div>
-
-  <div class="kpis">
-    <div class="kpi soros">
-      <div class="kpi-lbl">🔄 SOROS LIVRE</div>
-      <div class="kpi-val" id="resSoros" style="color:var(--green)">—</div>
-      <div class="kpi-sub" id="subSoros">sem proteção</div>
-      <div class="kpi-roi" id="roiSoros"></div>
-    </div>
-    <div class="kpi prot">
-      <div class="kpi-lbl">🛡 SOROS PROTEGIDO</div>
-      <div class="kpi-val" id="resProt" style="color:var(--orange)">—</div>
-      <div class="kpi-sub" id="subProt">com gestão</div>
-      <div class="kpi-roi" id="roiProt"></div>
-    </div>
-    <div class="kpi cons">
-      <div class="kpi-lbl">💰 CONSERVADOR</div>
-      <div class="kpi-val" id="resConserv" style="color:var(--cyan)">—</div>
-      <div class="kpi-sub" id="subConserv">base fixa</div>
-      <div class="kpi-roi" id="roiConserv"></div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="sec-title">INDICADORES DE RISCO</div>
-    <div class="meters">
-      <div class="meter">
-        <div class="meter-lbl">DRAWDOWN SOROS LIVRE</div>
-        <div class="meter-track"><div class="meter-fill" id="mBarS" style="background:var(--red);width:0%"></div></div>
-        <div class="meter-val" id="mValS" style="color:var(--red)">—</div>
-      </div>
-      <div class="meter">
-        <div class="meter-lbl">DRAWDOWN PROTEGIDO</div>
-        <div class="meter-track"><div class="meter-fill" id="mBarP" style="background:var(--green);width:0%"></div></div>
-        <div class="meter-val" id="mValP" style="color:var(--green)">—</div>
-      </div>
-      <div class="meter">
-        <div class="meter-lbl">OPS BLOQUEADAS</div>
-        <div class="meter-track"><div class="meter-fill" id="mBarB" style="background:var(--orange);width:0%"></div></div>
-        <div class="meter-val" id="mValB" style="color:var(--orange)">—</div>
-      </div>
-      <div class="meter">
-        <div class="meter-lbl">ENTRADA MÁX. ATINGIDA</div>
-        <div class="meter-track"><div class="meter-fill" id="mBarE" style="background:var(--yellow);width:0%"></div></div>
-        <div class="meter-val" id="mValE" style="color:var(--yellow)">—</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="sec-title">SEQUÊNCIA &nbsp;<span style="font-size:8px;letter-spacing:0;"><span style="color:var(--green)">■ G</span><span style="color:var(--red);margin-left:6px">■ P</span><span style="color:var(--orange);margin-left:6px">■ BLOQ</span></span></div>
-    <div id="seqBox"></div>
-  </div>
-
-  <div class="section">
-    <div class="sec-title">CURVA DE EQUITY</div>
-    <div id="chartWrap"><canvas id="chart" height="155"></canvas></div>
-  </div>
-
-  <!-- MC RESULTS -->
-  <div class="section" id="secMC" style="display:none">
-    <div class="sec-title">MONTE CARLO — 500 SIMULAÇÕES</div>
-    <div class="mc-grid">
-      <div class="mc-card"><div class="mc-lbl">MEDIANA</div><div class="mc-val" id="mcMed" style="color:var(--green)">—</div><div class="mc-sub">50% das sims</div></div>
-      <div class="mc-card"><div class="mc-lbl">PIOR 10%</div><div class="mc-val" id="mcP10" style="color:var(--red)">—</div><div class="mc-sub">cenário ruim</div></div>
-      <div class="mc-card"><div class="mc-lbl">MELHOR 10%</div><div class="mc-val" id="mcP90" style="color:var(--cyan)">—</div><div class="mc-sub">cenário bom</div></div>
-      <div class="mc-card"><div class="mc-lbl">PROB. LUCRO</div><div class="mc-val" id="mcProfit" style="color:var(--yellow)">—</div><div class="mc-sub">% positivas</div></div>
-    </div>
-    <div style="font-size:9px;color:var(--dim);margin-top:10px;margin-bottom:4px;">DISTRIBUIÇÃO (Soros Protegido)</div>
-    <div class="mc-dist" id="mcDist"></div>
-  </div>
-
-  <!-- TABELA -->
-  <div class="section">
-    <div class="sec-title">DETALHAMENTO POR OPERAÇÃO</div>
-    <div id="tblWrap">
-      <table>
-        <thead><tr>
-          <th>#</th><th>RES</th>
-          <th>ENT.LIVRE</th><th>P&L LIVRE</th>
-          <th>ENT.PROT.</th><th>P&L PROT.</th>
-          <th>P&L CONS.</th><th>MOTIVO</th>
-        </tr></thead>
-        <tbody id="tblBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ANÁLISE -->
-  <div class="section" id="secAna" style="display:none">
-    <div class="sec-title">ANÁLISE</div>
-    <div id="analise" class="ana"></div>
-  </div>
-
-</div><!-- /main -->
-</div><!-- /layout -->
+</div>
 
 <script>
-const $=id=>document.getElementById(id);
 
-// ── FIXED RECOMMENDED SETTINGS ───────────────────────
-const CFG={
-  wr:0.65, pay:0.95, niveis:2, doReset:true,
-  seqOn:true, maxSeqP:2,
-  ddOn:true, maxDDpct:0.05,
-  expOn:true, maxExppct:0.10,
-  metaPct:0.10
+// CHART
+const chart = LightweightCharts.createChart(
+document.getElementById("chart"),
+{
+width:window.innerWidth-40,
+height:420,
+layout:{background:{color:"#020617"},textColor:"#cbd5f5"},
+grid:{vertLines:{color:"#1e293b"},horzLines:{color:"#1e293b"}}
+}
+);
+
+const candles = chart.addCandlestickSeries();
+const emaFast = chart.addLineSeries();
+const emaMid = chart.addLineSeries();
+const emaSlow = chart.addLineSeries();
+
+// DATA
+let ws;
+let ticks=[];
+let candlesData=[];
+let currentCandle=null;
+
+// CONNECT
+function connect(){
+
+ws = new WebSocket("wss://ws.derivws.com/websockets/v3?app_id=1089");
+
+ws.onopen=()=>{
+
+document.getElementById("status").innerText="connected";
+
+subscribe();
+
 };
 
-function getInputs(){
-  return {
-    banca: Math.max(100,parseFloat($('cfgBanca').value)||1000),
-    base:  Math.max(1,  parseFloat($('cfgBase').value)||5),
-    nOps:  Math.max(5,  Math.min(200,parseInt($('cfgOps').value)||30)),
-    mode:  $('cfgMode').value
-  };
+ws.onmessage=(msg)=>{
+
+let data=JSON.parse(msg.data);
+
+if(data.tick){
+
+processTick(data.tick.quote,data.tick.epoch);
+
 }
 
-// ── KELLY ─────────────────────────────────────────────
-function calcKelly(){
-  const {banca}=getInputs();
-  const k=(CFG.wr*(1+CFG.pay)-(1-CFG.wr))/CFG.pay;
-  const hk=k/2;
-  $('kFull').textContent = k>0?(k*100).toFixed(1)+'%':'EV neg.';
-  $('kFull').style.color = k>0?'var(--purple)':'var(--red)';
-  $('kHalf').textContent = hk>0?(hk*100).toFixed(1)+'%':'—';
-  $('kVal').textContent  = hk>0?'US$'+(banca*hk).toFixed(2):'—';
+};
+
 }
 
-// ── STREAK ────────────────────────────────────────────
-function calcStreak(){
-  const {nOps,base,banca}=getInputs();
-  const p=1-CFG.wr;
-  $('nOpsLbl').textContent=nOps;
-  const bars=$('streakBars'); bars.innerHTML='';
-  const probs=[];
-  for(let n=1;n<=6;n++){
-    const pr=Math.min(99.9,(1-probNoStreak(nOps,p,n))*100);
-    probs.push({n,pr});
-  }
-  const mx=Math.max(...probs.map(x=>x.pr),1);
-  probs.forEach(({n,pr})=>{
-    const h=Math.max(2,Math.round((pr/mx)*50));
-    const col=pr>70?'var(--red)':pr>40?'var(--orange)':'var(--green)';
-    bars.innerHTML+=`<div class="sb-wrap">
-      <div class="sb-pct" style="color:${col}">${pr.toFixed(0)}%</div>
-      <div class="sb-bar" style="height:${h}px;background:${col}"></div>
-      <div class="sb-lbl">${n}P</div>
-    </div>`;
-  });
-  // Risco específico de tocar stop de 2 perdas
-  const risco=(1-probNoStreak(nOps,p,2))*100;
-  $('streakRisk').textContent=risco.toFixed(1)+'%';
+function subscribe(){
+
+let asset=document.getElementById("asset").value;
+
+ws.send(JSON.stringify({
+ticks:asset,
+subscribe:1
+}));
+
 }
 
-function probNoStreak(ops,p,n){
-  ops=Math.max(1,Math.min(500,Math.round(ops)||1));
-  n=Math.max(1,Math.round(n)||1);
-  p=Math.max(0,Math.min(1,p||0));
-  if(n>ops) return 1;
-  const dp=new Array(ops+1).fill(0); dp[0]=1;
-  for(let i=1;i<=ops;i++){
-    dp[i]=dp[i-1];
-    if(i>=n){const pw=i===n?1.0:dp[i-n-1]*(1-p);dp[i]-=pw*Math.pow(p,n);}
-  }
-  return Math.max(0,Math.min(1,dp[ops]||0));
+// TICK -> CANDLE
+function processTick(price,time){
+
+let tf=parseInt(document.getElementById("tf").value);
+
+let candleTime=Math.floor(time/tf)*tf;
+
+if(!currentCandle || candleTime!=currentCandle.time){
+
+if(currentCandle){
+
+candlesData.push(currentCandle);
+candles.update(currentCandle);
+
 }
 
-// ── SEQ GENERATOR ─────────────────────────────────────
-function gerarSeq(n,wrPct,mode){
-  n=Math.max(1,Math.round(n)||1);
-  wrPct=Math.max(0,Math.min(100,wrPct||65));
-  const nG=Math.min(n,Math.max(0,Math.round(n*wrPct/100))),nP=n-nG;
-  let s=[...Array(nG).fill('G'),...Array(nP).fill('P')];
-  if(mode==='random'){for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=s[i];s[i]=s[j];s[j]=t;}}
-  else if(mode==='badstart'){s=[...Array(nP).fill('P'),...Array(nG).fill('G')];}
-  else if(mode==='worstcase'){const p1=Math.max(0,Math.min(3,nP)),p2=Math.max(0,nP-p1);s=[...Array(p1).fill('P'),...Array(nG).fill('G'),...Array(p2).fill('P')];}
-  else if(mode==='grouped'){s=[...Array(nG).fill('G'),...Array(nP).fill('P')];}
-  return s;
+currentCandle={
+time:candleTime,
+open:price,
+high:price,
+low:price,
+close:price
+};
+
+}else{
+
+currentCandle.high=Math.max(currentCandle.high,price);
+currentCandle.low=Math.min(currentCandle.low,price);
+currentCandle.close=price;
+
 }
 
-function calcDD(h){let pk=0,dd=0;h.forEach(v=>{pk=Math.max(pk,v);dd=Math.max(dd,pk-v);});return dd;}
+calculate();
 
-// ── SIMULATE ──────────────────────────────────────────
-function simRun(banca,base,nOps,mode,seq){
-  if(!seq) seq=gerarSeq(nOps,CFG.wr*100,mode);
-  const {pay,niveis,doReset,seqOn,maxSeqP,ddOn,maxDDpct,expOn,maxExppct}=CFG;
-
-  // SOROS LIVRE
-  let sPnl=0,sE=base,sN=0; const sH=[0],sR=[];
-  for(let i=0;i<seq.length;i++){
-    const g=seq[i]==='G'; const l=g?sE*pay:-sE; sPnl+=l;
-    sR.push({e:sE.toFixed(2),l:l.toFixed(2)}); sH.push(sPnl);
-    if(g){if(sN<niveis){sE=base+sE*pay;sN++;}else if(doReset){sE=base;sN=0;}else{sE=base+sE*pay;}}
-    else{sE=base;sN=0;}
-  }
-
-  // SOROS PROTEGIDO
-  let pPnl=0,pE=base,pN=0,pSq=0,pBanca=banca,pBloq=0,pME=0;
-  const pH=[0],pR=[],mot=[];
-  for(let i=0;i<seq.length;i++){
-    const dd=(banca-pBanca)/banca;
-    let bloq=false,m='';
-    if(ddOn&&dd>=maxDDpct){bloq=true;m='DD '+(dd*100).toFixed(1)+'%';}
-    if(seqOn&&pSq>=maxSeqP){bloq=true;m=m?(m+' +'+pSq+'P'):(pSq+' perdas');}
-    // Meta diária
-    if(pPnl>=banca*CFG.metaPct){bloq=true;m='META ✅';}
-    let eR=pE;
-    if(!bloq&&expOn&&pE>pBanca*maxExppct){eR=Math.max(base,pBanca*maxExppct);if(eR>pME)pME=eR;m=m?m+'+cap':'cap';}
-    if(bloq){pBloq++;pR.push({e:0,l:0,bloq:true});pH.push(pPnl);mot.push(m);pSq=0;continue;}
-    mot.push(m);
-    const g=seq[i]==='G'; const l=g?eR*pay:-eR; pPnl+=l; pBanca+=l;
-    pR.push({e:eR.toFixed(2),l:l.toFixed(2),bloq:false}); pH.push(pPnl);
-    if(g){pSq=0;if(pN<niveis){pE=base+eR*pay;pN++;}else if(doReset){pE=base;pN=0;}else{pE=base+eR*pay;}}
-    else{pSq++;pE=base;pN=0;}
-  }
-
-  // CONSERVADOR
-  let cPnl=0; const cH=[0];
-  for(let i=0;i<seq.length;i++){const l=seq[i]==='G'?base*pay:-base;cPnl+=l;cH.push(cPnl);}
-
-  return {sPnl,pPnl,cPnl,sH,pH,cH,sR,pR,mot,seq,pBloq,pME,ddS:calcDD(sH),ddP:calcDD(pH)};
 }
 
-// ── MAIN ──────────────────────────────────────────────
-function simular(){
-  try{
-  const {banca,base,nOps,mode}=getInputs();
-  calcKelly(); calcStreak();
-  const R=simRun(banca,base,nOps,mode,null);
-  const {sPnl,pPnl,cPnl,sH,pH,cH,sR,pR,mot,seq,pBloq,pME,ddS,ddP}=R;
+// INDICATORS
 
-  function setKpi(valId,subId,roiId,val,sub,banca2){
-    $(valId).textContent=(val>=0?'+':'')+`US$${val.toFixed(2)}`;
-    $(valId).style.color=val>=0?'var(--green)':'var(--red)';
-    if(subId)$(subId).textContent=sub;
-    if(roiId){
-      const roi=(val/banca2*100).toFixed(1);
-      $(roiId).textContent=`ROI ${roi}%`;
-      $(roiId).style.background=val>=0?'rgba(0,230,118,.1)':'rgba(255,23,68,.1)';
-      $(roiId).style.color=val>=0?'var(--green)':'var(--red)';
-    }
-  }
-  setKpi('resSoros','subSoros','roiSoros',sPnl,'sem proteção',banca);
-  setKpi('resProt','subProt','roiProt',pPnl,pBloq+' ops bloq.',banca);
-  setKpi('resConserv','subConserv','roiConserv',cPnl,'base fixa',banca);
+function EMA(period){
 
-  const w=$('winner');w.className='show';
-  const mx=Math.max(sPnl,pPnl,cPnl);
-  if(sPnl===mx&&sPnl>Math.max(pPnl,cPnl)*1.02){w.className+=' soros-win';w.textContent='🏆 SOROS LIVRE venceu — US$'+(sPnl-Math.max(pPnl,cPnl)).toFixed(2)+' a mais';}
-  else if(pPnl===mx&&pPnl>cPnl*1.02){w.className+=' prot-win';w.textContent='🛡 SOROS PROTEGIDO venceu — melhor equilíbrio risco/retorno';}
-  else if(cPnl>=mx){w.className+=' conserv-win';w.textContent='💰 CONSERVADOR venceu nesta sequência';}
-  else{w.className+=' tie';w.textContent='⚖ Resultado similar entre as estratégias';}
+if(candlesData.length<period) return null;
 
-  // Meters
-  const pctS=Math.min(100,(ddS/banca)*200);
-  const pctP=Math.min(100,(ddP/banca)*200);
-  $('mBarS').style.width=pctS+'%';
-  $('mValS').textContent='US$'+ddS.toFixed(2)+' ('+(ddS/banca*100).toFixed(1)+'%)';
-  const pc=ddP/banca;
-  const bc=pc<0.02?'var(--green)':pc<0.05?'var(--yellow)':'var(--red)';
-  $('mBarP').style.width=pctP+'%';$('mBarP').style.background=bc;
-  $('mValP').style.color=bc;$('mValP').textContent='US$'+ddP.toFixed(2)+' ('+(ddP/banca*100).toFixed(1)+'%)';
-  $('mBarB').style.width=Math.min(100,(pBloq/nOps)*200)+'%';
-  $('mValB').textContent=pBloq+' / '+nOps+' ops bloqueadas';
-  $('mBarE').style.width=Math.min(100,(pME/base)*10)+'%';
-  $('mValE').textContent=pME>0?'US$'+pME.toFixed(2):'Não atingiu';
+let k=2/(period+1);
 
-  // Seq
-  const box=$('seqBox');box.innerHTML='';
-  for(let i=0;i<seq.length;i++){
-    const d=document.createElement('div');
-    if(pR[i]&&pR[i].bloq){d.className='op blocked';d.textContent='⛔';}
-    else{d.className='op '+seq[i].toLowerCase();d.textContent=seq[i];}
-    d.title='Op '+(i+1)+(mot[i]?' — '+mot[i]:'');
-    d.style.animationDelay=(i*0.018)+'s';
-    box.appendChild(d);
-  }
+let ema=candlesData[0].close;
 
-  drawChart(sH,pH,cH,nOps);
+for(let i=1;i<candlesData.length;i++){
 
-  // Tabela
-  const tb=$('tblBody');tb.innerHTML='';
-  for(let i=0;i<seq.length;i++){
-    const sr=sR[i],pr=pR[i];
-    const cl=seq[i]==='G'?base*CFG.pay:-base;
-    const bloq=pr&&pr.bloq;
-    const sl=parseFloat(sr.l),pl=bloq?0:parseFloat(pr.l);
-    const tr=document.createElement('tr');
-    tr.className=bloq?'bloq':seq[i]==='G'?'ganha':'perde';
-    tr.innerHTML=`<td>${i+1}</td>
-      <td style="color:${bloq?'var(--orange)':seq[i]==='G'?'var(--green)':'var(--red)'};font-weight:700">${bloq?'⛔':seq[i]}</td>
-      <td>US$${sr.e}</td>
-      <td style="color:${sl>=0?'var(--green)':'var(--red)'}">${sl>=0?'+':''}US$${sr.l}</td>
-      <td>${bloq?'—':'US$'+pr.e}</td>
-      <td style="color:${pl>=0?'var(--green)':'var(--red)'}">${bloq?'BLOQ':((pl>=0?'+':'')+'US$'+pr.l)}</td>
-      <td style="color:${cl>=0?'var(--green)':'var(--red)'}">${cl>=0?'+':''}US$${cl.toFixed(2)}</td>
-      <td style="color:var(--orange);font-size:8px">${mot[i]||''}</td>`;
-    tb.appendChild(tr);
-  }
+ema=candlesData[i].close*k + ema*(1-k);
 
-  // Análise
-  const nG=seq.filter(x=>x==='G').length;
-  let mxG=0,cG=0,mxP=0,cP=0;
-  seq.forEach(s=>{if(s==='G'){cG++;mxG=Math.max(mxG,cG);cP=0;}else{cP++;mxP=Math.max(mxP,cP);cG=0;}});
-  const be=(1/(1+CFG.pay)*100).toFixed(1);
-  let txt=`Win rate simulado: <strong>${(CFG.wr*100).toFixed(0)}%</strong> (${nG}G/${nOps-nG}P) · Break-even: <strong>${be}%</strong><br>`;
-  txt+=`Maior sequência de ganhos: <strong>${mxG}</strong> · Maior sequência de perdas: <strong>${mxP}</strong><br>`;
-  txt+=`Ops bloqueadas pelas proteções: <strong>${pBloq}</strong> (${(pBloq/nOps*100).toFixed(0)}% das ops evitadas)<br>`;
-  txt+=`Redução de drawdown com proteção: <strong>${ddS>0?((1-ddP/ddS)*100).toFixed(0):100}%</strong><br><br>`;
-  if(pPnl>cPnl){txt+=`<div class="box-ok">✅ O Soros Protegido gerou <strong>US$${(pPnl-cPnl).toFixed(2)} a mais</strong> que o conservador nesta sequência.</div>`;}
-  else{txt+=`<div class="box-tip">💡 O conservador venceu nesta sequência — normal em sequências com perdas agrupadas. Rode Monte Carlo para ver a tendência de longo prazo.</div>`;}
-  txt+=`<div class="box-tip">📌 Rode o Monte Carlo para ver o resultado em 500 cenários diferentes — isso dá a visão real do setup.</div>`;
-  $('analise').innerHTML=txt;
-  $('secAna').style.display='block';
-  }catch(e){alert('Erro ao simular: '+e.message);console.error(e);}
 }
 
-// ── CHART ─────────────────────────────────────────────
-function drawChart(sH,pH,cH,nOps){
-  const canvas=$('chart'),wrap=$('chartWrap');
-  const W=Math.max(wrap.clientWidth-4,300),H=155;
-  canvas.width=W;canvas.height=H;
-  const ctx=canvas.getContext('2d');
-  const all=[...sH,...pH,...cH];
-  const mn=Math.min(...all,0),mx=Math.max(...all,0.01),rng=(mx-mn)||1;
-  const pad={t:10,b:26,l:50,r:10};
-  const gW=W-pad.l-pad.r,gH=H-pad.t-pad.b;
-  ctx.clearRect(0,0,W,H);
-  for(let i=0;i<=4;i++){
-    const y=pad.t+(gH/4)*i;
-    ctx.strokeStyle='rgba(26,42,69,.8)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
-    const v=mx-(rng/4)*i;
-    ctx.fillStyle='#4a6080';ctx.font='8px Share Tech Mono';ctx.textAlign='right';
-    ctx.fillText((v>=0?'+':'')+v.toFixed(1),pad.l-4,y+3);
-  }
-  const zY=pad.t+gH*(mx/rng);
-  ctx.strokeStyle='rgba(255,255,255,.12)';ctx.setLineDash([4,4]);ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(pad.l,zY);ctx.lineTo(W-pad.r,zY);ctx.stroke();ctx.setLineDash([]);
-  const toX=i=>pad.l+(i/nOps)*gW,toY=v=>pad.t+gH*(1-(v-mn)/rng);
-  function line(data,col,a){
-    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.globalAlpha=a;
-    ctx.beginPath();data.forEach((v,i)=>i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)));ctx.stroke();
-    ctx.globalAlpha=a*0.12;ctx.fillStyle=col;
-    ctx.lineTo(toX(data.length-1),toY(0));ctx.lineTo(toX(0),toY(0));ctx.closePath();ctx.fill();
-    ctx.globalAlpha=1;
-  }
-  line(cH,'#00e5ff',0.65);line(pH,'#ff6d00',0.85);line(sH,'#00e676',1);
-  ctx.textAlign='left';ctx.font='9px Exo 2';
-  [['#00e676','Soros Livre'],['#ff6d00','Protegido'],['#00e5ff','Conservador']].forEach(([c,l],i)=>{
-    const x=pad.l+i*95;ctx.fillStyle=c;ctx.fillRect(x,H-14,7,6);ctx.fillStyle='#ccc';ctx.fillText(l,x+10,H-8);
-  });
+return ema;
+
 }
 
-// ── MONTE CARLO ───────────────────────────────────────
-function runMC(){
-  try{
-  const {banca,base,nOps}=getInputs();
-  const N=500,res=[];
-  $('mcProg').className='show';
-  let i=0;
-  function batch(){
-    const end=Math.min(i+50,N);
-    while(i<end){
-      const R=simRun(banca,base,nOps,'random',null);
-      res.push(R.pPnl); i++;
-    }
-    $('mcBar').style.width=(i/N*100)+'%';
-    if(i<N){requestAnimationFrame(batch);return;}
-    $('mcProg').className='';
-    res.sort((a,b)=>a-b);
-    const med=res[Math.floor(N/2)],p10=res[Math.floor(N*0.1)],p90=res[Math.floor(N*0.9)];
-    const pos=res.filter(x=>x>0).length;
-    function fv(id,v){$(id).textContent=(v>=0?'+':'')+`US$${v.toFixed(2)}`;$(id).style.color=v>=0?'var(--green)':'var(--red)';}
-    fv('mcMed',med);fv('mcP10',p10);fv('mcP90',p90);
-    const pct=pos/N*100;
-    $('mcProfit').textContent=pct.toFixed(1)+'%';
-    $('mcProfit').style.color=pct>=70?'var(--green)':pct>=50?'var(--yellow)':'var(--red)';
-    // Dist
-    const mn2=res[0],mx2=res[N-1],bs=(mx2-mn2)/20||1;
-    const counts=new Array(20).fill(0);
-    res.forEach(v=>{const b=Math.min(19,Math.max(0,Math.floor((v-mn2)/bs)));counts[b]++;});
-    const mc=Math.max(...counts);
-    const dist=$('mcDist');dist.innerHTML='';
-    counts.forEach((c,bi)=>{
-      const h=Math.max(2,Math.round((c/mc)*40));
-      const bm=mn2+(bi+0.5)*bs;
-      const col=bm>=0?'rgba(0,230,118,.5)':'rgba(255,23,68,.5)';
-      dist.innerHTML+=`<div class="mc-bar" style="height:${h}px;background:${col}" title="${c} sims · US$${bm.toFixed(0)}"></div>`;
-    });
-    $('secMC').style.display='block';
-    $('secMC').scrollIntoView({behavior:'smooth',block:'nearest'});
-  }
-  requestAnimationFrame(batch);
-  }catch(e){alert('Erro MC: '+e.message);console.error(e);}
+function ATR(){
+
+if(candlesData.length<20) return 0;
+
+let sum=0;
+
+for(let i=1;i<candlesData.length;i++){
+
+sum+=Math.abs(candlesData[i].high-candlesData[i].low);
+
 }
 
-function resetar(){
-  ['resSoros','resProt','resConserv'].forEach(id=>$(id).textContent='—');
-  ['roiSoros','roiProt','roiConserv'].forEach(id=>{$(id).textContent='';});
-  $('winner').className='';$('winner').textContent='';
-  $('seqBox').innerHTML='';$('tblBody').innerHTML='';
-  $('secMC').style.display='none';$('secAna').style.display='none';
-  ['mBarS','mBarP','mBarB','mBarE'].forEach(id=>$(id).style.width='0%');
-  ['mValS','mValP','mValB','mValE'].forEach(id=>$(id).textContent='—');
-  const ctx=$('chart').getContext('2d');ctx.clearRect(0,0,$('chart').width,$('chart').height);
+return sum/candlesData.length;
+
 }
 
-['cfgBanca','cfgBase','cfgOps'].forEach(id=>{
-  const el=$(id);if(el)el.addEventListener('input',()=>{calcKelly();calcStreak();});
-});
+function RSI(){
 
-document.addEventListener('DOMContentLoaded',()=>{calcKelly();calcStreak();simular();});
+if(candlesData.length<14) return 50;
+
+let gain=0;
+let loss=0;
+
+for(let i=1;i<candlesData.length;i++){
+
+let diff=candlesData[i].close-candlesData[i-1].close;
+
+if(diff>0) gain+=diff;
+else loss+=Math.abs(diff);
+
+}
+
+let rs=gain/(loss+0.00001);
+
+return 100-(100/(1+rs));
+
+}
+
+// SIGNAL ENGINE
+
+function calculate(){
+
+if(candlesData.length<25) return;
+
+let e3=EMA(3);
+let e8=EMA(8);
+let e20=EMA(20);
+
+let compression=Math.abs(e3-e20)/e20;
+
+let atr=ATR();
+let rsi=RSI();
+
+let score=0;
+
+if(compression<0.0003) score+=25;
+if(atr>0.5) score+=20;
+if(rsi>55 || rsi<45) score+=20;
+
+let trend="SIDEWAYS";
+
+if(e3>e20) trend="UP";
+if(e3<e20) trend="DOWN";
+
+document.getElementById("trend").innerText=trend;
+
+document.getElementById("volatility").innerText=atr.toFixed(2);
+
+document.getElementById("score").innerText=Math.round(score);
+
+let signal="WAIT";
+
+if(score>60){
+
+if(trend==="UP" && rsi>55) signal="CALL";
+if(trend==="DOWN" && rsi<45) signal="PUT";
+
+}
+
+updateSignal(signal);
+
+}
+
+// UI
+
+function updateSignal(sig){
+
+let el=document.getElementById("signal");
+
+if(sig==="CALL"){
+
+el.innerText="CALL ↑";
+el.className="signal call";
+
+}
+
+else if(sig==="PUT"){
+
+el.innerText="PUT ↓";
+el.className="signal put";
+
+}
+
+else{
+
+el.innerText="WAIT";
+el.className="signal wait";
+
+}
+
+}
+
+// ASSET CHANGE
+
+document.getElementById("asset").onchange=()=>{
+
+ws.close();
+candlesData=[];
+connect();
+
+}
+
+// START
+
+connect();
+
 </script>
+
 </body>
 </html>
