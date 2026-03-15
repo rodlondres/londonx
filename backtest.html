@@ -391,7 +391,9 @@ function analyze(idx,candles,ind){
   // Candle
   if(idx>0){var pc=candles[idx-1].c;if(close>pc)b+=1;else if(close<pc)s+=1;}
   var dir=b>s?'CALL':'PUT',score=Math.max(b,s);
-  var sc=Math.min(13,Math.round(score/13*13));
+  // sc = número de fontes confirmando (de 0 a 13)
+  var maxPossible=13;
+  var sc=Math.min(13,Math.round((score/maxPossible)*13));
   var ep=candles[idx].epoch,hU=new Date(ep*1000).getUTCHours();
   var sess=hU>=7&&hU<16?'Londres':hU>=13&&hU<22?'New York':hU>=0&&hU<9?'Tóquio':'Fora';
   return{dir:dir,score:score,sc:sc,adx:A,epoch:ep,sess:sess};
@@ -469,10 +471,12 @@ async function runBacktest(){
   setS('🔍 Identificando sinais (threshold '+thr+'/13)...',55);
   await sleep(20);
 
-  var trades=[],hs={};
+  var trades=[],hs={},debugScores=[];
   for(var i=30;i<candles.length-1;i++){
     var sig=analyze(i,candles,ind);
-    if(!sig||sig.sc<thr||sig.adx<20)continue;
+    if(!sig) continue;
+    debugScores.push(sig.score);
+    if(sig.score<thr) continue;
     var won=(sig.dir==='CALL')?(candles[i+1].c>candles[i].c):(candles[i+1].c<candles[i].c);
     if(!hs[sig.sess])hs[sig.sess]={w:0,t:0};
     hs[sig.sess].t++;if(won)hs[sig.sess].w++;
@@ -483,7 +487,10 @@ async function runBacktest(){
   await sleep(20);
 
   if(trades.length===0){
-    setS('⚠️ Nenhum sinal gerado. Tente threshold menor.',0);
+    var maxScore=debugScores.length>0?Math.max.apply(null,debugScores):0;
+    var avgScore=debugScores.length>0?(debugScores.reduce(function(a,b){return a+b;})/debugScores.length).toFixed(1):0;
+    console.log('DEBUG scores — max:'+maxScore+' avg:'+avgScore+' total candles analisados:'+debugScores.length);
+    setS('⚠️ Nenhum sinal. Score máx='+maxScore+' Score médio='+avgScore+' (threshold='+thr+')',0);
     document.getElementById('btnRun').disabled=false;
     return;
   }
