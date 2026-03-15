@@ -862,7 +862,7 @@ canvas{width:100%;display:block;}
       db.doc(USER_DOC).onSnapshot(snap=>{
         if(!snap.exists) return;
         const data = snap.data();
-        if(data.device === DEVICE_ID) return; // ignora updates do próprio dispositivo
+        if(data.device === DEVICE_ID) return;
         console.log('Firebase: update de outro dispositivo — sincronizando...');
         this.pull();
       }, err=>console.warn('Firestore listener error:', err));
@@ -877,10 +877,31 @@ canvas{width:100%;display:block;}
   // Auto-pull ao carregar + listener em tempo real
   window.addEventListener('DOMContentLoaded', ()=>{
     setTimeout(()=>{
-      window.FB.pull();
-      window.FB.startListener();
-    }, 1500);
+      if(typeof window.FB !== 'undefined'){
+        window.FB.pull();
+        window.FB.startListener();
+      }
+    }, 2000);
   });
+
+  // ── SYNC iPhone — reconecta ao voltar do background ──────────
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible'){
+      setTimeout(()=>{
+        if(typeof window.FB !== 'undefined'){
+          window._fbStatus('⟳ Sincronizando...','#00e5ff');
+          window.FB.pull();
+        }
+      }, 1000);
+    }
+  });
+
+  // ── SYNC periódico a cada 3 minutos — garante iPhone sempre atualizado ──
+  setInterval(()=>{
+    if(document.visibilityState==='visible' && typeof window.FB !== 'undefined'){
+      window.FB.push('auto_sync_3min');
+    }
+  }, 180000);
   </script>
 </head>
 <body>
@@ -1963,6 +1984,8 @@ function handleTick(tick){
   if(tick.symbol===PAIRS[S.pair].deriv){
     const price=tick.quote;
     S.chartTick=price;
+    // ── Feed direto para Didi Needle ──
+    try{if(window.LondonXUpgrade&&window.LondonXUpgrade.feedPrice) window.LondonXUpgrade.feedPrice(price);}catch(e){}
     // Atualiza preço mostrado imediatamente (sem throttle)
     const decimals=price>100?2:price>10?3:5;
     document.getElementById('chartPrice').textContent=price.toFixed(decimals);
@@ -6546,30 +6569,10 @@ window.LondonXEnhancements = {
 <script>
 (function(){
 
-// ── USA OS PREÇOS JÁ COLETADOS PELA CONEXÃO PRINCIPAL ──────────
-// Não abre nova conexão WebSocket — evita conflito e consumo duplo
 var prices=[];
-
-// Intercepta handleTick da conexão principal
-var _origHandleTick=window.handleTick;
-window.handleTick=function(tick){
-  if(typeof _origHandleTick==='function') _origHandleTick(tick);
-  if(tick&&tick.quote){
-    prices.push(parseFloat(tick.quote));
-    if(prices.length>200) prices.shift();
-    detectDidi();
-  }
-};
-
-// Fallback: usa candleBuffer se disponível
-setInterval(function(){
-  try{
-    if(typeof candleBuffer!=='undefined'&&candleBuffer.length>prices.length){
-      prices=candleBuffer.slice(-200);
-      detectDidi();
-    }
-  }catch(e){}
-},5000);
+var _didiLastSignal='';
+var _didiLastTime=0;
+var _didiCooldown=8000;
 
 function ema(period,data){
   if(data.length<period) return null;
@@ -6578,42 +6581,21 @@ function ema(period,data){
   return v;
 }
 
-var _didiLastSignal='';
-var _didiLastTime=0;
-var _didiCooldown=8000; // 8 segundos entre alertas
-
 function detectDidi(){
   if(prices.length<25) return;
-
-  // Cooldown — evita piscar
   var now=Date.now();
-  if(now-_didiLastTime < _didiCooldown) return;
-
+  if(now-_didiLastTime<_didiCooldown) return;
   var sl=prices.slice(-20);
   var e3=ema(3,sl), e8=ema(8,sl), e20=ema(20,sl);
   if(!e3||!e8||!e20) return;
   var last=prices[prices.length-1];
   var spread=Math.abs(Math.max(e3,e8,e20)-Math.min(e3,e8,e20));
   var pct=spread/last;
-
   var sig='';
-
-  // PREPARE — EMAs juntas (compressão)
-  // VOL 75 tem alta volatilidade — threshold maior
-  if(pct < 0.0015){
-    sig='PREPARE';
-  }
-  // CALL — EMAs alinhadas bull com expansão clara
-  else if(pct >= 0.0025 && e3>e8 && e8>e20){
-    sig='CALL';
-  }
-  // PUT — EMAs alinhadas bear com expansão clara
-  else if(pct >= 0.0025 && e3<e8 && e8<e20){
-    sig='PUT';
-  }
-
-  // Só mostra se sinal mudou
-  if(sig && sig !== _didiLastSignal){
+  if(pct<0.0015)                          sig='PREPARE';
+  else if(pct>=0.0025&&e3>e8&&e8>e20)    sig='CALL';
+  else if(pct>=0.0025&&e3<e8&&e8<e20)    sig='PUT';
+  if(sig&&sig!==_didiLastSignal){
     _didiLastSignal=sig;
     _didiLastTime=now;
     showDidiSignal(sig);
@@ -6633,13 +6615,18 @@ function showDidiSignal(type){
   setTimeout(function(){var el=document.getElementById('didiAlert');if(el)el.remove();},5000);
 }
 
+// API pública — feedPrice chamado direto pelo handleTick
 window.LondonXUpgrade={
-  feedPrice:function(p){prices.push(p);if(prices.length>200)prices.shift();detectDidi();},
+  feedPrice:function(p){
+    prices.push(p);
+    if(prices.length>200) prices.shift();
+    detectDidi();
+  },
   getPrices:function(){return prices.slice();},
   forceDetect:detectDidi
 };
 
-console.log('LondonX Upgrade: Didi Needle ativo — usando conexão principal');
+console.log('LondonX Didi Needle: ativo via feedPrice direto');
 
 })();
 </script>
