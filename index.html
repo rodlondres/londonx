@@ -6583,11 +6583,24 @@ function detectDidi(){
   var sl=prices.slice(-20);
   var e3=ema(3,sl), e8=ema(8,sl), e20=ema(20,sl);
   if(!e3||!e8||!e20) return;
-  var compression=Math.abs(Math.max(e3,e8,e20)-Math.min(e3,e8,e20));
   var last=prices[prices.length-1];
+  var compression=Math.abs(Math.max(e3,e8,e20)-Math.min(e3,e8,e20));
+
+  // PREPARE — compressão detectada (EMAs juntas)
   if(compression<(last*0.0003)){
-    var dir=e3>e8&&e8>e20?'CALL':e3<e8&&e8<e20?'PUT':'PREPARE';
-    showDidiSignal(dir);
+    showDidiSignal('PREPARE');
+    return;
+  }
+
+  // CALL — EMAs alinhadas para cima após expansão
+  if(e3>e8&&e8>e20&&compression>(last*0.0005)){
+    showDidiSignal('CALL');
+    return;
+  }
+
+  // PUT — EMAs alinhadas para baixo após expansão
+  if(e3<e8&&e8<e20&&compression>(last*0.0005)){
+    showDidiSignal('PUT');
   }
 }
 
