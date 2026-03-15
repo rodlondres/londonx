@@ -1183,13 +1183,16 @@ canvas{width:100%;display:block;}
 <!-- ENTRY -->
 <div class="entry-card">
   <div class="slabel" style="margin-bottom:8px">💰 VALOR DE ENTRADA</div>
-  <div class="erow"><div class="esizes" id="esizes"></div><input class="ecustom" type="number" id="ecustom" value="20"></div>
+  <div class="erow"><div class="esizes" id="esizes"></div><input class="ecustom" type="number" id="ecustom" value="50"></div>
   <div class="slabel" style="margin:10px 0 6px">⏱ DURAÇÃO DA OPERAÇÃO</div>
   <div class="dur-row" id="durRow"></div>
 </div>
 
 <!-- GESTÃO DE BANCA -->
-<div class="slabel">⚖️ GESTÃO DE BANCA</div>
+<div class="slabel" style="display:flex;justify-content:space-between;align-items:center">
+  <span>⚖️ GESTÃO DE BANCA</span>
+  <button id="soundBtn" onclick="toggleSound()" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;font-family:'Orbitron',monospace">🔊 SOM ON</button>
+</div>
 <div class="risk-card">
   <!-- Linha 1: configurações -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
@@ -1467,7 +1470,7 @@ const TOKENS=[
 // STATE
 // ============================================================
 let S={
-  pair:0, tf:'3M', regime:'trend', strategy:'cons',
+  pair:0, tf:'3M', regime:'trend', strategy:'soros',
   dir:'up', aTab:'tech',
   slActive:false, sgActive:false, entryIdx:2,
   chartData:[], chartTick:1.08734,
@@ -4313,7 +4316,7 @@ const bm = {
   // --- Estratégia de entrada ---
   martLevel: 0,
   sorosLevel: 0,
-  baseStake: 20,
+  baseStake: 50,
   lastResult: null,
 
   // --- Gestão diária ---
@@ -4374,14 +4377,15 @@ const bm = {
     if(pnlPct <= -this.stopPct){
       this.blocked = true;
       this.blockReason = `🛑 STOP DIÁRIO -${this.stopPct}% ATINGIDO`;
+      playSound('stoploss');
       this.showBlock();
     } else if(pnlPct >= this.metaPct){
       this.blocked = true;
       this.blockReason = `🏆 META DIÁRIA +${this.metaPct}% ATINGIDA!`;
+      playSound('stopgain');
       this.showBlock();
     } else if(this.seqLosses >= this.maxSeq){
       this.blocked = true;
-      // Inicia pausa obrigatória de 15 minutos se não estiver já em pausa
       if(!this._pauseUntil || Date.now() > this._pauseUntil){
         this._pauseUntil = Date.now() + 15*60*1000;
         this._startPauseTimer();
@@ -4591,19 +4595,14 @@ const bm = {
     if(strategy==='soros'){
       // Soros Protegido — 2 níveis com trava de exposição máxima (10% da banca)
       const payout = 0.954; // VOL 75 payout padrão
-      const maxExp = Math.max(baseStake, (this.currentBal||1000)*0.10); // teto 10% da banca
+      const maxExp = Math.max(baseStake, (this.currentBal||11344)*0.10); // teto 10% da banca
       if(this.sorosLevel===0){
         // Nível 0 → entrada base
         return Math.min(baseStake, maxExp);
-      } else if(this.sorosLevel===1){
+      } else {
         // Nível 1 → base + lucro anterior reinvestido
         const lvl1 = parseFloat((baseStake + baseStake*payout).toFixed(2));
         return Math.min(lvl1, maxExp);
-      } else {
-        // Nível 2 → reinveste lucro do nível 1
-        const lvl1 = parseFloat((baseStake + baseStake*payout).toFixed(2));
-        const lvl2 = parseFloat((lvl1 + lvl1*payout).toFixed(2));
-        return Math.min(lvl2, maxExp);
       }
     }
     return baseStake;
@@ -4636,11 +4635,11 @@ const bm = {
     }
     if(strategy==='soros'){
       if(won){
-        // Ganhou: sobe nível até máximo de 2, depois faz reset e embolsa
-        if(this.sorosLevel < 2){
+        // Ganhou: sobe para nível 1, depois reset e embolsa
+        if(this.sorosLevel < 1){
           this.sorosLevel++;
         } else {
-          // Atingiu nível máximo → reset, lucro embolsado
+          // Atingiu nível máximo (1) → reset, lucro embolsado
           this.sorosLevel = 0;
           notify('🔄 SOROS: nível máximo atingido — lucro embolsado, voltando à base');
         }
@@ -5003,6 +5002,18 @@ function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct=0.85
   const priceWent=exitPrice>entryPrice;
   const won=isBuy?priceWent:!priceWent;
   const t=tradeHistory.find(x=>x.id===tradeId);
+
+  // ── Sons de resultado ──
+  if(won){
+    // Verifica se Soros vai subir de nível
+    if(S.strategy==='soros' && bankroll.sorosLevel===0){
+      playSound('soros'); // subiu para nível 1
+    } else {
+      playSound('win');
+    }
+  } else {
+    playSound('loss');
+  }
 
   // Atualiza estratégia de banca
   bankroll.update(S.strategy, won);
@@ -6186,6 +6197,9 @@ const semiAuto = {
   },
 
   showSignal(sig){
+    // ── Som de novo sinal ──
+    playSound('sinal');
+
     const box = document.getElementById('sigBox');
     const dir = document.getElementById('sigDir');
     const prob = document.getElementById('sigProb');
@@ -6327,6 +6341,134 @@ function init(){
   bm.updateButtons(); // garante botões corretos na abertura
   try{derivConnect();}catch(e){}
 }
+// ══ SISTEMA DE SONS ═══════════════════════════════════════════
+var _soundOn = true;
+
+function toggleSound(){
+  _soundOn = !_soundOn;
+  var btn = document.getElementById('soundBtn');
+  if(btn){
+    btn.textContent = _soundOn ? '🔊 SOM ON' : '🔇 SOM OFF';
+    btn.style.borderColor = _soundOn ? 'rgba(0,229,255,.3)' : 'rgba(100,100,100,.3)';
+    btn.style.color = _soundOn ? '#00e5ff' : '#666';
+  }
+  notify(_soundOn ? '🔊 Som ativado' : '🔇 Som desativado');
+}
+
+function playSound(tipo){
+  if(!_soundOn) return;
+  try{
+    var a = new AudioContext();
+    var g = a.createGain();
+    g.connect(a.destination);
+
+    if(tipo === 'stopgain'){
+      // 🏆 GONNA FLY NOW — Rocky (Bill Conti, 1976)
+      // Notas: C C C Eb F G Ab G F Eb C...
+      var notes = [
+        // Fanfarra inicial — ascendente
+        [523,  0.00, 0.12],  // C5
+        [523,  0.13, 0.12],  // C5
+        [523,  0.26, 0.12],  // C5
+        [622,  0.40, 0.18],  // Eb5
+        [698,  0.60, 0.18],  // F5
+        [784,  0.80, 0.22],  // G5
+        [831,  1.05, 0.28],  // Ab5
+        [784,  1.35, 0.18],  // G5
+        [698,  1.55, 0.18],  // F5
+        [622,  1.75, 0.18],  // Eb5
+        [523,  1.95, 0.30],  // C5 — pausa dramática
+        // Subida épica
+        [784,  2.30, 0.18],  // G5
+        [784,  2.50, 0.18],  // G5
+        [831,  2.70, 0.22],  // Ab5
+        [880,  2.95, 0.22],  // A5
+        [988,  3.20, 0.22],  // B5
+        [1047, 3.45, 0.40],  // C6 — nota épica final
+        [1047, 3.90, 0.15],  // C6 reforço
+        [1175, 4.10, 0.60],  // D6 — clímax!
+      ];
+      notes.forEach(function(n){
+        var o=a.createOscillator();
+        var gn=a.createGain();
+        o.connect(gn);gn.connect(a.destination);
+        o.type='square';
+        o.frequency.value=n[0];
+        gn.gain.setValueAtTime(0.0,a.currentTime+n[1]);
+        gn.gain.linearRampToValueAtTime(0.25,a.currentTime+n[1]+0.04);
+        gn.gain.exponentialRampToValueAtTime(0.001,a.currentTime+n[1]+n[2]+0.05);
+        o.start(a.currentTime+n[1]);
+        o.stop(a.currentTime+n[1]+n[2]+0.08);
+      });
+      // Baixo de fundo — dá o peso da fanfarra
+      var bass = [[131,0.0],[131,0.4],[156,0.8],[131,1.2],[131,1.95],[196,2.3],[196,2.9],[220,3.45],[220,3.9],[246,4.1]];
+      bass.forEach(function(b2){
+        var o=a.createOscillator();
+        var gn=a.createGain();
+        o.connect(gn);gn.connect(a.destination);
+        o.type='triangle';
+        o.frequency.value=b2[0];
+        gn.gain.setValueAtTime(0.15,a.currentTime+b2[1]);
+        gn.gain.exponentialRampToValueAtTime(0.001,a.currentTime+b2[1]+0.25);
+        o.start(a.currentTime+b2[1]);
+        o.stop(a.currentTime+b2[1]+0.28);
+      });
+
+    } else if(tipo === 'stoploss'){
+      // 🛑 Stop Loss — alarme descendente (3 notas graves)
+      [[400,0],[300,0.25],[200,0.50]].forEach(function(n){
+        var o=a.createOscillator();
+        o.connect(g);
+        o.type='square';
+        o.frequency.value=n[0];
+        g.gain.setValueAtTime(0.25,a.currentTime+n[1]);
+        g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+n[1]+0.3);
+        o.start(a.currentTime+n[1]);
+        o.stop(a.currentTime+n[1]+0.35);
+      });
+
+    } else if(tipo === 'sinal'){
+      // 📡 Novo sinal — 2 bipes rápidos
+      [0, 0.15].forEach(function(t){
+        var o=a.createOscillator();
+        o.connect(g);
+        o.type='sine';
+        o.frequency.value=880;
+        g.gain.setValueAtTime(0.2,a.currentTime+t);
+        g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+t+0.12);
+        o.start(a.currentTime+t);
+        o.stop(a.currentTime+t+0.15);
+      });
+
+    } else if(tipo === 'win'){
+      // ✅ WIN — bipe positivo
+      var o=a.createOscillator();
+      o.connect(g);o.type='sine';o.frequency.value=1047;
+      g.gain.setValueAtTime(0.3,a.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.4);
+      o.start();o.stop(a.currentTime+0.4);
+
+    } else if(tipo === 'loss'){
+      // ❌ LOSS — bipe negativo
+      var o=a.createOscillator();
+      o.connect(g);o.type='sawtooth';o.frequency.value=220;
+      g.gain.setValueAtTime(0.3,a.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.5);
+      o.start();o.stop(a.currentTime+0.5);
+
+    } else if(tipo === 'soros'){
+      // 🔄 Soros nível subiu — bipe duplo positivo
+      [[880,0],[1047,0.2]].forEach(function(n){
+        var o=a.createOscillator();
+        o.connect(g);o.type='sine';o.frequency.value=n[0];
+        g.gain.setValueAtTime(0.25,a.currentTime+n[1]);
+        g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+n[1]+0.2);
+        o.start(a.currentTime+n[1]);o.stop(a.currentTime+n[1]+0.22);
+      });
+    }
+  }catch(e){}
+}
+
 init();
 setInterval(simulateLive,3000);
 // Animação suave do candle atual — só roda se tiver dados reais ativos
