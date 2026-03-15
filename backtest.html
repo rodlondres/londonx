@@ -268,15 +268,16 @@ function setConn(txt,col){
 }
 
 // ── BUSCA CANDLES ─────────────────────────────────────────────
+var _ridCounter = 1;
 function fetchCandles(sym,gran,cnt){
   return new Promise(function(resolve){
     if(!ws||!wsReady){resolve([]);return;}
-    // req_id único — usa timestamp + random para evitar colisão
-    var rid=Math.floor(Date.now()%1000000)+Math.floor(Math.random()*999);
+    var rid = _ridCounter++;
+    if(_ridCounter > 9000) _ridCounter = 1; // reset
     var tmr=setTimeout(function(){
       delete _pending[rid];
       resolve([]);
-    },30000); // 30s timeout — generoso para 1000 candles
+    },30000);
     _pending[rid]=function(candles){
       clearTimeout(tmr);
       resolve(candles);
