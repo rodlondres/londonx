@@ -663,6 +663,11 @@ canvas{width:100%;display:block;}
 .hrule{color:#b2e0ff;font-size:12px;background:#0d1f35;border-left:3px solid #00e5ff;
   padding:8px 12px;border-radius:0 6px 6px 0;margin:12px 0 0;}
 #miniChart,#rsiChart,#didiChart,#adxChart{touch-action:none;-webkit-user-select:none;}
+/* TradingView Widget */
+#tvChartWrap{display:none;width:100%;border-radius:8px;overflow:hidden;background:#060d1a;}
+#tvChartWrap iframe{border:none;border-radius:8px;}
+#derivChartWrap{display:block;}
+.tv-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(0,150,136,.15);border:1px solid rgba(0,150,136,.3);border-radius:4px;padding:2px 8px;font-size:11px;color:#4db6ac;font-weight:700;letter-spacing:1px;}
 
 /* ── PAINEL TRADE ATIVO ── */
 /* ── MULTI-COUNTDOWN CONTAINER ── */
@@ -987,49 +992,64 @@ canvas{width:100%;display:block;}
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
     <span class="slabel" style="margin:0">📈 PREÇO TEMPO REAL</span>
     <div style="display:flex;align-items:center;gap:8px">
+      <span id="chartSourceBadge" class="tv-badge" style="display:none">📊 TradingView</span>
       <span style="font-size:12px;color:#a0c4e8;font-weight:700" id="chartTFLabel">3M</span>
       <span id="chartPrice" style="font-family:'Share Tech Mono',monospace;font-size:18px;font-weight:700;color:var(--cyan);font-weight:900">1.08734</span>
     </div>
   </div>
-  <!-- Zoom controls -->
-  <div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:3px">
+
+  <!-- Zoom controls — só aparece no gráfico Deriv -->
+  <div id="derivZoomControls" style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:3px">
     <button onclick="chartZoom(1.4)" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:5px;width:26px;height:22px;font-size:13px;cursor:pointer;font-weight:900;display:flex;align-items:center;justify-content:center;transition:background .15s" title="Zoom In">+</button>
     <button onclick="chartZoom(0.7)" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:5px;width:26px;height:22px;font-size:13px;cursor:pointer;font-weight:900;display:flex;align-items:center;justify-content:center;transition:background .15s" title="Zoom Out">−</button>
     <button onclick="chartReset()" style="background:rgba(255,214,0,.12);border:1px solid rgba(255,214,0,.3);color:#ffd600;border-radius:5px;padding:0 7px;height:22px;font-size:12px;cursor:pointer;font-weight:900;letter-spacing:1px;transition:background .15s" title="Reset">⊡ FIT</button>
     <button id="chartExpandBtn" onclick="chartToggleExpand()" style="background:rgba(124,77,255,.12);border:1px solid rgba(124,77,255,.3);color:#b388ff;border-radius:5px;width:26px;height:22px;font-size:11px;cursor:pointer;font-weight:900;display:flex;align-items:center;justify-content:center;transition:background .15s" title="Expandir">⤢</button>
   </div>
-  <!-- Main candle chart — scroll to zoom, drag to pan, double-tap to reset -->
-  <canvas id="miniChart" width="440" height="200" style="cursor:crosshair;display:block;border-radius:4px;"></canvas>
-  <!-- RSI subgraph -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding:0 2px">
-    <span style="font-size:12px;color:#a0c4e8;font-weight:700">RSI</span>
-    <span style="font-size:12px;font-family:'Share Tech Mono';color:var(--cyan)" id="rsiVal">50.0</span>
+
+  <!-- ══ GRÁFICO DERIV (VOL) ══ -->
+  <div id="derivChartWrap">
+    <!-- Main candle chart — scroll to zoom, drag to pan, double-tap to reset -->
+    <canvas id="miniChart" width="440" height="200" style="cursor:crosshair;display:block;border-radius:4px;"></canvas>
+    <!-- RSI subgraph -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding:0 2px">
+      <span style="font-size:12px;color:#a0c4e8;font-weight:700">RSI</span>
+      <span style="font-size:12px;font-family:'Share Tech Mono';color:var(--cyan)" id="rsiVal">50.0</span>
+    </div>
+    <canvas id="rsiChart" width="440" height="40"></canvas>
+    <!-- Didi Index subgraph -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:0 2px">
+      <span style="font-size:12px;color:#a0c4e8;font-weight:700">AGULHADA DO DIDI</span>
+      <span style="font-size:12px;font-family:'Share Tech Mono'" id="didiVal">—</span>
+    </div>
+    <div style="width:100%;overflow:hidden;box-sizing:border-box"><canvas id="didiChart" width="440" height="46" style="display:block;width:100%;max-width:100%"></canvas></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;padding:0 2px"><span style="font-size:12px;letter-spacing:1px;color:#94a3b8;font-weight:700">DIDI INDEX</span><span style="font-size:12px;font-family:'Share Tech Mono'" id="didiChartVal">—</span></div>
+    <!-- ADX subgraph -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;padding:0 2px;overflow:hidden;gap:6px">
+      <span style="font-size:12px;color:#a0c4e8;font-weight:700;flex-shrink:0">ADX (14)</span>
+      <span style="font-size:12px;font-family:'Share Tech Mono'" id="adxChartVal" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+    </div>
+    <div style="width:100%;overflow:hidden;box-sizing:border-box">
+      <canvas id="adxChart" width="440" height="52" style="display:block;width:100%;max-width:100%"></canvas>
+    </div>
+    <!-- Legend -->
+    <div style="display:flex;gap:8px;margin-top:5px;padding:0 2px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:#fff">▬ BB</span>
+      <span style="font-size:12px;font-weight:700;color:#00e5ff">— EMA3</span>
+      <span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.7)">— EMA8</span>
+      <span style="font-size:12px;font-weight:700;color:#ffdc32">— EMA20</span>
+      <span style="font-size:12px;font-weight:700;color:#00e5ff">▲ Didi Buy</span>
+      <span style="font-size:12px;font-weight:700;color:#ffdc32">▼ Didi Sell</span>
+    </div>
   </div>
-  <canvas id="rsiChart" width="440" height="40"></canvas>
-  <!-- Didi Index subgraph -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:0 2px">
-    <span style="font-size:12px;color:#a0c4e8;font-weight:700">AGULHADA DO DIDI</span>
-    <span style="font-size:12px;font-family:'Share Tech Mono'" id="didiVal">—</span>
+
+  <!-- ══ GRÁFICO TRADINGVIEW (Forex/Crypto/Commodity) ══ -->
+  <div id="tvChartWrap">
+    <div id="tvWidgetContainer" style="width:100%;height:400px;"></div>
+    <div style="text-align:center;margin-top:6px;font-size:10px;color:#3a5a78;letter-spacing:1px;">
+      Gráfico fornecido por TradingView · Análise de sinais continua via Deriv
+    </div>
   </div>
-  <div style="width:100%;overflow:hidden;box-sizing:border-box"><canvas id="didiChart" width="440" height="46" style="display:block;width:100%;max-width:100%"></canvas></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;padding:0 2px"><span style="font-size:12px;letter-spacing:1px;color:#94a3b8;font-weight:700">DIDI INDEX</span><span style="font-size:12px;font-family:'Share Tech Mono'" id="didiChartVal">—</span></div>
-  <!-- ADX subgraph -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;padding:0 2px;overflow:hidden;gap:6px">
-    <span style="font-size:12px;color:#a0c4e8;font-weight:700;flex-shrink:0">ADX (14)</span>
-    <span style="font-size:12px;font-family:'Share Tech Mono'" id="adxChartVal" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
-  </div>
-  <div style="width:100%;overflow:hidden;box-sizing:border-box">
-    <canvas id="adxChart" width="440" height="52" style="display:block;width:100%;max-width:100%"></canvas>
-  </div>
-  <!-- Legend -->
-  <div style="display:flex;gap:8px;margin-top:5px;padding:0 2px;flex-wrap:wrap;align-items:center">
-    <span style="font-size:12px;font-weight:700;color:#fff">▬ BB</span>
-    <span style="font-size:12px;font-weight:700;color:#00e5ff">— EMA3</span>
-    <span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.7)">— EMA8</span>
-    <span style="font-size:12px;font-weight:700;color:#ffdc32">— EMA20</span>
-    <span style="font-size:12px;font-weight:700;color:#00e5ff">▲ Didi Buy</span>
-    <span style="font-size:12px;font-weight:700;color:#ffdc32">▼ Didi Sell</span>
-  </div>
+
 </div>
 
 <!-- REGIME -->
@@ -2257,12 +2277,93 @@ function selectPair(i){
   const chartTFLbl=document.getElementById('chartTFLabel');
   if(chartTFLbl) chartTFLbl.textContent=S.tf;
   notify('PAR: '+p.sym);
+
+  // ── GRÁFICO HÍBRIDO: VOL → Deriv | Forex/Crypto/Commodity → TradingView ──
+  switchChart(p);
+
   // Sempre inicia chart simulado primeiro (visual imediato)
   initChart();
   // Se WebSocket ativo, sobrescreve com dados reais
   if(wsReady) subscribeCandles();
   // Só randomiza se offline — se WS ativo, analyzeSignal rodará via simulateLive
   if(!wsReady) randomAll();
+}
+
+// ── SWITCH CHART ─────────────────────────────────────────────
+var _tvWidget = null;
+
+// Mapeamento par → símbolo TradingView
+var TV_SYMBOLS = {
+  'EUR/USD':'FX:EURUSD','GBP/USD':'FX:GBPUSD','USD/JPY':'FX:USDJPY',
+  'AUD/USD':'FX:AUDUSD','EUR/GBP':'FX:EURGBP','USD/CAD':'FX:USDCAD',
+  'NZD/USD':'FX:NZDUSD','EUR/JPY':'FX:EURJPY','GBP/JPY':'FX:GBPJPY',
+  'USD/CHF':'FX:USDCHF','XAU/USD':'TVC:GOLD','XAG/USD':'TVC:SILVER',
+  'BTC/USD':'BITSTAMP:BTCUSD','ETH/USD':'BITSTAMP:ETHUSD'
+};
+
+// Mapeamento timeframe bot → TradingView
+var TV_TF = {
+  '1M':'1','3M':'3','5M':'5','15M':'15','30M':'30',
+  '1H':'60','2H':'120','1D':'D','1W':'W'
+};
+
+function switchChart(p){
+  var derivWrap = document.getElementById('derivChartWrap');
+  var tvWrap    = document.getElementById('tvChartWrap');
+  var zoomCtrl  = document.getElementById('derivZoomControls');
+  var badge     = document.getElementById('chartSourceBadge');
+
+  if(p && p.vol){
+    // VOL → Gráfico Deriv original
+    if(derivWrap) derivWrap.style.display='block';
+    if(tvWrap)    tvWrap.style.display='none';
+    if(zoomCtrl)  zoomCtrl.style.display='flex';
+    if(badge)     badge.style.display='none';
+  } else {
+    // Forex / Crypto / Commodity → TradingView
+    if(derivWrap) derivWrap.style.display='none';
+    if(tvWrap)    tvWrap.style.display='block';
+    if(zoomCtrl)  zoomCtrl.style.display='none';
+    if(badge)     badge.style.display='inline-flex';
+    loadTVWidget(p);
+  }
+}
+
+function loadTVWidget(p){
+  var container = document.getElementById('tvWidgetContainer');
+  if(!container) return;
+
+  var symbol = TV_SYMBOLS[p.sym] || ('FX:'+p.sym.replace('/',''));
+  var tf     = TV_TF[S.tf] || '5';
+
+  // Remove widget anterior
+  container.innerHTML = '';
+
+  // Cria script TradingView
+  var script = document.createElement('script');
+  script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  script.async = true;
+  script.innerHTML = JSON.stringify({
+    autosize: true,
+    symbol: symbol,
+    interval: tf,
+    timezone: 'America/Sao_Paulo',
+    theme: 'dark',
+    style: '1',
+    locale: 'br',
+    backgroundColor: '#060d1a',
+    gridColor: 'rgba(26,45,79,0.4)',
+    hide_top_toolbar: false,
+    hide_legend: false,
+    save_image: false,
+    calendar: false,
+    support_host: 'https://www.tradingview.com',
+    studies: ['RSI@tv-basicstudies','MACD@tv-basicstudies','BB@tv-basicstudies'],
+    container_id: 'tvWidgetContainer',
+    width: '100%',
+    height: 400
+  });
+  container.appendChild(script);
 }
 
 // ============================================================
@@ -2282,6 +2383,9 @@ function selectTF(t){
   const lbl=document.getElementById('chartTFLabel');if(lbl)lbl.textContent=t;
   document.getElementById('confTF').textContent=t+' · '+S.regime.toUpperCase();
   notify('TF: '+t);
+  // Se par não é VOL, recarrega TradingView com novo TF
+  var p=PAIRS[S.pair];
+  if(p && !p.vol){ loadTVWidget(p); return; }
   if(wsReady) subscribeCandles();
   else { initChart(); randomAll(); }
 }
@@ -6296,6 +6400,8 @@ function init(){
   const initP=PAIRS[S.pair];
   const confPairEl=document.getElementById('confPair');
   if(confPairEl) confPairEl.textContent=initP.sym+(initP.otc?' OTC':initP.vol?' VOL':'');
+  // Gráfico híbrido — detecta tipo do par inicial
+  switchChart(initP);
   initChart();updateTape();renderConf();setupChartInteraction();
   // Carrega estado do dia salvo
   bm.loadDay();
