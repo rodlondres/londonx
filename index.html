@@ -96,13 +96,47 @@ canvas{width:100%;display:block;}
 .regime-card.lateral::before{background:linear-gradient(90deg,var(--yellow),var(--orange));}
 .regime-card.volatile::before{background:linear-gradient(90deg,var(--red),var(--purple));}
 .regime-badges{display:flex;gap:6px;}
-.regime-badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .2s;}
-.regime-badge.trend{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);}
-.regime-badge.lateral{background:rgba(255,214,0,.15);color:var(--yellow);border:1px solid rgba(255,214,0,.3);}
-.regime-badge.volatile{background:rgba(255,23,68,.15);color:var(--red);border:1px solid rgba(255,23,68,.3);}
-.regime-badge.active.trend{box-shadow:0 0 15px rgba(0,230,118,.5);}
-.regime-badge.active.lateral{box-shadow:0 0 15px rgba(255,214,0,.5);}
-.regime-badge.active.volatile{box-shadow:0 0 15px rgba(255,23,68,.5);}
+.regime-badge{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .3s;opacity:0.4;font-family:'Orbitron',monospace;}
+.regime-badge.trend{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);}
+.regime-badge.lateral{background:rgba(255,214,0,.1);color:var(--yellow);border:1px solid rgba(255,214,0,.2);}
+.regime-badge.volatile{background:rgba(255,23,68,.1);color:var(--red);border:1px solid rgba(255,23,68,.2);}
+
+/* Botão ativo — destaque máximo */
+.regime-badge.active{opacity:1;transform:scale(1.08);}
+.regime-badge.active.trend{
+  background:rgba(0,230,118,.25);
+  color:#fff;
+  border:2px solid var(--green);
+  box-shadow:0 0 18px rgba(0,230,118,.7), 0 0 6px rgba(0,230,118,.4);
+  animation:pulseTrend 1.8s ease-in-out infinite;
+}
+.regime-badge.active.lateral{
+  background:rgba(255,214,0,.25);
+  color:#fff;
+  border:2px solid var(--yellow);
+  box-shadow:0 0 18px rgba(255,214,0,.7), 0 0 6px rgba(255,214,0,.4);
+  animation:pulseLateral 1.8s ease-in-out infinite;
+}
+.regime-badge.active.volatile{
+  background:rgba(255,23,68,.25);
+  color:#fff;
+  border:2px solid var(--red);
+  box-shadow:0 0 18px rgba(255,23,68,.7), 0 0 6px rgba(255,23,68,.4);
+  animation:pulseVolatile 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseTrend{
+  0%,100%{box-shadow:0 0 18px rgba(0,230,118,.7),0 0 6px rgba(0,230,118,.4);}
+  50%{box-shadow:0 0 28px rgba(0,230,118,1),0 0 12px rgba(0,230,118,.6);}
+}
+@keyframes pulseLateral{
+  0%,100%{box-shadow:0 0 18px rgba(255,214,0,.7),0 0 6px rgba(255,214,0,.4);}
+  50%{box-shadow:0 0 28px rgba(255,214,0,1),0 0 12px rgba(255,214,0,.6);}
+}
+@keyframes pulseVolatile{
+  0%,100%{box-shadow:0 0 18px rgba(255,23,68,.7),0 0 6px rgba(255,23,68,.4);}
+  50%{box-shadow:0 0 32px rgba(255,23,68,1),0 0 14px rgba(255,23,68,.7);}
+}
 .cond{font-family:'Share Tech Mono',monospace;font-size:12px;color:#a0c4e8;font-weight:700;}
 .cond span{color:#ffffff;font-weight:700;}
 
