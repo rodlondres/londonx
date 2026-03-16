@@ -1235,8 +1235,28 @@ canvas{width:100%;display:block;}
 <!-- GESTÃO DE BANCA -->
 <div class="slabel" style="display:flex;justify-content:space-between;align-items:center">
   <span>⚖️ GESTÃO DE BANCA</span>
-  <button id="soundBtn" onclick="toggleSound()" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;font-family:'Orbitron',monospace">🔊 SOM ON</button>
+  <div style="display:flex;align-items:center;gap:8px">
+    <!-- BADGE SAÚDE DO SISTEMA -->
+    <div id="healthBadge" style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-family:'Orbitron',monospace;font-size:9px;font-weight:900;letter-spacing:1px;border:1px solid rgba(0,230,118,.3);background:rgba(0,230,118,.1);color:var(--green);transition:all .4s">
+      <span id="healthDot" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:pulseTrend 1.8s ease-in-out infinite"></span>
+      <span id="healthTxt">SAUDÁVEL</span>
+    </div>
+    <button id="soundBtn" onclick="toggleSound()" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;font-family:'Orbitron',monospace">🔊 SOM ON</button>
+  </div>
 </div>
+
+<!-- SAÚDE DO SISTEMA -->
+<div id="healthBar" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:10px;margin-bottom:8px;border:1px solid rgba(0,230,118,.3);background:rgba(0,230,118,.06);transition:all .4s">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div id="healthDot" style="width:12px;height:12px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(0,230,118,.8);animation:pulseTrend 1.8s ease-in-out infinite;flex-shrink:0"></div>
+    <div>
+      <div id="healthTitle" style="font-family:'Orbitron',monospace;font-size:11px;font-weight:900;letter-spacing:2px;color:var(--green)">🟢 SISTEMA SAUDÁVEL</div>
+      <div id="healthSub" style="font-size:10px;color:var(--text3);margin-top:2px;letter-spacing:1px">Operando normal · Stake 100%</div>
+    </div>
+  </div>
+  <div id="healthBadge" style="font-family:'Orbitron',monospace;font-size:10px;font-weight:900;padding:4px 12px;border-radius:8px;background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3)">NORMAL</div>
+</div>
+
 <div class="risk-card">
   <!-- Linha 1: configurações -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
@@ -2614,7 +2634,10 @@ function renderConf(){
   var baseEv=parseFloat(document.getElementById('ecustom').value||'20');
   // Redução de stake por regime lateral/volátil
   var regimeReduction = window._regimeStakeReduction||1.0;
-  if(regimeReduction<1.0) baseEv = parseFloat((baseEv*regimeReduction).toFixed(2));
+  // Redução adicional por saúde do sistema (modo recuperação)
+  var healthReduction = window._healthStakeReduction||1.0;
+  var totalReduction  = Math.min(regimeReduction, healthReduction);
+  if(totalReduction<1.0) baseEv = parseFloat((baseEv*totalReduction).toFixed(2));
   var martStake=bankroll.getStake(S.strategy,baseEv);
   var stratLbl={cons:'',mart:' M'+(bankroll.martLevel+1),soros:' S'+(bankroll.sorosLevel+1)}[S.strategy]||'';
 
@@ -4725,6 +4748,46 @@ const bm = {
 
     this.checkLimits();
 
+    // ── Badge de Saúde do Sistema ──
+    (function(pnlPct, blocked){
+      var badge=document.getElementById('healthBadge');
+      var dot=document.getElementById('healthDot');
+      var txt=document.getElementById('healthTxt');
+      if(!badge||!dot||!txt) return;
+      var drawPct=pnlPct<0?Math.abs(pnlPct):0;
+      if(blocked){
+        badge.style.cssText='display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-family:Orbitron,monospace;font-size:9px;font-weight:900;letter-spacing:1px;transition:all .4s;background:rgba(255,23,68,.15);border:1px solid rgba(255,23,68,.5);color:var(--red)';
+        dot.style.background='var(--red)';dot.style.animation='pulseVolatile 0.8s ease-in-out infinite';
+        txt.textContent='⛔ STOP';
+      } else if(drawPct>=3){
+        badge.style.cssText='display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-family:Orbitron,monospace;font-size:9px;font-weight:900;letter-spacing:1px;transition:all .4s;background:rgba(255,109,0,.15);border:1px solid rgba(255,109,0,.5);color:var(--orange)';
+        dot.style.background='var(--orange)';dot.style.animation='pulseVolatile 1.2s ease-in-out infinite';
+        txt.textContent='🔴 RECUPERAÇÃO';
+        if(!window._recoveryMode){
+          window._recoveryMode=true;
+          if(!window._regimeStakeReduction||window._regimeStakeReduction>0.5) window._regimeStakeReduction=0.5;
+          try{notify('🔴 RECUPERAÇÃO ATIVA: stake reduzido 50%');playSound('loss');}catch(e){}
+        }
+      } else if(drawPct>=2){
+        badge.style.cssText='display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-family:Orbitron,monospace;font-size:9px;font-weight:900;letter-spacing:1px;transition:all .4s;background:rgba(255,214,0,.12);border:1px solid rgba(255,214,0,.4);color:var(--yellow)';
+        dot.style.background='var(--yellow)';dot.style.animation='pulseLateral 1.8s ease-in-out infinite';
+        txt.textContent='🟡 ALERTA';
+        window._recoveryMode=false;
+      } else {
+        badge.style.cssText='display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-family:Orbitron,monospace;font-size:9px;font-weight:900;letter-spacing:1px;transition:all .4s;background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);color:var(--green)';
+        dot.style.background='var(--green)';dot.style.animation='pulseTrend 1.8s ease-in-out infinite';
+        txt.textContent='🟢 SAUDÁVEL';
+        if(window._recoveryMode && drawPct<1.5){
+          window._recoveryMode=false;
+          if(window._regimeStakeReduction===0.5) window._regimeStakeReduction=1.0;
+          try{notify('🟢 RECUPERAÇÃO CONCLUÍDA — stake normal');playSound('win');}catch(e){}
+        }
+      }
+    })(pnlPct, this.blocked);
+
+    // ── Atualiza indicador de saúde ──
+    try{ updateHealthIndicator(); }catch(e){}
+
     // ── Atualiza stats do topo ──
     const topWr = document.getElementById('top-wr');
     const topOps = document.getElementById('top-ops');
@@ -6564,7 +6627,64 @@ function init(){
 // ══ SISTEMA DE SONS ═══════════════════════════════════════════
 var _soundOn = true;
 
-function toggleSound(){
+// ══ INDICADOR DE SAÚDE DO SISTEMA ═════════════════════════════
+function updateHealthIndicator(){
+  var bar    = document.getElementById('healthBar');
+  var dot    = document.getElementById('healthDot');
+  var title  = document.getElementById('healthTitle');
+  var sub    = document.getElementById('healthSub');
+  var badge  = document.getElementById('healthBadge');
+  if(!bar||!dot||!title||!sub||!badge) return;
+
+  var pnl     = bm.dayPnl||0;
+  var start   = bm.dayStartBal||bm.currentBal||11344;
+  var pnlPct  = start>0?(pnl/start)*100:0;
+
+  // Define estado
+  var state='normal';
+  if(bm.blocked){
+    state = pnl>=0?'goal':'stop';
+  } else if(pnlPct<=-3){
+    state='recovery';
+  } else if(pnlPct<=-2){
+    state='alert';
+  } else if(pnlPct>=5){
+    state='great';
+  }
+
+  // Aplica redução de stake no modo recuperação
+  if(state==='recovery'){
+    window._healthStakeReduction = 0.5;
+  } else {
+    window._healthStakeReduction = 1.0;
+  }
+
+  // Visual por estado
+  var cfg = {
+    normal:   {bg:'rgba(0,230,118,.06)',  border:'rgba(0,230,118,.3)',  dotC:'#00e676', dotA:'pulseTrend',   badgeBg:'rgba(0,230,118,.15)',   badgeC:'var(--green)',  bdBorder:'rgba(0,230,118,.3)',   ttl:'🟢 SISTEMA SAUDÁVEL',      s:'Operando normal · Stake 100%',        b:'NORMAL'},
+    great:    {bg:'rgba(0,229,255,.06)',  border:'rgba(0,229,255,.3)',  dotC:'#00e5ff', dotA:'pulseTrend',   badgeBg:'rgba(0,229,255,.15)',   badgeC:'var(--cyan)',   bdBorder:'rgba(0,229,255,.3)',   ttl:'🚀 EXCELENTE DESEMPENHO',   s:'Meta próxima · Mantenha o ritmo',     b:'ÓTIMO'},
+    alert:    {bg:'rgba(255,214,0,.06)', border:'rgba(255,214,0,.3)', dotC:'#ffd600', dotA:'pulseLateral', badgeBg:'rgba(255,214,0,.15)',  badgeC:'var(--yellow)', bdBorder:'rgba(255,214,0,.3)',  ttl:'🟡 ALERTA — DRAWDOWN LEVE',  s:'Drawdown >2% · Cautela recomendada',  b:'ALERTA'},
+    recovery: {bg:'rgba(255,109,0,.06)', border:'rgba(255,109,0,.3)', dotC:'#ff6d00', dotA:'pulseVolatile',badgeBg:'rgba(255,109,0,.15)',  badgeC:'var(--orange)', bdBorder:'rgba(255,109,0,.3)',  ttl:'🔴 MODO RECUPERAÇÃO ATIVO',  s:'Drawdown >3% · Stake reduzido 50%',   b:'RECUPERAÇÃO'},
+    stop:     {bg:'rgba(255,23,68,.06)', border:'rgba(255,23,68,.3)', dotC:'#ff1744', dotA:'pulseVolatile',badgeBg:'rgba(255,23,68,.15)',   badgeC:'var(--red)',    bdBorder:'rgba(255,23,68,.3)',   ttl:'⛔ STOP DIÁRIO ATINGIDO',   s:'Limite diário — sessão encerrada',    b:'STOP'},
+    goal:     {bg:'rgba(0,230,118,.08)', border:'rgba(0,230,118,.4)', dotC:'#00e676', dotA:'pulseTrend',   badgeBg:'rgba(0,230,118,.2)',    badgeC:'var(--green)',  bdBorder:'rgba(0,230,118,.4)',   ttl:'🏆 META DIÁRIA ATINGIDA',   s:'Parabéns! Sessão encerrada com lucro', b:'META'}
+  };
+
+  var c=cfg[state]||cfg.normal;
+  bar.style.background   = c.bg;
+  bar.style.borderColor  = c.border;
+  dot.style.background   = c.dotC;
+  dot.style.boxShadow    = '0 0 10px '+c.dotC;
+  dot.style.animationName= c.dotA;
+  title.textContent      = c.ttl;
+  title.style.color      = c.badgeC;
+  sub.textContent        = c.s+' · P&L: '+(pnl>=0?'+':'')+pnl.toFixed(2)+' ('+pnlPct.toFixed(1)+'%)';
+  badge.textContent      = c.b;
+  badge.style.background = c.badgeBg;
+  badge.style.color      = c.badgeC;
+  badge.style.borderColor= c.bdBorder;
+}
+
+function toggleSound(){\n
   _soundOn = !_soundOn;
   var btn = document.getElementById('soundBtn');
   if(btn){
