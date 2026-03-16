@@ -1064,11 +1064,21 @@ canvas{width:100%;display:block;}
       <span class="regime-badge volatile" onclick="setRegime('volatile',this)">VOLÁTIL</span>
     </div>
   </div>
+  <!-- Alerta de regime não-tendência -->
+  <div id="regimeAlert" style="display:none;margin-bottom:8px;padding:8px 12px;border-radius:8px;font-size:11px;font-weight:700;letter-spacing:1px;font-family:'Orbitron',monospace"></div>
   <div style="display:flex;gap:12px;flex-wrap:wrap">
     <span class="cond">ADX: <span id="adxVal" style="color:var(--green)">28.4</span></span>
     <span class="cond">ATR: <span id="atrVal">0.0012</span></span>
     <span class="cond">BB Width: <span id="bbwVal">0.0035</span></span>
     <span class="cond">EMA: <span style="color:var(--green)">↑ ALINHADA</span></span>
+  </div>
+  <!-- FILTRO ATR -->
+  <div style="margin-top:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px" id="atrFilterBar">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:11px;color:var(--text3);letter-spacing:1px;font-weight:700">FILTRO ATR</span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:11px" id="atrFilterMsg">Calculando...</span>
+    </div>
+    <span style="font-family:'Orbitron',monospace;font-size:10px;font-weight:900;padding:3px 10px;border-radius:6px" id="atrRegimeBadge">—</span>
   </div>
 </div>
 
@@ -2322,6 +2332,86 @@ function setRegime(r,el){
   document.getElementById('regimeCard').className='regime-card '+r;
   document.getElementById('confTF').textContent=S.tf+' · '+r.toUpperCase();
   notify('REGIME: '+r.toUpperCase());
+  // Ajusta threshold por regime
+  applyRegimeThreshold(r);
+  // Atualiza alerta visual
+  var alert=document.getElementById('regimeAlert');
+  if(alert){
+    if(r==='lateral'){
+      alert.style.display='block';
+      alert.style.background='rgba(255,214,0,.08)';
+      alert.style.border='1px solid rgba(255,214,0,.3)';
+      alert.style.color='var(--yellow)';
+      alert.textContent='⚠️ LATERAL — Threshold 11/13 · Entrada 50% · Opera menos mas com mais precisão';
+    } else if(r==='volatile'){
+      alert.style.display='block';
+      alert.style.background='rgba(255,23,68,.08)';
+      alert.style.border='1px solid rgba(255,23,68,.3)';
+      alert.style.color='var(--red)';
+      alert.textContent='⚡ VOLÁTIL — Threshold 11/13 · Entrada 30% · Máxima cautela';
+    } else {
+      alert.style.display='none';
+    }
+  }
+}
+
+function applyRegimeThreshold(r){
+  var base = window._mlDynamicThreshold||9;
+  if(r==='lateral'){
+    // Lateral: eleva threshold para 11/13 + reduz entrada 50%
+    window._regimeThreshold = 11;
+    window._regimeStakeReduction = 0.5;
+    notify('⚠️ LATERAL: threshold 11/13 · entrada 50%');
+  } else if(r==='volatile'){
+    // Volátil: eleva threshold para 11/13 + reduz entrada 70%
+    window._regimeThreshold = 11;
+    window._regimeStakeReduction = 0.7;
+    notify('⚡ VOLÁTIL: threshold 11/13 · entrada 30%');
+  } else {
+    // Tendência: threshold normal do ML
+    window._regimeThreshold = null;
+    window._regimeStakeReduction = 1.0;
+  }
+}
+
+// ── AUTO DETECÇÃO DE REGIME ───────────────────────────────────
+function autoDetectRegime(){
+  if(!candleOHLC||candleOHLC.length<30) return;
+  var cl=candleOHLC.map(function(c){return c.c;});
+  var hi=candleOHLC.map(function(c){return c.h;});
+  var lo=candleOHLC.map(function(c){return c.l;});
+  var n=cl.length;
+
+  // ADX atual
+  var adxVal=S.adxNow||0;
+
+  // BB Width — largura relativa das bandas
+  var slice=cl.slice(-20);
+  var mean=slice.reduce(function(a,b){return a+b;})/slice.length;
+  var sd=Math.sqrt(slice.reduce(function(s,v){return s+(v-mean)*(v-mean);},0)/slice.length);
+  var bbWidth=(sd*4)/mean; // largura relativa
+
+  // ATR ratio
+  var atrRatio=S._atrRatio||1.0;
+
+  // Heurística de regime:
+  var detected='trend';
+  if(adxVal<20 && bbWidth<0.005){
+    detected='lateral'; // ADX fraco + BB estreito = lateral
+  } else if(atrRatio>1.5){
+    detected='volatile'; // ATR muito alto = volátil
+  } else if(adxVal>=25){
+    detected='trend'; // ADX forte = tendência
+  } else if(bbWidth<0.008 && adxVal<22){
+    detected='lateral'; // BB estreito + ADX fraco = lateral
+  }
+
+  // Só muda regime se diferente do atual
+  if(detected!==S.regime){
+    var el=document.querySelector('.regime-badge.'+detected);
+    if(el) setRegime(detected,el);
+    notify('🧠 AUTO: regime detectado → '+detected.toUpperCase());
+  }
 }
 
 // ============================================================
@@ -2478,6 +2568,9 @@ function renderConf(){
   // Botões BUY/SELL
   var buyBtn=document.getElementById('buyBtn'), sellBtn=document.getElementById('sellBtn');
   var baseEv=parseFloat(document.getElementById('ecustom').value||'20');
+  // Redução de stake por regime lateral/volátil
+  var regimeReduction = window._regimeStakeReduction||1.0;
+  if(regimeReduction<1.0) baseEv = parseFloat((baseEv*regimeReduction).toFixed(2));
   var martStake=bankroll.getStake(S.strategy,baseEv);
   var stratLbl={cons:'',mart:' M'+(bankroll.martLevel+1),soros:' S'+(bankroll.sorosLevel+1)}[S.strategy]||'';
 
@@ -2488,6 +2581,11 @@ function renderConf(){
   var sessName=S._sessName||'—';
   var sessOk=S.sessOk!==false;
   var threshOk=S.thresholdOk;
+  // ── Regime override de threshold ──
+  if(window._regimeThreshold){
+    var nConfNow = S.srcConfirming||0;
+    threshOk = nConfNow >= window._regimeThreshold;
+  }
   var trendStr=(S.trendBullCount||0)>=(S.trendBearCount||0)?
     (S.trendBullCount||0)+'/3 ↑':(S.trendBearCount||0)+'/3 ↓';
   var adxStr=(S.adxNow||0).toFixed(0);
@@ -2502,6 +2600,50 @@ function renderConf(){
   // VOL sintético: ADX não bloqueia — Forex/Crypto/Commodity: ADX obrigatório
   var adxLimit   = (agu_bull||agu_bear) ? 20 : 25;
   var adxOk      = isVolBtn ? true : adxNowVal >= adxLimit;
+
+  // ── FILTRO ATR — Regime de Volatilidade ────────────────────
+  // Bloqueia entrada se mercado estiver irracional (muito volátil) ou morto (sem movimento)
+  var atrFilterOk  = true;
+  var atrFilterMsg = '';
+  var atrRegime    = 'NORMAL'; // NORMAL | ALTO | BAIXO
+  (function(){
+    if(!candleOHLC||candleOHLC.length<25) return;
+    var hi  = candleOHLC.map(function(c){return c.h;});
+    var lo  = candleOHLC.map(function(c){return c.l;});
+    var cl2 = candleOHLC.map(function(c){return c.c;});
+    // ATR real (True Range)
+    var trArr=[];
+    for(var i=1;i<candleOHLC.length;i++){
+      trArr.push(Math.max(hi[i]-lo[i],Math.abs(hi[i]-cl2[i-1]),Math.abs(lo[i]-cl2[i-1])));
+    }
+    // ATR atual = média dos últimos 5 candles
+    var atrNow5 = trArr.slice(-5).reduce(function(a,b){return a+b;},0)/Math.min(5,trArr.length)||0;
+    // ATR médio 24h = últimos 288 candles de 5M (24h) ou o máximo disponível
+    var window24 = Math.min(288, trArr.length);
+    var atrAvg24 = trArr.slice(-window24).reduce(function(a,b){return a+b;},0)/window24||atrNow5;
+
+    S._atrNow5  = atrNow5;
+    S._atrAvg24 = atrAvg24;
+    S._atrRatio = atrNow5/atrAvg24;
+
+    if(atrNow5 > atrAvg24 * 1.5){
+      // Mercado irracional — volatilidade muito acima do normal (notícias, spike)
+      atrFilterOk  = false;
+      atrRegime    = 'ALTO';
+      atrFilterMsg = '⚡ ATR ALTO (' + (S._atrRatio).toFixed(1) + 'x) — Volatilidade irracional';
+    } else if(atrNow5 < atrAvg24 * 0.5){
+      // Mercado morto — spread/payout não compensa o risco
+      atrFilterOk  = false;
+      atrRegime    = 'BAIXO';
+      atrFilterMsg = '😴 ATR BAIXO (' + (S._atrRatio).toFixed(1) + 'x) — Mercado sem movimento';
+    } else {
+      atrRegime    = 'NORMAL';
+      atrFilterMsg = '✅ ATR OK (' + (S._atrRatio).toFixed(1) + 'x)';
+    }
+    S._atrRegime    = atrRegime;
+    S._atrFilterMsg = atrFilterMsg;
+  })();
+
   // ── JANELA ESTRATÉGICA DE ENTRADA ──────────────────────
   // Só libera sinal nos primeiros 60% do candle (evitar expiry manipulation)
   // No 5M: janela = primeiros 3 minutos (0–180s dos 300s totais)
@@ -2529,8 +2671,8 @@ function renderConf(){
     }
   })();
 
-  var strongBuy  = threshOk && S.dir==='BUY'  && sessOk && trendOkBtn && adxOk && candlePositionOk;
-  var strongSell = threshOk && S.dir==='SELL' && sessOk && trendOkBtn && adxOk && candlePositionOk;
+  var strongBuy  = threshOk && S.dir==='BUY'  && sessOk && trendOkBtn && adxOk && candlePositionOk && atrFilterOk;
+  var strongSell = threshOk && S.dir==='SELL' && sessOk && trendOkBtn && adxOk && candlePositionOk && atrFilterOk;
   // Bônus: agulhada do Didi confirmada
   var didiBonus  = agu_bull||agu_bear;
 
@@ -2538,6 +2680,36 @@ function renderConf(){
   S.candlePositionPct = candlePositionPct;
   S.candlePositionOk  = candlePositionOk;
   S.candlePositionMsg = candlePositionMsg;
+
+  // ── Atualiza visual Filtro ATR ──
+  (function(){
+    var bar   = document.getElementById('atrFilterBar');
+    var msg   = document.getElementById('atrFilterMsg');
+    var badge = document.getElementById('atrRegimeBadge');
+    if(!bar||!msg||!badge) return;
+    var regime = S._atrRegime||'NORMAL';
+    var txt    = S._atrFilterMsg||'ATR OK';
+    msg.textContent = txt;
+    if(regime==='ALTO'){
+      bar.style.borderColor='rgba(255,23,68,.4)';
+      bar.style.background='rgba(255,23,68,.05)';
+      badge.textContent='⚡ VOLÁTIL';
+      badge.style.background='rgba(255,23,68,.15)';
+      badge.style.color='var(--red)';
+    } else if(regime==='BAIXO'){
+      bar.style.borderColor='rgba(255,214,0,.4)';
+      bar.style.background='rgba(255,214,0,.05)';
+      badge.textContent='😴 MORTO';
+      badge.style.background='rgba(255,214,0,.15)';
+      badge.style.color='var(--yellow)';
+    } else {
+      bar.style.borderColor='rgba(0,230,118,.3)';
+      bar.style.background='rgba(0,230,118,.04)';
+      badge.textContent='✅ NORMAL';
+      badge.style.background='rgba(0,230,118,.15)';
+      badge.style.color='var(--green)';
+    }
+  })();
 
   if(strongBuy){
     if(buyBtn){buyBtn.style.opacity='1';buyBtn.style.filter='none';buyBtn.style.boxShadow='0 0 32px rgba(0,230,118,.9)';}
@@ -2563,6 +2735,7 @@ function renderConf(){
     // Sem threshold — mostra prob + quantas fontes confirmam
     var trendOk=S.trendOk; var tBC2=S.trendBullCount||0; var tSC2=S.trendBearCount||0;
     var waitMsg=!sessOk?'🕐 Sessão fechada':
+                !atrFilterOk?(S._atrFilterMsg||'⚡ ATR fora do range'):
                 !trendOk?'📈 Tendência '+Math.max(tBC2,tSC2)+'/3 — aguardando 2':
                 (!adxOk&&!isVolBtn)?'📊 ADX '+adxNowVal.toFixed(0)+' — aguardando >'+(adxLimit)+((agu_bull||agu_bear)?' 🎯 Agulhada':''):
                 !S.candlePositionOk?(S.candlePositionMsg||'⏱ Fora da janela ideal'):
@@ -5482,6 +5655,9 @@ function calcSentimentScore(candles){
 
 function analyzeSignal(){
   if(candleOHLC.length < 30) return null;
+
+  // Auto-detecta regime a cada análise
+  try{ autoDetectRegime(); }catch(e){}
 
   const closes = candleOHLC.map(c=>c.c);
   const highs   = candleOHLC.map(c=>c.h);
