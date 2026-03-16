@@ -1119,7 +1119,7 @@ canvas{width:100%;display:block;}
 <!-- ======================================================
      CONFLUÊNCIA UNIFICADA — 8 FONTES INSTITUCIONAIS
      ====================================================== -->
-<div class="slabel">🎯 CONFLUÊNCIA UNIFICADA — 8 FONTES INSTITUCIONAIS</div>
+<div class="slabel">🎯 CONFLUÊNCIA UNIFICADA — 13 FONTES INSTITUCIONAIS</div>
 <div class="conf-card">
   <div class="conf-top">
     <span class="conf-pair" id="confPair">VOL 75</span>
@@ -2475,6 +2475,24 @@ function autoDetectRegime(){
     var el=document.querySelector('.regime-badge.'+detected);
     if(el) setRegime(detected,el);
     notify('🧠 AUTO: regime detectado → '+detected.toUpperCase());
+  }
+
+  // ── Atualiza valores na tela em tempo real ──
+  var elAdx=document.getElementById('adxVal');
+  var elAtr=document.getElementById('atrVal');
+  var elBbw=document.getElementById('bbwVal');
+  if(elAdx){
+    elAdx.textContent=adxVal.toFixed(1);
+    elAdx.style.color=adxVal>=25?'var(--green)':adxVal>=20?'var(--yellow)':'var(--red)';
+  }
+  if(elAtr && S._atrNow5){
+    var dec=cl[cl.length-1]>100?2:cl[cl.length-1]>10?3:5;
+    elAtr.textContent=S._atrNow5.toFixed(dec);
+    elAtr.style.color=S._atrRatio>1.5?'var(--red)':S._atrRatio<0.5?'var(--yellow)':'var(--cyan)';
+  }
+  if(elBbw){
+    elBbw.textContent=bbWidth.toFixed(4);
+    elBbw.style.color=bbWidth<0.008?'var(--yellow)':bbWidth>0.02?'var(--red)':'var(--cyan)';
   }
 }
 
