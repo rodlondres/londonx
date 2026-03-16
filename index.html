@@ -2428,16 +2428,26 @@ function autoDetectRegime(){
   // ATR ratio
   var atrRatio=S._atrRatio||1.0;
 
-  // Heurística de regime:
+  // Heurística de regime — mais precisa:
   var detected='trend';
-  if(adxVal<20 && bbWidth<0.005){
-    detected='lateral'; // ADX fraco + BB estreito = lateral
-  } else if(atrRatio>1.5){
-    detected='volatile'; // ATR muito alto = volátil
+
+  if(atrRatio>1.5){
+    // Prioridade 1: volatilidade irracional
+    detected='volatile';
   } else if(adxVal>=25){
-    detected='trend'; // ADX forte = tendência
-  } else if(bbWidth<0.008 && adxVal<22){
-    detected='lateral'; // BB estreito + ADX fraco = lateral
+    // ADX forte — tendência confirmada
+    detected='trend';
+  } else if(adxVal<20){
+    // ADX fraco — sem tendência = lateral
+    detected='lateral';
+  } else {
+    // ADX entre 20-25 — zona cinzenta
+    // Decide pelo BB Width
+    if(bbWidth<0.008){
+      detected='lateral'; // BB estreito = consolidação
+    } else {
+      detected='trend'; // BB mais aberto = algum movimento
+    }
   }
 
   // Só muda regime se diferente do atual
