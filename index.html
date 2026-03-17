@@ -949,7 +949,30 @@ canvas{width:100%;display:block;}
     }
   }, 180000);
   </script>
-</head>
+<style>
+html, body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  filter: contrast(1.08) saturate(1.15);
+}
+
+canvas {
+  image-rendering: crisp-edges !important;
+}
+
+* {
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+div, span {
+  text-shadow: 0 0 1px rgba(255,255,255,0.05);
+}
+</style>
 <body>
 <div class="scan-line"></div>
 <div class="notif" id="notif"></div>
