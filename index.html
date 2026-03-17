@@ -874,11 +874,18 @@ canvas{width:100%;display:block;}
         const localBmDay  = JSON.parse(localStorage.getItem('londonx_bm_day')||'{}');
         const remoteBmDay = JSON.parse(data.bm_day||'{}');
         if(remoteBmDay.date === today){
-          // Remoto tem dados de hoje — usa o que tiver mais operações
           const remoteOps = (remoteBmDay.dayWins||0) + (remoteBmDay.dayLosses||0);
           const localOps  = (localBmDay.dayWins||0)  + (localBmDay.dayLosses||0);
           if(remoteOps >= localOps){
             localStorage.setItem('londonx_bm_day', data.bm_day);
+            // Atualiza objeto bm diretamente — não depende de loadDay
+            if(typeof bm !== 'undefined'){
+              bm.dayStartBal = remoteBmDay.dayStartBal || null;
+              bm.dayPnl      = remoteBmDay.dayPnl      || 0;
+              bm.dayWins     = remoteBmDay.dayWins     || 0;
+              bm.dayLosses   = remoteBmDay.dayLosses   || 0;
+              bm.seqLosses   = remoteBmDay.seqLosses   || 0;
+            }
           }
         }
 
@@ -6410,6 +6417,9 @@ const semiAuto = {
     } else {
       clearInterval(this.scanInterval);
       clearInterval(this.signalTimer);
+      clearInterval(this._windowWatcher);
+      this._windowWatcher=null;
+      this._pendingAutoSignal=null;
       this.currentSignal = null;
       this.stopPulse();
       notify('🤖 Semi-auto DESATIVADO');
@@ -6542,18 +6552,135 @@ const semiAuto = {
     sig.alignedTFs = tfLabel;
     sig.tfScores   = { [tfLabel]: `${sig.dir==='BUY'?'⬆':'⬇'} ${sig.prob}%` };
 
-    this.currentSignal = sig;
+    // ── VERIFICAR JANELA 5-45% ANTES DE MOSTRAR ──────────────
+    // Se candle está fora da janela ideal, aguarda automaticamente
+    const candleWindow = this._checkCandleWindow(gran);
+    if(candleWindow.pct > 45 || candleWindow.pct < 5){
+      // Fora da janela — armazena sinal e aguarda próxima janela
+      this._pendingAutoSignal = sig;
+      this._pendingAutoGran   = gran;
+      this.setWaiting(`⏳ SINAL PRONTO · Aguardando janela ideal · Candle ${candleWindow.pct}%`);
+      // Monitora a cada 2s até entrar na janela
+      if(!this._windowWatcher){
+        this._windowWatcher = setInterval(()=>{ this._checkWindowAndFire(); }, 2000);
+      }
+      return;
+    }
+
+    // ── VERIFICAR PADRÕES DE REVERSÃO ────────────────────────
+    const reversalOk = this._checkReversal(sig.dir);
+    if(!reversalOk.ok){
+      this.setWaiting(`${reversalOk.msg} · Aguardando próximo candle`);
+      this.currentSignal = null;
+      return;
+    }
+
+    this._fireSignal(sig);
+  },
+
+  // ── Verifica posição atual do candle (%) ─────────────────────
+  _checkCandleWindow(gran){
+    if(!candleOHLC||candleOHLC.length===0) return{pct:50};
+    var lastCandle=candleOHLC[candleOHLC.length-1];
+    if(!lastCandle||!lastCandle.epoch) return{pct:50};
+    var elapsed=Math.floor(Date.now()/1000)-lastCandle.epoch;
+    var pct=Math.min(100,Math.round((elapsed/gran)*100));
+    return{pct:pct};
+  },
+
+  // ── Verifica padrões de reversão ─────────────────────────────
+  _checkReversal(dir){
+    if(!candleOHLC||candleOHLC.length<3) return{ok:true};
+    var c0=candleOHLC[candleOHLC.length-1];
+    var c1=candleOHLC[candleOHLC.length-2];
+    if(!c0||!c1) return{ok:true};
+    var body=Math.abs(c0.c-c0.o);
+    var range=(c0.h-c0.l)||0.0001;
+    var lw=Math.min(c0.o,c0.c)-c0.l;
+    var uw=c0.h-Math.max(c0.o,c0.c);
+    var br=body/range;
+    var bull0=c0.c>c0.o;
+    var bull1=c1.c>c1.o;
+    var body1=Math.abs(c1.c-c1.o);
+
+    if(dir==='BUY'){
+      if(br<0.1&&bull1) return{ok:false,msg:'⛔ DOJI detectado'};
+      if(uw>body*2&&lw<body*0.5&&bull1) return{ok:false,msg:'⛔ SHOOTING STAR detectado'};
+      if(!bull0&&bull1&&c0.o>c1.c&&c0.c<c1.o&&body>body1*1.1) return{ok:false,msg:'⛔ ENGULFING BEARISH'};
+      if(!bull0&&bull1&&body>body1*0.8) return{ok:false,msg:'⛔ PADRÃO BEARISH detectado'};
+    }
+    if(dir==='SELL'){
+      if(br<0.1&&!bull1) return{ok:false,msg:'⛔ DOJI detectado'};
+      if(lw>body*2&&uw<body*0.5&&!bull1) return{ok:false,msg:'⛔ MARTELO detectado'};
+      if(bull0&&!bull1&&c0.o<c1.c&&c0.c>c1.o&&body>body1*1.1) return{ok:false,msg:'⛔ ENGULFING BULLISH'};
+      if(bull0&&!bull1&&body>body1*0.8) return{ok:false,msg:'⛔ PADRÃO BULLISH detectado'};
+    }
+    return{ok:true};
+  },
+
+  // ── Monitora janela e dispara quando entrar em 5-45% ────────
+  _checkWindowAndFire(){
+    if(!this.active||!this._pendingAutoSignal){
+      clearInterval(this._windowWatcher);
+      this._windowWatcher=null;
+      return;
+    }
+    var gran=this._pendingAutoGran||300;
+    var w=this._checkCandleWindow(gran);
+
+    // Candle expirou — re-analisa no próximo candle
+    if(w.pct>95){
+      clearInterval(this._windowWatcher);
+      this._windowWatcher=null;
+      this._pendingAutoSignal=null;
+      this.setWaiting('🔄 Candle expirou — re-analisando...');
+      setTimeout(()=>{ if(this.active) this.scan(); },2000);
+      return;
+    }
+
+    this.setWaiting(`⏳ SINAL PRONTO · Aguardando janela · Candle ${w.pct}%`);
+
+    if(w.pct>=5&&w.pct<=45){
+      clearInterval(this._windowWatcher);
+      this._windowWatcher=null;
+      var sig=this._pendingAutoSignal;
+      this._pendingAutoSignal=null;
+
+      // Re-verifica padrão de reversão no novo candle
+      var rev=this._checkReversal(sig.dir);
+      if(!rev.ok){
+        this.setWaiting(rev.msg+' — aguardando próximo candle');
+        return;
+      }
+
+      // Re-verifica fontes — confirma que sinal ainda é válido
+      var freshSig=this.analyzeCandles([...candleOHLC]);
+      if(!freshSig||!freshSig.thresholdOk){
+        this.setWaiting('⚠ Sinal enfraqueceu — re-analisando...');
+        setTimeout(()=>{ if(this.active) this.scan(); },3000);
+        return;
+      }
+
+      // ✅ Tudo ok — dispara!
+      sig.alignedTFs=freshSig.alignedTFs||sig.alignedTFs;
+      this._fireSignal(sig);
+    }
+  },
+
+  // ── Dispara o sinal validado ─────────────────────────────────
+  _fireSignal(sig){
+    this.currentSignal=sig;
     this.stats.signals++;
     this.updateStats();
     this.showSignal(sig);
     this.startSignalTimer(45);
     this.playAlert(sig.dir);
-    try{ if(navigator.vibrate) navigator.vibrate([200,100,200,100,400]); }catch(e){}
+    try{if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);}catch(e){}
     try{
       if(Notification.permission==='granted'){
-        new Notification('🤖 LONDONX — SINAL DETECTADO', {
-          body:`${PAIRS[S.pair].sym} ${sig.dir==='BUY'?'⬆ COMPRAR':'⬇ VENDER'} · ${sig.prob}% · ${tfLabel}`,
-          tag:'londonx-signal', requireInteraction:true
+        new Notification('LondonX — '+(sig.dir==='BUY'?'⬆ COMPRAR':'⬇ VENDER'),{
+          body:PAIRS[S.pair].sym+' · '+sig.prob+'% · '+sig.sourcesConfirming+'/13 fontes · Janela ideal!',
+          icon:'/favicon.ico', tag:'londonx-signal', requireInteraction:true
         });
       }
     }catch(e){}
