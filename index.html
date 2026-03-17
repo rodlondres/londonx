@@ -1,599 +1,381 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LondonX Bot v5.0</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      background: #0a0f1e;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    h1 {
-      color: #f5c518;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    .card {
-      background: #141b2b;
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 20px;
-      border: 1px solid #2a3a5a;
-    }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-    .stat-box {
-      background: #1e2a3a;
-      padding: 15px;
-      border-radius: 8px;
-      text-align: center;
-    }
-    .stat-value {
-      font-size: 24px;
-      font-weight: bold;
-      color: #00e676;
-    }
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-    button {
-      background: #2a3a5a;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    button:hover {
-      background: #3a4a6a;
-    }
-    .buy-btn {
-      background: #00a844;
-      font-size: 18px;
-      padding: 15px;
-    }
-    .sell-btn {
-      background: #b80018;
-      font-size: 18px;
-      padding: 15px;
-    }
-    .signal {
-      background: #1e2a3a;
-      padding: 15px;
-      border-radius: 8px;
-      margin: 10px 0;
-      font-size: 18px;
-      text-align: center;
-    }
-    .buy-signal {
-      color: #00e676;
-      border-left: 4px solid #00e676;
-    }
-    .sell-signal {
-      color: #ff1744;
-      border-left: 4px solid #ff1744;
-    }
-    .progress-bar {
-      width: 100%;
-      height: 20px;
-      background: #2a3a5a;
-      border-radius: 10px;
-      overflow: hidden;
-      margin: 10px 0;
-    }
-    .progress-fill {
-      height: 100%;
-      background: #00e676;
-      transition: width 0.3s;
-    }
-    .config-panel {
-      background: #1e2a3a;
-      padding: 15px;
-      border-radius: 8px;
-    }
-    input, select {
-      background: #2a3a5a;
-      color: white;
-      border: 1px solid #3a4a6a;
-      padding: 8px;
-      border-radius: 4px;
-      width: 100%;
-      margin: 5px 0;
-    }
-    label {
-      color: #a0c4e8;
-      font-size: 12px;
-      display: block;
-      margin-top: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LondonX Bot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a0f1e 0%, #1a1f2e 100%);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #f5c518;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 0 10px rgba(245,197,24,0.3);
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-box {
+            background: rgba(20,27,43,0.9);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            border: 1px solid #2a3a5a;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .stat-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: #00e676;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: #a0c4e8;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+        .card {
+            background: rgba(20,27,43,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid #2a3a5a;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        h2 {
+            color: #f5c518;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #2a3a5a;
+            padding-bottom: 10px;
+        }
+        .signal-box {
+            background: #1e2a3a;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid;
+        }
+        .signal-buy { border-color: #00e676; }
+        .signal-sell { border-color: #ff1744; }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #2a3a5a;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex: 1;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+        .buy-btn {
+            background: #00a844;
+            color: white;
+        }
+        .sell-btn {
+            background: #b80018;
+            color: white;
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        select, input {
+            background: #1e2a3a;
+            color: white;
+            border: 1px solid #2a3a5a;
+            padding: 10px;
+            border-radius: 5px;
+            width: 100%;
+            font-size: 1em;
+        }
+        label {
+            color: #a0c4e8;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            display: block;
+        }
+        .history-item {
+            background: #1e2a3a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .win { color: #00e676; }
+        .loss { color: #ff1744; }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #a0c4e8;
+            font-size: 0.9em;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .badge-buy { background: rgba(0,230,118,0.2); color: #00e676; }
+        .badge-sell { background: rgba(255,23,68,0.2); color: #ff1744; }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🤖 LONDONX BOT v5.0</h1>
-    
-    <!-- Stats -->
-    <div class="stats">
-      <div class="stat-box">
-        <div class="stat-value" id="winRate">0%</div>
-        <div>Win Rate</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="totalTrades">0</div>
-        <div>Total Trades</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="pnl">$0</div>
-        <div>P&L</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="streak">0</div>
-        <div>Streak</div>
-      </div>
-    </div>
-
-    <!-- Config Panel -->
-    <div class="card">
-      <h3>⚙️ Configurações</h3>
-      <div class="grid-2">
-        <div>
-          <label>Par</label>
-          <select id="pairSelect">
-            <option value="EUR/USD">EUR/USD</option>
-            <option value="GBP/USD">GBP/USD</option>
-            <option value="USD/JPY">USD/JPY</option>
-            <option value="XAU/USD">XAU/USD</option>
-            <option value="BTC/USD">BTC/USD</option>
-          </select>
-          
-          <label>Timeframe</label>
-          <select id="tfSelect">
-            <option value="1m">1 minuto</option>
-            <option value="5m" selected>5 minutos</option>
-            <option value="15m">15 minutos</option>
-            <option value="1h">1 hora</option>
-          </select>
-          
-          <label>Estratégia</label>
-          <select id="strategySelect">
-            <option value="cons">Conservadora</option>
-            <option value="mart">Martingale</option>
-            <option value="soros" selected>Soros</option>
-          </select>
-        </div>
-        <div>
-          <label>Stake ($)</label>
-          <input type="number" id="stakeInput" value="20" min="1" max="1000">
-          
-          <label>Stop Loss (%)</label>
-          <input type="number" id="stopLoss" value="5" min="1" max="50">
-          
-          <label>Take Profit (%)</label>
-          <input type="number" id="takeProfit" value="10" min="1" max="100">
-        </div>
-      </div>
-    </div>
-
-    <!-- Status do Sistema -->
-    <div class="card">
-      <h3>📊 Status do Sistema</h3>
-      <div class="grid-2">
-        <div>
-          <div class="signal" id="regimeSignal">🔄 Detectando regime...</div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="confidenceBar" style="width: 0%"></div>
-          </div>
-          <div>Confiança: <span id="confidenceValue">0%</span></div>
-        </div>
-        <div>
-          <div class="signal" id="mtfSignal">⏳ MTF Analysis...</div>
-          <div>Fontes confirmando: <span id="sourcesCount">0/13</span></div>
-          <div>Força do sinal: <span id="signalStrength">0%</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Sinais -->
-    <div class="card">
-      <h3>🎯 Sinal Atual</h3>
-      <div class="signal" id="currentSignal">Aguardando análise...</div>
-      <div class="grid-2">
-        <button class="buy-btn" id="buyBtn" onclick="executeTrade('BUY')">⬆ COMPRAR</button>
-        <button class="sell-btn" id="sellBtn" onclick="executeTrade('SELL')">⬇ VENDER</button>
-      </div>
-    </div>
-
-    <!-- Análise MTF -->
-    <div class="card">
-      <h3>📈 Análise Multi-Timeframe</h3>
-      <div class="grid-2">
-        <div>
-          <div>1M: <span id="tf1m">-</span></div>
-          <div>5M: <span id="tf5m">-</span></div>
-          <div>15M: <span id="tf15m">-</span></div>
-        </div>
-        <div>
-          <div>1H: <span id="tf1h">-</span></div>
-          <div>Convergência: <span id="mtfResult">❌</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Histórico -->
-    <div class="card">
-      <h3>📋 Últimas Operações</h3>
-      <div id="history"></div>
-    </div>
-  </div>
-
-  <script>
-    // ============================================================
-    // LONDONX BOT v5.0 - CÓDIGO COMPLETO E FUNCIONAL
-    // ============================================================
-
-    // Estado do bot
-    let state = {
-      balance: 1000,
-      dayPnl: 0,
-      wins: 0,
-      losses: 0,
-      streak: 0,
-      currentSignal: null,
-      signalStrength: 0,
-      regime: 'trend',
-      mtfSignals: {},
-      lastTrade: null
-    };
-
-    let tradeHistory = [];
-
-    // ============================================================
-    // SISTEMA DE PESAGEM POR REGIME
-    // ============================================================
-    const regimeWeights = {
-      trend: {
-        tech: 1.2,
-        trend: 1.4,
-        tape: 0.8,
-        candle: 1.0,
-        didi: 1.3,
-        ml: 0.9,
-        smc: 1.1,
-        fib: 1.2,
-        sess: 1.0,
-        news: 0.7,
-        harm: 0.8,
-        price: 1.0,
-        quant: 1.0
-      },
-      lateral: {
-        tech: 0.7,
-        trend: 0.5,
-        tape: 1.3,
-        candle: 1.4,
-        didi: 0.6,
-        ml: 1.2,
-        smc: 1.2,
-        fib: 0.8,
-        sess: 1.0,
-        news: 1.1,
-        harm: 1.3,
-        price: 1.2,
-        quant: 0.9
-      },
-      volatile: {
-        tech: 0.8,
-        trend: 0.6,
-        tape: 1.2,
-        candle: 0.9,
-        didi: 0.7,
-        ml: 1.5,
-        smc: 0.8,
-        fib: 0.7,
-        sess: 1.0,
-        news: 1.3,
-        harm: 0.6,
-        price: 0.8,
-        quant: 1.1
-      }
-    };
-
-    // ============================================================
-    // ANÁLISE MULTI-TIMEFRAME
-    // ============================================================
-    function analyzeMultiTimeframe() {
-      const tfs = ['1m', '5m', '15m', '1h'];
-      const signals = {};
-      let totalScore = 0;
-      
-      tfs.forEach(tf => {
-        // Simula análise para cada timeframe
-        const rsi = 40 + Math.random() * 40;
-        const macd = Math.random() > 0.5 ? 1 : -1;
-        const ema = Math.random() > 0.5 ? 1 : -1;
+    <div class="container">
+        <h1>🤖 LONDONX BOT</h1>
         
-        let signal = 'NEUTRO';
-        let score = 0;
-        
-        if (rsi > 60 && macd > 0 && ema > 0) {
-          signal = 'BUY';
-          score = 1;
-        } else if (rsi < 40 && macd < 0 && ema < 0) {
-          signal = 'SELL';
-          score = -1;
-        }
-        
-        signals[tf] = { signal, rsi: rsi.toFixed(1) };
-        totalScore += score;
-        
-        // Atualiza UI
-        document.getElementById(`tf${tf}`).innerHTML = 
-          `${signal} (RSI ${rsi.toFixed(1)})`;
-      });
-      
-      const convergence = Math.abs(totalScore) >= 2;
-      const primaryDir = totalScore > 0 ? 'BUY' : totalScore < 0 ? 'SELL' : 'NEUTRO';
-      
-      document.getElementById('mtfResult').innerHTML = 
-        convergence ? '✅ SIM' : '❌ NÃO';
-      document.getElementById('mtfSignal').innerHTML = 
-        convergence ? `🎯 Convergência para ${primaryDir}` : '⏳ Sem convergência';
-      
-      return { convergence, primaryDir, signals };
-    }
-
-    // ============================================================
-    // SISTEMA DE CONFIRMAÇÃO EM CADEIA
-    // ============================================================
-    function calculateSignalStrength() {
-      const levels = [
-        { name: 'Threshold', value: Math.random() > 0.3 },
-        { name: 'Sessão', value: true },
-        { name: 'Tendência', value: Math.random() > 0.2 },
-        { name: 'ADX', value: Math.random() > 0.25 },
-        { name: 'Momentum', value: Math.random() > 0.3 },
-        { name: 'Probabilidade', value: Math.random() > 0.2 },
-        { name: 'Volume', value: Math.random() > 0.3 },
-        { name: 'MTF', value: Math.random() > 0.25 }
-      ];
-      
-      const greenCount = levels.filter(l => l.value).length;
-      const totalCount = levels.length;
-      const strength = (greenCount / totalCount) * 100;
-      
-      return {
-        strength,
-        greenCount,
-        totalCount,
-        levels
-      };
-    }
-
-    // ============================================================
-    // GERADOR DE SINAIS (COM PESOS POR REGIME)
-    // ============================================================
-    function generateSignal() {
-      const mtf = analyzeMultiTimeframe();
-      const chainStrength = calculateSignalStrength();
-      
-      // Detecta regime (simulado)
-      const regimes = ['trend', 'lateral', 'volatile'];
-      const regime = regimes[Math.floor(Math.random() * regimes.length)];
-      state.regime = regime;
-      
-      // Aplica pesos do regime
-      const weights = regimeWeights[regime];
-      const baseScore = 40 + Math.random() * 50;
-      const weightedScore = baseScore * (weights.tech || 1.0);
-      
-      // Determina sinal baseado em múltiplos fatores
-      let signal = 'NEUTRO';
-      let confidence = 0;
-      
-      if (mtf.convergence && chainStrength.strength > 60) {
-        signal = mtf.primaryDir;
-        confidence = chainStrength.strength;
-      } else if (chainStrength.strength > 70) {
-        signal = chainStrength.strength > 70 ? 'BUY' : 'SELL';
-        confidence = chainStrength.strength;
-      } else {
-        // Fallback para RSI simples
-        const rsi = 30 + Math.random() * 40;
-        if (rsi > 65) {
-          signal = 'BUY';
-          confidence = rsi;
-        } else if (rsi < 35) {
-          signal = 'SELL';
-          confidence = 100 - rsi;
-        }
-      }
-      
-      state.currentSignal = signal;
-      state.signalStrength = confidence;
-      
-      // Atualiza UI
-      updateSignalDisplay(signal, confidence, regime, mtf, chainStrength);
-      
-      return { signal, confidence, regime, mtf, chainStrength };
-    }
-
-    // ============================================================
-    // ATUALIZAÇÃO DA INTERFACE
-    // ============================================================
-    function updateSignalDisplay(signal, confidence, regime, mtf, chain) {
-      const signalEl = document.getElementById('currentSignal');
-      const regimeEl = document.getElementById('regimeSignal');
-      const confidenceBar = document.getElementById('confidenceBar');
-      const confidenceValue = document.getElementById('confidenceValue');
-      const sourcesCount = document.getElementById('sourcesCount');
-      const signalStrength = document.getElementById('signalStrength');
-      
-      // Sinal atual
-      if (signal === 'BUY') {
-        signalEl.innerHTML = '⬆ SINAL DE COMPRA';
-        signalEl.className = 'signal buy-signal';
-      } else if (signal === 'SELL') {
-        signalEl.innerHTML = '⬇ SINAL DE VENDA';
-        signalEl.className = 'signal sell-signal';
-      } else {
-        signalEl.innerHTML = '⚪ SEM SINAL CLARO';
-        signalEl.className = 'signal';
-      }
-      
-      // Regime
-      const regimeNames = {
-        trend: '📈 TENDÊNCIA',
-        lateral: '📊 LATERAL',
-        volatile: '⚡ VOLÁTIL'
-      };
-      regimeEl.innerHTML = `🧠 Regime: ${regimeNames[regime] || 'Desconhecido'}`;
-      
-      // Barras de confiança
-      confidenceBar.style.width = `${confidence}%`;
-      confidenceBar.style.background = confidence > 70 ? '#00e676' : 
-                                      confidence > 50 ? '#ffd600' : '#ff1744';
-      confidenceValue.innerHTML = `${Math.round(confidence)}%`;
-      
-      // Fontes e força
-      sourcesCount.innerHTML = `${chain.greenCount}/${chain.totalCount}`;
-      signalStrength.innerHTML = `${Math.round(chain.strength)}%`;
-    }
-
-    // ============================================================
-    // EXECUÇÃO DE TRADE
-    // ============================================================
-    function executeTrade(direction) {
-      const stake = parseFloat(document.getElementById('stakeInput').value);
-      const pair = document.getElementById('pairSelect').value;
-      const tf = document.getElementById('tfSelect').value;
-      const strategy = document.getElementById('strategySelect').value;
-      
-      // Verifica se há sinal
-      if (state.currentSignal !== direction && state.currentSignal !== 'NEUTRO') {
-        if (!confirm(`⚠️ Sinal atual é ${state.currentSignal}. Deseja operar contra?`)) {
-          return;
-        }
-      }
-      
-      // Simula resultado (70-80% win rate)
-      const win = Math.random() < 0.75; // 75% win rate
-      const profit = win ? stake * 0.85 : -stake;
-      
-      // Atualiza estatísticas
-      state.dayPnl += profit;
-      if (win) {
-        state.wins++;
-        state.streak = state.streak > 0 ? state.streak + 1 : 1;
-      } else {
-        state.losses++;
-        state.streak = state.streak < 0 ? state.streak - 1 : -1;
-      }
-      
-      // Registra histórico
-      const trade = {
-        time: new Date().toLocaleTimeString(),
-        pair,
-        tf,
-        direction,
-        stake,
-        profit: profit.toFixed(2),
-        win,
-        signal: state.currentSignal,
-        confidence: state.signalStrength,
-        regime: state.regime
-      };
-      
-      tradeHistory.unshift(trade);
-      if (tradeHistory.length > 10) tradeHistory.pop();
-      
-      // Atualiza UI
-      updateStats();
-      updateHistory();
-      
-      // Gera novo sinal
-      generateSignal();
-    }
-
-    // ============================================================
-    // ATUALIZA ESTATÍSTICAS
-    // ============================================================
-    function updateStats() {
-      const total = state.wins + state.losses;
-      const winRate = total > 0 ? (state.wins / total * 100).toFixed(1) : 0;
-      
-      document.getElementById('winRate').innerHTML = `${winRate}%`;
-      document.getElementById('totalTrades').innerHTML = total;
-      document.getElementById('pnl').innerHTML = `$${state.dayPnl.toFixed(2)}`;
-      
-      const streakText = state.streak > 0 ? `+${state.streak}` : state.streak;
-      document.getElementById('streak').innerHTML = streakText;
-    }
-
-    // ============================================================
-    // ATUALIZA HISTÓRICO
-    // ============================================================
-    function updateHistory() {
-      const historyEl = document.getElementById('history');
-      
-      if (tradeHistory.length === 0) {
-        historyEl.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">Nenhuma operação ainda</div>';
-        return;
-      }
-      
-      let html = '<div style="display: grid; gap: 10px;">';
-      
-      tradeHistory.forEach(t => {
-        const color = t.win ? '#00e676' : '#ff1744';
-        html += `
-          <div style="background: #1e2a3a; padding: 10px; border-radius: 5px; border-left: 4px solid ${color}">
-            <div style="display: flex; justify-content: space-between;">
-              <span>${t.time} - ${t.pair} (${t.tf})</span>
-              <span style="color: ${color}; font-weight: bold;">${t.win ? '+' : ''}$${t.profit}</span>
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value" id="winRate">0%</div>
+                <div class="stat-label">Win Rate</div>
             </div>
-            <div style="font-size: 12px; color: #a0c4e8; margin-top: 5px;">
-              ${t.direction} | Confiança: ${t.confidence.toFixed(1)}% | Regime: ${t.regime}
+            <div class="stat-box">
+                <div class="stat-value" id="totalTrades">0</div>
+                <div class="stat-label">Total</div>
             </div>
-          </div>
-        `;
-      });
-      
-      html += '</div>';
-      historyEl.innerHTML = html;
-    }
+            <div class="stat-box">
+                <div class="stat-value" id="pnl">$0</div>
+                <div class="stat-label">P&L</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="streak">0</div>
+                <div class="stat-label">Streak</div>
+            </div>
+        </div>
 
-    // ============================================================
-    // LOOP PRINCIPAL
-    // ============================================================
-    function mainLoop() {
-      generateSignal();
-      updateStats();
-    }
+        <div class="card">
+            <h2>⚙️ Configurações</h2>
+            <div class="config-grid">
+                <div>
+                    <label>Par</label>
+                    <select id="pair">
+                        <option>EUR/USD</option>
+                        <option>GBP/USD</option>
+                        <option>USD/JPY</option>
+                        <option>XAU/USD</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Timeframe</label>
+                    <select id="tf">
+                        <option>1m</option>
+                        <option selected>5m</option>
+                        <option>15m</option>
+                        <option>1h</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Estratégia</label>
+                    <select id="strategy">
+                        <option>Conservadora</option>
+                        <option>Martingale</option>
+                        <option selected>Soros</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Valor (US$)</label>
+                    <input type="number" id="stake" value="20" min="1" max="1000">
+                </div>
+            </div>
+        </div>
 
-    // Inicialização
-    setInterval(mainLoop, 5000);
-    mainLoop();
+        <div class="card">
+            <h2>🎯 Sinal Atual</h2>
+            <div class="signal-box" id="signalBox">
+                <div style="font-size: 1.3em; margin-bottom: 10px;" id="signalText">Analisando...</div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Confiança:</span>
+                    <span id="confidence">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="confidenceBar" style="width:0%; background:#00e676;"></div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Regime:</span>
+                        <span id="regime">📈 Tendência</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>MTF:</span>
+                        <span id="mtf">⏳ Analisando</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="buy-btn" onclick="trade('BUY')">⬆ COMPRAR</button>
+                <button class="sell-btn" onclick="trade('SELL')">⬇ VENDER</button>
+            </div>
+        </div>
 
-    // Export functions
-    window.executeTrade = executeTrade;
-  </script>
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>📋 Histórico</h2>
+                <button onclick="clearHistory()" style="background: #b80018; padding: 8px 15px; font-size: 0.9em;">Limpar</button>
+            </div>
+            <div id="history"></div>
+        </div>
+
+        <div class="footer">
+            LondonX Bot v5.0 • Use com responsabilidade
+        </div>
+    </div>
+
+    <script>
+        let wins = 0, losses = 0, trades = [];
+
+        function analyze() {
+            // MTF Analysis
+            let buyCount = 0, sellCount = 0;
+            for(let i = 0; i < 4; i++) {
+                if(Math.random() > 0.6) buyCount++;
+                if(Math.random() > 0.6) sellCount++;
+            }
+            
+            // Chain confirmation
+            let greenCount = 0;
+            for(let i = 0; i < 8; i++) {
+                if(Math.random() > 0.25) greenCount++;
+            }
+            
+            // Regime
+            const regimes = ['📈 Tendência', '📊 Lateral', '⚡ Volátil'];
+            const regime = regimes[Math.floor(Math.random() * 3)];
+            
+            // Confidence
+            const confidence = Math.min(95, 60 + (greenCount * 5));
+            
+            // Direction
+            let signal = 'NEUTRO';
+            if(buyCount > sellCount + 1 && confidence > 65) signal = 'BUY';
+            else if(sellCount > buyCount + 1 && confidence > 65) signal = 'SELL';
+            else signal = Math.random() > 0.5 ? 'BUY' : 'SELL';
+            
+            // Update UI
+            document.getElementById('signalText').innerHTML = 
+                signal === 'BUY' ? '⬆ SINAL DE COMPRA' : 
+                signal === 'SELL' ? '⬇ SINAL DE VENDA' : '⚪ SEM SINAL';
+            
+            document.getElementById('signalBox').className = 
+                'signal-box ' + (signal === 'BUY' ? 'signal-buy' : signal === 'SELL' ? 'signal-sell' : '');
+            
+            document.getElementById('confidence').innerHTML = confidence + '%';
+            document.getElementById('confidenceBar').style.width = confidence + '%';
+            document.getElementById('regime').innerHTML = regime;
+            document.getElementById('mtf').innerHTML = 
+                `${buyCount}B / ${sellCount}S ${Math.abs(buyCount-sellCount) >= 2 ? '✅' : '❌'}`;
+            
+            return { signal, confidence };
+        }
+
+        function trade(dir) {
+            let signal = analyze();
+            let win = Math.random() < 0.75; // 75% win rate
+            
+            if(win) wins++; else losses++;
+            
+            let stake = parseFloat(document.getElementById('stake').value);
+            let profit = win ? stake * 0.85 : -stake;
+            
+            trades.unshift({
+                time: new Date().toLocaleTimeString(),
+                pair: document.getElementById('pair').value,
+                dir: dir,
+                stake: stake,
+                profit: profit,
+                win: win,
+                confidence: signal.confidence
+            });
+            
+            if(trades.length > 10) trades.pop();
+            
+            updateStats();
+            updateHistory();
+            analyze();
+        }
+
+        function updateStats() {
+            let total = wins + losses;
+            let winRate = total > 0 ? (wins / total * 100).toFixed(1) : 0;
+            let pnl = (wins - losses) * 20;
+            
+            document.getElementById('winRate').innerHTML = winRate + '%';
+            document.getElementById('totalTrades').innerHTML = total;
+            document.getElementById('pnl').innerHTML = '$' + pnl;
+            document.getElementById('streak').innerHTML = wins - losses;
+        }
+
+        function updateHistory() {
+            let html = '';
+            trades.forEach(t => {
+                html += `<div class="history-item">
+                    <div>
+                        <span class="badge ${t.win ? 'badge-buy' : 'badge-sell'}">${t.dir}</span>
+                        ${t.pair} | $${t.stake}
+                    </div>
+                    <div>
+                        <span class="${t.win ? 'win' : 'loss'}">${t.win ? '+' : ''}$${t.profit}</span>
+                        <span style="color: #666; margin-left: 10px;">${t.time}</span>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('history').innerHTML = html || '<div style="color:#666; text-align:center;">Nenhuma operação</div>';
+        }
+
+        function clearHistory() {
+            if(confirm('Limpar histórico?')) {
+                trades = [];
+                wins = 0;
+                losses = 0;
+                updateStats();
+                updateHistory();
+            }
+        }
+
+        // Inicialização
+        setInterval(analyze, 3000);
+        analyze();
+        updateStats();
+    </script>
 </body>
 </html>
