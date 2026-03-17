@@ -2742,12 +2742,12 @@ function renderConf(){
       var elapsed = Math.floor(Date.now()/1000) - lastCandle.epoch;
       var pct = Math.min(100, Math.round((elapsed / granSecs) * 100));
       candlePositionPct = pct;
-      // Janela segura: 5%–65% do candle (não entra no início nem no final)
+      // Janela segura: 5%–45% do candle (entra cedo — menos risco de reversão)
       // Evita: spike de abertura (0–5%) e expiry manipulation (65–100%)
       if(pct < 5){
         candlePositionOk = false;
         candlePositionMsg = '⏱ Aguardando candle estabilizar (' + pct + '%)';
-      } else if(pct > 65){
+      } else if(pct > 45){
         candlePositionOk = false;
         candlePositionMsg = '⚠ Final do candle — risco de reversão (' + pct + '%)';
       } else {
@@ -2849,8 +2849,8 @@ function renderConf(){
   var posEl = document.getElementById('candlePosBar');
   if(posEl){
     var pct = S.candlePositionPct||0;
-    var posCol = pct<5?'#ff9800':pct>65?'#ff1744':'#00e676';
-    var posZone = pct<5?'ABRINDO':pct>65?'FINAL ⚠':'IDEAL ✅';
+    var posCol = pct<5?'#ff9800':pct>45?'#ff1744':'#00e676';
+    var posZone = pct<5?'ABRINDO':pct>45?'FINAL ⚠':'IDEAL ✅';
     posEl.innerHTML = '<span style="font-size:11px;color:'+posCol+';font-family:monospace">'
       +'CANDLE '+pct+'% · '+posZone+'</span>'
       +'<div style="height:4px;background:#1e3055;border-radius:2px;margin-top:3px;overflow:hidden">'
