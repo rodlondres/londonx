@@ -869,12 +869,17 @@ canvas{width:100%;display:block;}
           if(typeof ML!=='undefined') ML.load();
         }
 
-        // Banca do dia — usa local se mesmo dia, senão usa nuvem
+        // Banca do dia — usa remoto se tiver dados de hoje
         const today = new Date().toDateString();
-        const localBmDay = JSON.parse(localStorage.getItem('londonx_bm_day')||'{}');
+        const localBmDay  = JSON.parse(localStorage.getItem('londonx_bm_day')||'{}');
         const remoteBmDay = JSON.parse(data.bm_day||'{}');
-        if(remoteBmDay.date === today && localBmDay.date !== today){
-          localStorage.setItem('londonx_bm_day', data.bm_day);
+        if(remoteBmDay.date === today){
+          // Remoto tem dados de hoje — usa o que tiver mais operações
+          const remoteOps = (remoteBmDay.dayWins||0) + (remoteBmDay.dayLosses||0);
+          const localOps  = (localBmDay.dayWins||0)  + (localBmDay.dayLosses||0);
+          if(remoteOps >= localOps){
+            localStorage.setItem('londonx_bm_day', data.bm_day);
+          }
         }
 
         // Atualiza UI
@@ -4938,17 +4943,7 @@ const bm = {
   },
 
   loadDay(){
-    // Tenta puxar do Firebase primeiro — garante sync entre dispositivos
-    if(typeof window.FB !== 'undefined'){
-      try{
-        window.FB.pull().then(()=>{
-          this._loadDayLocal();
-          this.updatePanel();
-        }).catch(()=>{ this._loadDayLocal(); });
-      }catch(e){ this._loadDayLocal(); }
-    } else {
-      this._loadDayLocal();
-    }
+    this._loadDayLocal();
   },
 
   _loadDayLocal(){
