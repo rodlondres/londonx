@@ -6,11 +6,11 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="LondonX Bot">
-  <meta name="theme-color" content="#060b14">
-  <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LondonX Bot">
+<meta name="theme-color" content="#060b14">
+<meta name="mobile-web-app-capable" content="yes">
 <title>LONDONX BOT — Forex OTC v5.0</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
@@ -100,8 +100,6 @@ canvas{width:100%;display:block;}
 .regime-badge.trend{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);}
 .regime-badge.lateral{background:rgba(255,214,0,.1);color:var(--yellow);border:1px solid rgba(255,214,0,.2);}
 .regime-badge.volatile{background:rgba(255,23,68,.1);color:var(--red);border:1px solid rgba(255,23,68,.2);}
-
-/* Botão ativo — destaque máximo */
 .regime-badge.active{opacity:1;transform:scale(1.08);}
 .regime-badge.active.trend{
   background:rgba(0,230,118,.25);
@@ -124,7 +122,6 @@ canvas{width:100%;display:block;}
   box-shadow:0 0 18px rgba(255,23,68,.7), 0 0 6px rgba(255,23,68,.4);
   animation:pulseVolatile 1.2s ease-in-out infinite;
 }
-
 @keyframes pulseTrend{
   0%,100%{box-shadow:0 0 18px rgba(0,230,118,.7),0 0 6px rgba(0,230,118,.4);}
   50%{box-shadow:0 0 28px rgba(0,230,118,1),0 0 12px rgba(0,230,118,.6);}
@@ -146,8 +143,6 @@ canvas{width:100%;display:block;}
 .conf-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
 .conf-pair{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;color:#f5c518;text-shadow:0 0 20px rgba(245,197,24,.6);}
 .conf-tf{font-size:12px;color:#a0c4e8;font-weight:700;font-family:'Share Tech Mono';}
-
-/* Big circle + sources side by side */
 .conf-body{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
 .circle-wrap{position:relative;width:108px;height:108px;flex-shrink:0;}
 .circle-wrap svg{width:108px;height:108px;}
@@ -155,8 +150,6 @@ canvas{width:100%;display:block;}
 .big-prob{font-family:'Orbitron',monospace;font-size:32px;font-weight:900;line-height:1;}
 .big-pct{font-size:12px;color:var(--text2);}
 .big-lbl{font-size:11px;letter-spacing:2px;color:#a0c4e8;font-weight:700;margin-top:2px;}
-
-/* Sources column */
 .sources-col{flex:1;display:flex;flex-direction:column;gap:5px;}
 .src-row{display:flex;align-items:center;gap:5px;}
 .src-ico{font-size:11px;width:15px;text-align:center;flex-shrink:0;}
@@ -169,23 +162,17 @@ canvas{width:100%;display:block;}
 .src-sig.bear{background:rgba(255,23,68,.15);color:var(--red);}
 .src-sig.neut{background:rgba(255,214,0,.1);color:var(--yellow);}
 .src-wt{font-size:11px;color:#a0c4e8;font-weight:700;width:28px;text-align:right;flex-shrink:0;}
-
-/* Total score bar */
 .score-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
 .score-bar-label{font-size:12px;letter-spacing:2px;color:#a0c4e8;font-weight:700;flex-shrink:0;}
 .score-bar-track{flex:1;height:10px;background:var(--border);border-radius:5px;overflow:hidden;}
 .score-bar-fill{height:100%;border-radius:5px;transition:width .7s;}
 .score-bar-val{font-family:'Orbitron',monospace;font-size:18px;font-weight:900;flex-shrink:0;}
-
-/* Tokens */
 .tokens{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;}
 .tok{padding:2px 7px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:.5px;}
 .tok.buy{background:rgba(0,230,118,.12);color:var(--green);border:1px solid rgba(0,230,118,.2);}
 .tok.sell{background:rgba(255,23,68,.12);color:var(--red);border:1px solid rgba(255,23,68,.2);}
 .tok.neut{background:rgba(255,214,0,.08);color:var(--yellow);border:1px solid rgba(255,214,0,.15);}
 .tok-src{font-size:11px;opacity:.55;margin-right:2px;}
-
-/* Direction */
 .dir-row{display:flex;gap:8px;}
 .dir-btn{flex:1;padding:13px;border-radius:10px;font-family:'Orbitron',monospace;font-size:12px;font-weight:900;letter-spacing:2px;cursor:pointer;border:2px solid;transition:all .2s;text-align:center;}
 .dir-up{background:rgba(0,230,118,.1);border-color:var(--green);color:var(--green);}
@@ -289,6 +276,14 @@ canvas{width:100%;display:block;}
 .ecustom{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:'Orbitron',monospace;font-size:16px;font-weight:700;width:80px;outline:none;text-align:center;}
 .ecustom:focus{border-color:var(--cyan);}
 
+/* DURATION */
+.dur-row{display:flex;gap:6px;flex-wrap:wrap;}
+.dur-btn{background:var(--bg2);border:1px solid var(--border);color:#a0c4e8;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;padding:6px 8px;border-radius:6px;cursor:pointer;text-align:center;transition:all .2s;white-space:nowrap;}
+.dur-btn.active{background:rgba(0,229,255,.15);border-color:var(--cyan);color:var(--cyan);box-shadow:var(--glow-cyan);}
+.dur-btn.long-dur{border-color:#ffd60044;color:#ffd600aa;}
+.dur-btn.long-dur.active{background:rgba(255,214,0,.12);border-color:#ffd600;color:#ffd600;box-shadow:0 0 8px rgba(255,214,0,.3);}
+#durRow{display:flex;flex-wrap:wrap;gap:4px;}
+
 /* STOP */
 .stop-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;}
 .stop-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
@@ -300,6 +295,4 @@ canvas{width:100%;display:block;}
 .stop-inp.sg{border-color:rgba(0,230,118,.3);color:var(--green);}
 .stop-inp.sg:focus{border-color:var(--green);box-shadow:0 0 12px rgba(0,230,118,.2);}
 .stop-unit{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:13px;color:#a0c4e8;pointer-events:none;margin-top:5px;}
-.stop-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.stop-btn{padding:12px;border-radius:8px;border:2px solid;cursor:pointer;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:1px;transition:all .2s;text-align:center;}
-.slb{background:rgba(255,23,68,.1);border-color
+.stop-btns
