@@ -4938,22 +4938,33 @@ const bm = {
   },
 
   loadDay(){
+    // Tenta puxar do Firebase primeiro — garante sync entre dispositivos
+    if(typeof window.FB !== 'undefined'){
+      try{
+        window.FB.pull().then(()=>{
+          this._loadDayLocal();
+          this.updatePanel();
+        }).catch(()=>{ this._loadDayLocal(); });
+      }catch(e){ this._loadDayLocal(); }
+    } else {
+      this._loadDayLocal();
+    }
+  },
+
+  _loadDayLocal(){
     try{
       const raw = localStorage.getItem('londonx_bm_day');
       if(!raw){ this.updateButtons(); return; }
       const data = JSON.parse(raw);
       const today = new Date().toDateString();
       if(data.date === today){
-        // Mesmo dia — restaura estado
         this.dayStartBal = data.dayStartBal;
         this.dayPnl      = data.dayPnl;
         this.dayWins     = data.dayWins;
         this.dayLosses   = data.dayLosses;
         this.seqLosses   = data.seqLosses || 0;
-        // Verifica limites só se há dados válidos
         this.checkLimits();
       } else {
-        // Novo dia — zera tudo e desbloqueia
         this.dayPnl=0; this.dayWins=0; this.dayLosses=0; this._maxDd=0;
         this.seqLosses=0; this.dayStartBal=null;
         this.blocked=false; this.blockReason='';
@@ -4962,7 +4973,6 @@ const bm = {
     }catch(e){
       this.blocked=false; this.blockReason='';
     }
-    // Garante botões corretos após carregar
     this.updateButtons();
   },
 
