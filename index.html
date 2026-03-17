@@ -2735,6 +2735,109 @@ function renderConf(){
   var candlePositionOk = true;
   var candlePositionPct = 0;
   var candlePositionMsg = '';
+
+  // ── FILTRO DE PADRÕES DE REVERSÃO ──────────────────────────
+  // Bloqueia entrada quando detecta figura de reversão contra o sinal
+  var reversalFilterOk  = true;
+  var reversalFilterMsg = '';
+  (function(){
+    if(!candleOHLC||candleOHLC.length<3) return;
+    var c0 = candleOHLC[candleOHLC.length-1]; // candle atual
+    var c1 = candleOHLC[candleOHLC.length-2]; // candle anterior
+    var c2 = candleOHLC[candleOHLC.length-3]; // 2 atrás
+    if(!c0||!c1||!c2) return;
+
+    var body0  = Math.abs(c0.c-c0.o);
+    var range0 = (c0.h-c0.l)||0.0001;
+    var lw0    = Math.min(c0.o,c0.c)-c0.l;  // pavio inferior
+    var uw0    = c0.h-Math.max(c0.o,c0.c);  // pavio superior
+    var bull0  = c0.c>c0.o;
+    var br0    = body0/range0; // body ratio
+
+    var body1  = Math.abs(c1.c-c1.o);
+    var bull1  = c1.c>c1.o;
+
+    var dir = S.dir; // 'BUY' ou 'SELL'
+
+    // ── Padrões de reversão de BAIXA (bloqueiam CALL/BUY) ──
+    if(dir==='BUY'){
+      // Doji — indecisão após tendência de alta
+      if(br0<0.1 && bull1){
+        reversalFilterOk=false;
+        reversalFilterMsg='⛔ DOJI — indecisão após alta';
+        return;
+      }
+      // Shooting Star / Martelo Invertido (bearish)
+      if(uw0>body0*2 && lw0<body0*0.5 && bull1){
+        reversalFilterOk=false;
+        reversalFilterMsg='⛔ SHOOTING STAR — reversão de baixa';
+        return;
+      }
+      // Engulfing Bearish — vela de baixa engole a anterior de alta
+      if(!bull0 && bull1 && c0.o>c1.c && c0.c<c1.o && body0>body1*1.1){
+        reversalFilterOk=false;
+        reversalFilterMsg='⛔ ENGULFING BEARISH — reversão confirmada';
+        return;
+      }
+      // Evening Star / Bebê Abandonado (simplificado)
+      if(!bull0 && bull1 && c2.c>c2.o && body0>body1*0.8){
+        var gap1=c1.l>c2.h; // gap real
+        if(gap1){
+          reversalFilterOk=false;
+          reversalFilterMsg='⛔ BEBÊ ABANDONADO BEARISH — topo de reversão';
+          return;
+        }
+      }
+      // Hanging Man — martelo no topo (bearish)
+      if(lw0>body0*2 && uw0<body0*0.5 && !bull0 && bull1 && c0.o>c1.c*0.998){
+        reversalFilterOk=false;
+        reversalFilterMsg='⛔ HANGING MAN — reversão no topo';
+        return;
+      }
+    }
+
+    // ── Padrões de reversão de ALTA (bloqueiam PUT/SELL) ──
+    if(dir==='SELL'){
+      // Doji — indecisão após tendência de baixa
+      if(br0<0.1 && !bull1){
+        reversalFilterOk=false;
+        reversalFilterMsg='⛔ DOJI — indecisão após baixa';
+        return;
+      }
+      // Hammer / Martelo (bullish)
+      if(lw0>body0*2 && uw0<body0*0.5 && !bull1){
+        reversalFilterOk=false;
+        reversalFilterMsg='⛔ MARTELO — reversão de alta';
+        return;
+      }
+      // Engulfing Bullish — vela de alta engole a anterior de baixa
+      if(bull0 && !bull1 && c0.o<c1.c && c0.c>c1.o && body0>body1*1.1){
+        reversalFilterOk=false;
+        reversalFilterMsg='⛔ ENGULFING BULLISH — reversão confirmada';
+        return;
+      }
+      // Morning Star / Bebê Abandonado (simplificado)
+      if(bull0 && !bull1 && !c2.c>c2.o && body0>body1*0.8){
+        var gap2=c1.h<c2.l;
+        if(gap2){
+          reversalFilterOk=false;
+          reversalFilterMsg='⛔ BEBÊ ABANDONADO BULLISH — fundo de reversão';
+          return;
+        }
+      }
+      // Inverted Hammer no fundo (bullish)
+      if(uw0>body0*2 && lw0<body0*0.5 && bull0 && !bull1 && c0.o<c1.c*1.002){
+        reversalFilterOk=false;
+        reversalFilterMsg='⛔ MARTELO INVERTIDO — reversão no fundo';
+        return;
+      }
+    }
+
+    S._reversalMsg = '';
+  })();
+
+  S._reversalFilterOk  = reversalFilterOk;
+  S._reversalFilterMsg = reversalFilterMsg;
   (function(){
     var granSecs = {'1M':60,'3M':180,'5M':300,'15M':900,'30M':1800,'1H':3600}[S.tf] || 300;
     var lastCandle = candleOHLC && candleOHLC.length > 0 ? candleOHLC[candleOHLC.length-1] : null;
@@ -2756,8 +2859,8 @@ function renderConf(){
     }
   })();
 
-  var strongBuy  = threshOk && S.dir==='BUY'  && sessOk && trendOkBtn && adxOk && candlePositionOk && atrFilterOk;
-  var strongSell = threshOk && S.dir==='SELL' && sessOk && trendOkBtn && adxOk && candlePositionOk && atrFilterOk;
+  var strongBuy  = threshOk && S.dir==='BUY'  && sessOk && trendOkBtn && adxOk && candlePositionOk && atrFilterOk && reversalFilterOk;
+  var strongSell = threshOk && S.dir==='SELL' && sessOk && trendOkBtn && adxOk && candlePositionOk && atrFilterOk && reversalFilterOk;
   // Bônus: agulhada do Didi confirmada
   var didiBonus  = agu_bull||agu_bear;
 
@@ -2821,6 +2924,7 @@ function renderConf(){
     var trendOk=S.trendOk; var tBC2=S.trendBullCount||0; var tSC2=S.trendBearCount||0;
     var waitMsg=!sessOk?'🕐 Sessão fechada':
                 !atrFilterOk?(S._atrFilterMsg||'⚡ ATR fora do range'):
+                !reversalFilterOk?(S._reversalFilterMsg||'⛔ Padrão de reversão detectado'):
                 !trendOk?'📈 Tendência '+Math.max(tBC2,tSC2)+'/3 — aguardando 2':
                 (!adxOk&&!isVolBtn)?'📊 ADX '+adxNowVal.toFixed(0)+' — aguardando >'+(adxLimit)+((agu_bull||agu_bear)?' 🎯 Agulhada':''):
                 !S.candlePositionOk?(S.candlePositionMsg||'⏱ Fora da janela ideal'):
