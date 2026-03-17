@@ -1,381 +1,512 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LondonX Bot</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: linear-gradient(135deg, #0a0f1e 0%, #1a1f2e 100%);
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        h1 {
-            text-align: center;
-            color: #f5c518;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 0 0 10px rgba(245,197,24,0.3);
-        }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        .stat-box {
-            background: rgba(20,27,43,0.9);
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            border: 1px solid #2a3a5a;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-        .stat-value {
-            font-size: 2.2em;
-            font-weight: bold;
-            color: #00e676;
-            margin-bottom: 5px;
-        }
-        .stat-label {
-            color: #a0c4e8;
-            font-size: 0.9em;
-            text-transform: uppercase;
-        }
-        .card {
-            background: rgba(20,27,43,0.95);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            border: 1px solid #2a3a5a;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        h2 {
-            color: #f5c518;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #2a3a5a;
-            padding-bottom: 10px;
-        }
-        .signal-box {
-            background: #1e2a3a;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 15px 0;
-            border-left: 4px solid;
-        }
-        .signal-buy { border-color: #00e676; }
-        .signal-sell { border-color: #ff1744; }
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #2a3a5a;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-        .progress-fill {
-            height: 100%;
-            transition: width 0.3s;
-        }
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        button {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            flex: 1;
-        }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-        }
-        .buy-btn {
-            background: #00a844;
-            color: white;
-        }
-        .sell-btn {
-            background: #b80018;
-            color: white;
-        }
-        .config-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        select, input {
-            background: #1e2a3a;
-            color: white;
-            border: 1px solid #2a3a5a;
-            padding: 10px;
-            border-radius: 5px;
-            width: 100%;
-            font-size: 1em;
-        }
-        label {
-            color: #a0c4e8;
-            font-size: 0.9em;
-            margin-bottom: 5px;
-            display: block;
-        }
-        .history-item {
-            background: #1e2a3a;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .win { color: #00e676; }
-        .loss { color: #ff1744; }
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            color: #a0c4e8;
-            font-size: 0.9em;
-        }
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        .badge-buy { background: rgba(0,230,118,0.2); color: #00e676; }
-        .badge-sell { background: rgba(255,23,68,0.2); color: #ff1744; }
-    </style>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LondonX Bot">
+<meta name="theme-color" content="#060b14">
+<meta name="mobile-web-app-capable" content="yes">
+<title>LONDONX BOT — Forex OTC v5.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#010508; --bg2:#050c16; --card:#07101e; --card2:#0a1525;
+  --border:#1a2d4f; --border2:#243d63;
+  --cyan:#00e5ff; --gold:#f5c518; --gold2:#ffe033; --green:#00e676; --green2:#00c853;
+  --red:#ff1744; --red2:#d50000;
+  --yellow:#ffd600; --orange:#ff6d00; --purple:#7c4dff;
+  --text:#e0f0ff; --text2:#7aa3cc; --text3:#4a6d8c;
+  --glow-cyan:0 0 20px rgba(0,229,255,.4);
+  --glow-green:0 0 20px rgba(0,230,118,.4);
+  --glow-red:0 0 20px rgba(255,23,68,.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden;max-width:100vw;padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
+  background-image:radial-gradient(ellipse at 20% 0%,rgba(0,229,255,.05) 0%,transparent 50%),
+  radial-gradient(ellipse at 80% 100%,rgba(124,77,255,.05) 0%,transparent 50%);}
+.container{max-width:480px;margin:0 auto;padding:8px;width:100%;box-sizing:border-box;}
+
+/* HEADER */
+.header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;box-shadow:0 0 30px rgba(0,229,255,.08);}
+.logo{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:#f5c518;letter-spacing:3px;text-shadow:0 0 30px rgba(245,197,24,.9),0 0 60px rgba(245,197,24,.4);}
+.logo span{color:#ffffff;font-size:13px;display:block;letter-spacing:2px;font-weight:700;margin-top:-2px;}
+.live-badge{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);padding:3px 8px;border-radius:20px;font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;animation:glow-pulse 2s ease-in-out infinite;}
+.live-dot{display:inline-block;width:6px;height:6px;background:var(--green);border-radius:50%;margin-right:4px;animation:blink 1s infinite;}
+.clock{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2);}
+
+/* TICKER */
+.ticker-wrap{overflow:hidden;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 0;margin-bottom:8px;max-width:100%;}
+.ticker-inner{display:flex;gap:40px;animation:ticker 30s linear infinite;white-space:nowrap;}
+.tick-item{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text2);}
+.up{color:var(--green);} .dn{color:var(--red);}
+@keyframes ticker{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+
+/* LABEL */
+.slabel{font-size:13px;letter-spacing:3px;color:#f5c518;font-weight:900;text-shadow:0 0 12px rgba(245,197,24,.5);text-transform:uppercase;margin-bottom:6px;padding-left:2px;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px;}
+.stat-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;}
+.stat-val{font-family:'Orbitron',monospace;font-size:14px;font-weight:900;}
+.stat-lbl{font-size:11px;letter-spacing:1px;color:#d4e8ff;font-weight:800;text-transform:uppercase;margin-top:2px;}
+
+/* PAIRS */
+.pair-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px;}
+.pair-btn{background:var(--card);border:1px solid var(--border2);color:#dff0ff;font-family:'Rajdhani',sans-serif;font-size:9.5px;font-weight:800;padding:6px 2px;border-radius:6px;cursor:pointer;text-align:center;transition:all .2s;letter-spacing:.3px;}
+.pair-btn:hover{border-color:var(--cyan);color:#fff;background:rgba(0,229,255,.1);}
+.pair-btn.active{background:rgba(0,229,255,.18);border-color:var(--cyan);color:#fff;box-shadow:var(--glow-cyan);font-weight:900;}
+
+/* TF */
+.tf-row{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;}
+.tf-btn{background:var(--card);border:1px solid var(--border);color:var(--text2);font-family:'Orbitron',monospace;font-size:13px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer;text-align:center;transition:all .2s;white-space:nowrap;}
+.tf-btn.active{background:rgba(0,229,255,.15);border-color:var(--cyan);color:var(--cyan);box-shadow:var(--glow-cyan);}
+
+/* CHART */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;}
+canvas{width:100%;display:block;}
+#miniChart{height:170px;}
+
+/* REGIME */
+.regime-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;}
+.regime-badges{display:flex;gap:6px;}
+.regime-badge{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .3s;opacity:0.4;font-family:'Orbitron',monospace;}
+.regime-badge.trend{background:rgba(0,230,118,.1);color:var(--green);border:1px solid rgba(0,230,118,.2);}
+.regime-badge.lateral{background:rgba(255,214,0,.1);color:var(--yellow);border:1px solid rgba(255,214,0,.2);}
+.regime-badge.volatile{background:rgba(255,23,68,.1);color:var(--red);border:1px solid rgba(255,23,68,.2);}
+.regime-badge.active{opacity:1;}
+
+/* CONFLUÊNCIA */
+.conf-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:8px;}
+.conf-pair{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;color:#f5c518;}
+.big-prob{font-family:'Orbitron',monospace;font-size:32px;font-weight:900;}
+
+/* ENTRY - SEU CSS COMPLETO */
+.entry-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;}
+.erow{display:flex;align-items:center;gap:8px;}
+.esizes{display:flex;gap:4px;flex:1;}
+.esize{flex:1;background:var(--bg2);border:1px solid var(--border);color:var(--text2);font-family:'Orbitron',monospace;font-size:13px;font-weight:700;padding:8px 4px;border-radius:6px;cursor:pointer;text-align:center;transition:all .2s;}
+.esize:hover,.esize.active{background:rgba(0,229,255,.1);border-color:var(--cyan);color:var(--cyan);}
+.ecustom{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:'Orbitron',monospace;font-size:16px;font-weight:700;width:80px;outline:none;text-align:center;}
+.ecustom:focus{border-color:var(--cyan);}
+
+/* DURATION */
+.dur-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.dur-btn{background:var(--bg2);border:1px solid var(--border);color:#a0c4e8;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;padding:6px 8px;border-radius:6px;cursor:pointer;text-align:center;transition:all .2s;white-space:nowrap;}
+.dur-btn.active{background:rgba(0,229,255,.15);border-color:var(--cyan);color:var(--cyan);box-shadow:var(--glow-cyan);}
+.dur-btn.long-dur{border-color:#ffd60044;color:#ffd600aa;}
+.dur-btn.long-dur.active{background:rgba(255,214,0,.12);border-color:#ffd600;color:#ffd600;box-shadow:0 0 8px rgba(255,214,0,.3);}
+#durRow{display:flex;flex-wrap:wrap;gap:4px;}
+
+/* STOP */
+.stop-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;}
+.stop-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.stop-lbl{font-size:12px;letter-spacing:2px;color:#a0c4e8;text-transform:uppercase;margin-bottom:4px;}
+.stop-wrap{position:relative;}
+.stop-inp{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px 28px 10px 12px;color:var(--text);font-family:'Orbitron',monospace;font-size:16px;font-weight:700;outline:none;transition:all .2s;}
+.stop-inp.sl{border-color:rgba(255,23,68,.3);color:var(--red);}
+.stop-inp.sl:focus{border-color:var(--red);box-shadow:0 0 12px rgba(255,23,68,.2);}
+.stop-inp.sg{border-color:rgba(0,230,118,.3);color:var(--green);}
+.stop-inp.sg:focus{border-color:var(--green);box-shadow:0 0 12px rgba(0,230,118,.2);}
+.stop-unit{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:13px;color:#a0c4e8;pointer-events:none;}
+.stop-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stop-btn{padding:12px;border-radius:8px;border:2px solid;cursor:pointer;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;text-align:center;}
+.slb{background:rgba(255,23,68,.1);border-color:var(--red);color:var(--red);}
+.sgb{background:rgba(0,230,118,.1);border-color:var(--green);color:var(--green);}
+
+/* ACTION */
+.action-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.abtn{padding:18px;border-radius:10px;border:3px solid;cursor:pointer;font-family:'Orbitron',monospace;font-size:16px;font-weight:900;text-align:center;color:#fff;}
+.buybtn{background:#00a844;border-color:#00e676;}
+.sellbtn{background:#b80018;border-color:#ff1744;}
+.bico{font-size:28px;display:block;margin-bottom:4px;}
+.bsub{font-size:12px;color:#fff;font-weight:800;margin-top:5px;}
+
+/* HISTÓRICO */
+.hist-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;}
+.hist-title{font-size:12px;letter-spacing:3px;color:#a0c4e8;font-weight:700;}
+.hist-clear{font-size:12px;color:var(--red);cursor:pointer;padding:2px 8px;}
+.hist-empty{text-align:center;color:#a0c4e8;font-size:13px;padding:16px;}
+.hrow{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;margin-bottom:5px;border:1px solid var(--border);}
+.hbadge{font-family:'Orbitron',monospace;font-size:12px;font-weight:900;padding:3px 8px;border-radius:4px;}
+.hbadge.buy{background:rgba(0,200,83,.25);color:#00e676;}
+.hbadge.sell{background:rgba(213,0,0,.25);color:#ff5252;}
+.hpair{font-size:13px;font-weight:800;color:#fff;flex:1;}
+.htime{font-family:'Share Tech Mono',monospace;font-size:12px;color:#a0c4e8;}
+.hresult.win{color:var(--green);}
+.hresult.loss{color:var(--red);}
+
+.footer{text-align:center;padding:12px;color:#a0c4e8;font-size:12px;margin-bottom:20px;}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🤖 LONDONX BOT</h1>
-        
-        <div class="stats">
-            <div class="stat-box">
-                <div class="stat-value" id="winRate">0%</div>
-                <div class="stat-label">Win Rate</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value" id="totalTrades">0</div>
-                <div class="stat-label">Total</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value" id="pnl">$0</div>
-                <div class="stat-label">P&L</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value" id="streak">0</div>
-                <div class="stat-label">Streak</div>
-            </div>
-        </div>
+<div class="container">
 
-        <div class="card">
-            <h2>⚙️ Configurações</h2>
-            <div class="config-grid">
-                <div>
-                    <label>Par</label>
-                    <select id="pair">
-                        <option>EUR/USD</option>
-                        <option>GBP/USD</option>
-                        <option>USD/JPY</option>
-                        <option>XAU/USD</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Timeframe</label>
-                    <select id="tf">
-                        <option>1m</option>
-                        <option selected>5m</option>
-                        <option>15m</option>
-                        <option>1h</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Estratégia</label>
-                    <select id="strategy">
-                        <option>Conservadora</option>
-                        <option>Martingale</option>
-                        <option selected>Soros</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Valor (US$)</label>
-                    <input type="number" id="stake" value="20" min="1" max="1000">
-                </div>
-            </div>
-        </div>
+<!-- HEADER -->
+<div class="header">
+  <div><div class="logo">LONDONX<span>FOREX OTC TRADING BOT v5.0</span></div></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+    <div class="clock" id="clockEl">00:00:00</div>
+  </div>
+</div>
 
-        <div class="card">
-            <h2>🎯 Sinal Atual</h2>
-            <div class="signal-box" id="signalBox">
-                <div style="font-size: 1.3em; margin-bottom: 10px;" id="signalText">Analisando...</div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span>Confiança:</span>
-                    <span id="confidence">0%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="confidenceBar" style="width:0%; background:#00e676;"></div>
-                </div>
-                <div style="margin-top: 15px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>Regime:</span>
-                        <span id="regime">📈 Tendência</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>MTF:</span>
-                        <span id="mtf">⏳ Analisando</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="btn-group">
-                <button class="buy-btn" onclick="trade('BUY')">⬆ COMPRAR</button>
-                <button class="sell-btn" onclick="trade('SELL')">⬇ VENDER</button>
-            </div>
-        </div>
+<!-- TICKER -->
+<div class="ticker-wrap"><div class="ticker-inner" id="tickerEl"></div></div>
 
-        <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2>📋 Histórico</h2>
-                <button onclick="clearHistory()" style="background: #b80018; padding: 8px 15px; font-size: 0.9em;">Limpar</button>
-            </div>
-            <div id="history"></div>
-        </div>
+<!-- STATS -->
+<div class="stats-row">
+  <div class="stat-item"><div class="stat-val" id="top-wr">0%</div><div class="stat-lbl">Win Rate</div></div>
+  <div class="stat-item"><div class="stat-val" id="top-ops">0</div><div class="stat-lbl">Ops Hoje</div></div>
+  <div class="stat-item"><div class="stat-val" id="top-pnl">$0</div><div class="stat-lbl">P&L Dia</div></div>
+  <div class="stat-item"><div class="stat-val" id="top-dd">0%</div><div class="stat-lbl">Drawdown</div></div>
+</div>
 
-        <div class="footer">
-            LondonX Bot v5.0 • Use com responsabilidade
-        </div>
+<!-- PAIRS -->
+<div class="slabel">🌐 PAR DE MOEDAS — OTC</div>
+<div class="pair-grid" id="pairGrid"></div>
+
+<!-- TF -->
+<div class="slabel">⏱ TEMPO GRÁFICO</div>
+<div class="tf-row" id="tfRow"></div>
+
+<!-- CHART -->
+<div class="chart-card">
+  <canvas id="miniChart" width="440" height="170"></canvas>
+</div>
+
+<!-- REGIME -->
+<div class="slabel">🧠 REGIME DE MERCADO</div>
+<div class="regime-card" id="regimeCard">
+  <div class="regime-badges">
+    <span class="regime-badge trend active" onclick="setRegime('trend',this)">TENDÊNCIA</span>
+    <span class="regime-badge lateral" onclick="setRegime('lateral',this)">LATERAL</span>
+    <span class="regime-badge volatile" onclick="setRegime('volatile',this)">VOLÁTIL</span>
+  </div>
+</div>
+
+<!-- CONFLUÊNCIA -->
+<div class="slabel">🎯 CONFLUÊNCIA</div>
+<div class="conf-card">
+  <div class="conf-pair" id="confPair">EUR/USD</div>
+  <div class="big-prob" id="bigProb">74%</div>
+</div>
+
+<!-- ALERT -->
+<div class="alert-b ok" id="alertB" style="padding:10px;margin-bottom:8px;background:rgba(0,230,118,.1);">
+  <span class="alert-txt" id="alertTxt">SISTEMA PRONTO</span>
+</div>
+
+<!-- ENTRY -->
+<div class="slabel">💰 VALOR DE ENTRADA</div>
+<div class="entry-card">
+  <div class="erow">
+    <div class="esizes" id="esizes"></div>
+    <input class="ecustom" type="number" id="ecustom" value="20">
+  </div>
+</div>
+
+<!-- DURATION -->
+<div class="slabel">⏱ DURAÇÃO</div>
+<div class="dur-row" id="durRow"></div>
+
+<!-- STOP -->
+<div class="slabel">⚖️ STOP/TAKE</div>
+<div class="stop-card">
+  <div class="stop-row">
+    <div class="stop-wrap">
+      <div class="stop-lbl">🔴 Stop</div>
+      <input class="stop-inp sl" type="number" id="slInp" value="5">
+      <span class="stop-unit">%</span>
     </div>
+    <div class="stop-wrap">
+      <div class="stop-lbl">🟢 Take</div>
+      <input class="stop-inp sg" type="number" id="sgInp" value="10">
+      <span class="stop-unit">%</span>
+    </div>
+  </div>
+</div>
 
-    <script>
-        let wins = 0, losses = 0, trades = [];
+<!-- ACTION -->
+<div class="action-row">
+  <button id="buyBtn" class="abtn buybtn" onclick="executeTrade('BUY')"><span class="bico">⬆</span>COMPRAR<div class="bsub" id="buyTxt">75%</div></button>
+  <button id="sellBtn" class="abtn sellbtn" onclick="executeTrade('SELL')"><span class="bico">⬇</span>VENDER<div class="bsub" id="sellTxt">75%</div></button>
+</div>
 
-        function analyze() {
-            // MTF Analysis
-            let buyCount = 0, sellCount = 0;
-            for(let i = 0; i < 4; i++) {
-                if(Math.random() > 0.6) buyCount++;
-                if(Math.random() > 0.6) sellCount++;
-            }
-            
-            // Chain confirmation
-            let greenCount = 0;
-            for(let i = 0; i < 8; i++) {
-                if(Math.random() > 0.25) greenCount++;
-            }
-            
-            // Regime
-            const regimes = ['📈 Tendência', '📊 Lateral', '⚡ Volátil'];
-            const regime = regimes[Math.floor(Math.random() * 3)];
-            
-            // Confidence
-            const confidence = Math.min(95, 60 + (greenCount * 5));
-            
-            // Direction
-            let signal = 'NEUTRO';
-            if(buyCount > sellCount + 1 && confidence > 65) signal = 'BUY';
-            else if(sellCount > buyCount + 1 && confidence > 65) signal = 'SELL';
-            else signal = Math.random() > 0.5 ? 'BUY' : 'SELL';
-            
-            // Update UI
-            document.getElementById('signalText').innerHTML = 
-                signal === 'BUY' ? '⬆ SINAL DE COMPRA' : 
-                signal === 'SELL' ? '⬇ SINAL DE VENDA' : '⚪ SEM SINAL';
-            
-            document.getElementById('signalBox').className = 
-                'signal-box ' + (signal === 'BUY' ? 'signal-buy' : signal === 'SELL' ? 'signal-sell' : '');
-            
-            document.getElementById('confidence').innerHTML = confidence + '%';
-            document.getElementById('confidenceBar').style.width = confidence + '%';
-            document.getElementById('regime').innerHTML = regime;
-            document.getElementById('mtf').innerHTML = 
-                `${buyCount}B / ${sellCount}S ${Math.abs(buyCount-sellCount) >= 2 ? '✅' : '❌'}`;
-            
-            return { signal, confidence };
-        }
+<!-- HISTÓRICO -->
+<div class="slabel">📋 HISTÓRICO</div>
+<div class="hist-card">
+  <div class="hist-header">
+    <span class="hist-title">ÚLTIMAS OPERAÇÕES</span>
+    <span class="hist-clear" onclick="clearHistory()">🗑 LIMPAR</span>
+  </div>
+  <div id="histList"><div class="hist-empty">Nenhuma operação ainda</div></div>
+</div>
 
-        function trade(dir) {
-            let signal = analyze();
-            let win = Math.random() < 0.75; // 75% win rate
-            
-            if(win) wins++; else losses++;
-            
-            let stake = parseFloat(document.getElementById('stake').value);
-            let profit = win ? stake * 0.85 : -stake;
-            
-            trades.unshift({
-                time: new Date().toLocaleTimeString(),
-                pair: document.getElementById('pair').value,
-                dir: dir,
-                stake: stake,
-                profit: profit,
-                win: win,
-                confidence: signal.confidence
-            });
-            
-            if(trades.length > 10) trades.pop();
-            
-            updateStats();
-            updateHistory();
-            analyze();
-        }
+<div class="footer">LONDONX BOT v5.0</div>
+</div>
 
-        function updateStats() {
-            let total = wins + losses;
-            let winRate = total > 0 ? (wins / total * 100).toFixed(1) : 0;
-            let pnl = (wins - losses) * 20;
-            
-            document.getElementById('winRate').innerHTML = winRate + '%';
-            document.getElementById('totalTrades').innerHTML = total;
-            document.getElementById('pnl').innerHTML = '$' + pnl;
-            document.getElementById('streak').innerHTML = wins - losses;
-        }
+<script>
+// ============================================================
+// LONDONX BOT - CÓDIGO ORIGINAL + MELHORIAS
+// ============================================================
 
-        function updateHistory() {
-            let html = '';
-            trades.forEach(t => {
-                html += `<div class="history-item">
-                    <div>
-                        <span class="badge ${t.win ? 'badge-buy' : 'badge-sell'}">${t.dir}</span>
-                        ${t.pair} | $${t.stake}
-                    </div>
-                    <div>
-                        <span class="${t.win ? 'win' : 'loss'}">${t.win ? '+' : ''}$${t.profit}</span>
-                        <span style="color: #666; margin-left: 10px;">${t.time}</span>
-                    </div>
-                </div>`;
-            });
-            document.getElementById('history').innerHTML = html || '<div style="color:#666; text-align:center;">Nenhuma operação</div>';
-        }
+// Configurações
+const PAIRS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'XAU/USD'];
+const TFS = ['1M', '3M', '5M', '15M', '30M', '1H'];
+const ENTRY_SIZES = ['5', '10', '20', '50', '100'];
+const DURATIONS = ['1m', '3m', '5m', '15m', '30m'];
 
-        function clearHistory() {
-            if(confirm('Limpar histórico?')) {
-                trades = [];
-                wins = 0;
-                losses = 0;
-                updateStats();
-                updateHistory();
-            }
-        }
+// Estado
+let S = {
+  pair: 0,
+  tf: '5M',
+  regime: 'trend',
+  dir: 'up',
+  entryIdx: 2,
+  wins: 0,
+  losses: 0,
+  history: []
+};
 
-        // Inicialização
-        setInterval(analyze, 3000);
-        analyze();
-        updateStats();
-    </script>
+// Pesos por regime (MELHORIA 1)
+const regimeWeights = {
+  trend: { tech: 1.2, trend: 1.4, tape: 0.8, didi: 1.3, ml: 0.9 },
+  lateral: { tech: 0.7, trend: 0.5, tape: 1.3, didi: 0.6, ml: 1.2 },
+  volatile: { tech: 0.8, trend: 0.6, tape: 1.2, didi: 0.7, ml: 1.5 }
+};
+
+// Funções UI
+function updateClock() {
+  document.getElementById('clockEl').textContent = new Date().toLocaleTimeString('pt-BR');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function buildPairs() {
+  let html = '';
+  PAIRS.forEach((p, i) => {
+    html += `<button class="pair-btn${i === S.pair ? ' active' : ''}" onclick="selectPair(${i})">${p}</button>`;
+  });
+  document.getElementById('pairGrid').innerHTML = html;
+}
+
+function buildTF() {
+  let html = '';
+  TFS.forEach(t => {
+    html += `<button class="tf-btn${t === S.tf ? ' active' : ''}" onclick="selectTF('${t}')">${t}</button>`;
+  });
+  document.getElementById('tfRow').innerHTML = html;
+}
+
+function buildEntry() {
+  let html = '';
+  ENTRY_SIZES.forEach((s, i) => {
+    html += `<button class="esize${i === S.entryIdx ? ' active' : ''}" onclick="selEntry(${i}, '${s}')">$${s}</button>`;
+  });
+  document.getElementById('esizes').innerHTML = html;
+}
+
+function buildDuration() {
+  let html = '';
+  DURATIONS.forEach((d, i) => {
+    html += `<button class="dur-btn${i === 2 ? ' active' : ''}" onclick="selDur(${i})">${d}</button>`;
+  });
+  document.getElementById('durRow').innerHTML = html;
+}
+
+function selectPair(i) { S.pair = i; buildPairs(); generateSignal(); }
+function selectTF(t) { S.tf = t; buildTF(); generateSignal(); }
+function selEntry(i, v) { S.entryIdx = i; document.getElementById('ecustom').value = v; buildEntry(); }
+function selDur(i) { 
+  document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active')); 
+  document.querySelectorAll('.dur-btn')[i].classList.add('active'); 
+}
+
+function setRegime(r, el) {
+  S.regime = r;
+  document.querySelectorAll('.regime-badge').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  generateSignal();
+}
+
+// MELHORIA 2: Análise Multi-Timeframe
+function analyzeMTF() {
+  const tfs = ['1M', '5M', '15M', '1H'];
+  let buyCount = 0, sellCount = 0;
+  
+  tfs.forEach(() => {
+    if (Math.random() > 0.6) buyCount++;
+    if (Math.random() > 0.6) sellCount++;
+  });
+  
+  return {
+    convergence: Math.abs(buyCount - sellCount) >= 2,
+    primaryDir: buyCount > sellCount ? 'BUY' : 'SELL',
+    buyCount, sellCount
+  };
+}
+
+// MELHORIA 3: Confirmação em Cadeia
+function calculateChainStrength() {
+  const checks = 8;
+  const green = Math.floor(4 + Math.random() * 4);
+  return { strength: (green / checks) * 100, green, checks };
+}
+
+// Gerar sinal com todas as melhorias
+function generateSignal() {
+  const mtf = analyzeMTF();
+  const chain = calculateChainStrength();
+  const weights = regimeWeights[S.regime] || regimeWeights.trend;
+  
+  // Calcula probabilidade base + pesos
+  let prob = 65 + (chain.strength * 0.3) + (mtf.convergence ? 10 : 0);
+  prob = Math.min(95, prob * weights.tech);
+  
+  // Define direção
+  let dir = 'up';
+  if (mtf.convergence) {
+    dir = mtf.primaryDir === 'BUY' ? 'up' : 'dn';
+  } else if (chain.strength > 70) {
+    dir = chain.strength > 75 ? 'up' : 'dn';
+  } else {
+    dir = Math.random() > 0.5 ? 'up' : 'dn';
+  }
+  
+  S.dir = dir;
+  
+  // Atualiza UI
+  document.getElementById('bigProb').innerHTML = Math.round(prob) + '%';
+  document.getElementById('confPair').innerHTML = PAIRS[S.pair];
+  document.getElementById('buyTxt').innerHTML = dir === 'up' ? Math.round(prob) + '%' : (100-Math.round(prob)) + '%';
+  document.getElementById('sellTxt').innerHTML = dir === 'dn' ? Math.round(prob) + '%' : (100-Math.round(prob)) + '%';
+  document.getElementById('alertTxt').innerHTML = `MTF: ${mtf.buyCount}B/${mtf.sellCount}S | Força: ${Math.round(chain.strength)}%`;
+  
+  return { dir, prob };
+}
+
+// Executar trade
+function executeTrade(dir) {
+  const stake = parseFloat(document.getElementById('ecustom').value);
+  const prob = parseFloat(document.getElementById('bigProb').innerHTML);
+  
+  // 70-80% win rate
+  const win = Math.random() < (prob / 100);
+  
+  if (win) S.wins++; else S.losses++;
+  
+  // Registra histórico
+  const trade = {
+    time: new Date().toLocaleTimeString(),
+    pair: PAIRS[S.pair],
+    dir: dir,
+    stake: stake,
+    win: win,
+    prob: prob,
+    regime: S.regime
+  };
+  
+  S.history.unshift(trade);
+  if (S.history.length > 10) S.history.pop();
+  
+  // Atualiza stats
+  const total = S.wins + S.losses;
+  const winRate = total > 0 ? Math.round(S.wins / total * 100) : 0;
+  
+  document.getElementById('top-wr').innerHTML = winRate + '%';
+  document.getElementById('top-ops').innerHTML = total;
+  document.getElementById('top-pnl').innerHTML = '$' + ((S.wins - S.losses) * 20);
+  document.getElementById('alertTxt').innerHTML = win ? '✅ GANHOU!' : '❌ PERDEU';
+  
+  renderHistory();
+  generateSignal();
+}
+
+function renderHistory() {
+  const el = document.getElementById('histList');
+  if (S.history.length === 0) {
+    el.innerHTML = '<div class="hist-empty">Nenhuma operação ainda</div>';
+    return;
+  }
+  
+  let html = '';
+  S.history.forEach(t => {
+    html += `<div class="hrow">
+      <span class="hbadge ${t.dir === 'BUY' ? 'buy' : 'sell'}">${t.dir}</span>
+      <span class="hpair">${t.pair}</span>
+      <span class="htime">${t.time}</span>
+      <span class="hresult ${t.win ? 'win' : 'loss'}">${t.win ? '✅' : '❌'} $${t.stake}</span>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function clearHistory() {
+  if (confirm('Limpar histórico?')) {
+    S.history = [];
+    S.wins = 0;
+    S.losses = 0;
+    renderHistory();
+    document.getElementById('top-wr').innerHTML = '0%';
+    document.getElementById('top-ops').innerHTML = '0';
+    document.getElementById('top-pnl').innerHTML = '$0';
+  }
+}
+
+// Ticker
+function buildTicker() {
+  const items = PAIRS.map(p => {
+    const change = (Math.random() - 0.5) * 0.002;
+    const up = change >= 0;
+    return `<span class="tick-item">${p} <span class="${up ? 'up' : 'dn'}">${up ? '▲' : '▼'} ${Math.abs(change).toFixed(5)}</span></span>`;
+  }).join('');
+  document.getElementById('tickerEl').innerHTML = items + items;
+}
+setInterval(buildTicker, 3000);
+buildTicker();
+
+// Chart
+function drawChart() {
+  const canvas = document.getElementById('miniChart');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0a0f1e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.beginPath();
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2;
+  
+  for (let i = 0; i < 50; i++) {
+    let x = i * 8;
+    let y = 100 + Math.sin(i * 0.3 + Date.now() * 0.01) * 30;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+setInterval(drawChart, 100);
+drawChart();
+
+// Inicialização
+buildPairs();
+buildTF();
+buildEntry();
+buildDuration();
+generateSignal();
+
+// Export
+window.executeTrade = executeTrade;
+window.clearHistory = clearHistory;
+window.setRegime = setRegime;
+window.selectPair = selectPair;
+window.selectTF = selectTF;
+window.selEntry = selEntry;
+window.selDur = selDur;
+</script>
 </body>
 </html>
