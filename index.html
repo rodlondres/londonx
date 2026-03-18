@@ -1,55 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LondonX</title>
+
+<style>
+body {
+    margin:0;
+    background:#0a0a0a;
+    color:#fff;
+    font-family:Arial;
+}
+
+/* 🔥 CORREÇÃO PRINCIPAL (REMOVIDO OVERLAY QUE TRAVAVA) */
+.block-screen{
+    display:none !important;
+}
+
+/* Painel */
+#sniperPanel{
+    position:fixed;
+    bottom:10px;
+    right:10px;
+    background:#111;
+    padding:10px;
+    border-radius:10px;
+    font-size:12px;
+    z-index:9999;
+}
+
+/* Botões organizados */
+#controls{
+    position:fixed;
+    top:10px;
+    right:10px;
+    display:flex;
+    gap:8px;
+    z-index:9999;
+}
+
+.btn{
+    background:#1a1a1a;
+    color:#fff;
+    border:none;
+    padding:6px 10px;
+    border-radius:6px;
+    cursor:pointer;
+}
+.btn:hover{
+    background:#333;
+}
+
+/* 🔥 MELHORIA VISUAL PC */
+canvas{
+    filter:contrast(1.2) brightness(1.1) saturate(1.2);
+}
+</style>
+</head>
+
+<body>
+
+<div id="controls">
+    <button class="btn" onclick="toggleSniper()">SNIPER</button>
+    <button class="btn">SOROS</button>
+    <button class="btn">GUIA</button>
+    <button class="btn">MANUAL</button>
+</div>
+
+<div id="sniperPanel">
+    Sniper: <span id="sniperStatus">OFF</span>
+</div>
+
+<canvas id="chart"></canvas>
+
 <script>
-(function(){
 
-  // 🔒 PROTEÇÃO TOTAL CONTRA TELA PRETA
-  function killOverlay(){
-    document.querySelectorAll('div, section').forEach(el=>{
-      const s = window.getComputedStyle(el);
+// =============================
+// 🔥 SNIPER ON/OFF
+// =============================
+let sniper = false;
 
-      const isBlocking =
-        (s.position === 'fixed' || s.position === 'absolute') &&
-        parseFloat(s.zIndex) >= 1000;
+function toggleSniper(){
+    sniper = !sniper;
+    document.getElementById('sniperStatus').innerText = sniper ? 'ON' : 'OFF';
+}
 
-      const isFull =
-        el.offsetWidth >= window.innerWidth * 0.95 &&
-        el.offsetHeight >= window.innerHeight * 0.95;
+// =============================
+// 🔥 BLOQUEIO MERCADO RUIM
+// =============================
+window.noTradeFilter = function(ctx={}){
+    try{
+        if(ctx.adx && ctx.adx < 18) return true;
+        if(ctx.bollWidth && ctx.bollWidth < 0.015) return true;
+        if(ctx.atr && ctx.atrAvg && ctx.atr < ctx.atrAvg * 0.6) return true;
 
-      if(isBlocking && isFull){
-        el.style.display = 'none';
-      }
-    });
-  }
-
-  // roda continuamente (garante que não volte)
-  setInterval(killOverlay, 500);
-
-  // 🟢 GARANTE CLIQUE LIBERADO
-  document.body.style.pointerEvents = 'auto';
-
-})();
-</script>
-<script>
-(function(){
-
-  // remove apenas overlays suspeitos (leve)
-  function fixBlackScreen(){
-    const elements = document.querySelectorAll('div');
-
-    for(let i=0;i<elements.length;i++){
-      const el = elements[i];
-      const s = window.getComputedStyle(el);
-
-      if(
-        s.position === 'fixed' &&
-        parseInt(s.zIndex) > 999 &&
-        el.offsetHeight > window.innerHeight * 0.8
-      ){
-        el.style.display = 'none';
-      }
+        return false;
+    }catch(e){
+        return false;
     }
-  }
+};
 
-  setInterval(fixBlackScreen, 700);
+// =============================
+// 🔥 EXECUÇÃO DE SINAL (SEM TELA PRETA)
+// =============================
+function executeTrade(signal){
+    try{
 
-})();
+        let ctx = {
+            adx: 25,
+            bollWidth: 0.02,
+            atr: 1,
+            atrAvg: 1
+        };
+
+        if(window.noTradeFilter(ctx)){
+            console.log("🚫 BLOQUEADO - mercado ruim");
+            return;
+        }
+
+        if(sniper){
+            console.log("🎯 SNIPER ENTRY:", signal);
+        }else{
+            console.log("📈 NORMAL ENTRY:", signal);
+        }
+
+        // 🚫 REMOVIDO QUALQUER OVERLAY QUE TRAVAVA
+
+    }catch(e){
+        console.log("erro execução", e);
+    }
+}
+
+// =============================
+// TESTE
+// =============================
+setTimeout(()=>{
+    executeTrade("CALL");
+},3000);
+
 </script>
+
+</body>
+</html>
