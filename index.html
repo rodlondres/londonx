@@ -5030,16 +5030,21 @@ const bm = {
       return baseStake * mult[Math.min(this.martLevel, mult.length-1)];
     }
     if(strategy==='soros'){
-      // Soros Protegido — 2 níveis com trava de exposição máxima (10% da banca)
+      // Soros Protegido — 3 níveis (Melhoria V75) com trava de exposição máxima (10% da banca)
       const payout = 0.954; // VOL 75 payout padrão
       const maxExp = Math.max(baseStake, (this.currentBal||11344)*0.10); // teto 10% da banca
+      
       if(this.sorosLevel===0){
-        // Nível 0 → entrada base
         return Math.min(baseStake, maxExp);
-      } else {
-        // Nível 1 → base + lucro anterior reinvestido
+      } else if(this.sorosLevel===1){
+        // Nível 1 → base + lucro anterior
         const lvl1 = parseFloat((baseStake + baseStake*payout).toFixed(2));
         return Math.min(lvl1, maxExp);
+      } else {
+        // Nível 2 → entrada anterior + lucro anterior
+        const prevStake = parseFloat((baseStake + baseStake*payout).toFixed(2));
+        const lvl2 = parseFloat((prevStake + prevStake*payout).toFixed(2));
+        return Math.min(lvl2, maxExp);
       }
     }
     return baseStake;
@@ -5072,13 +5077,15 @@ const bm = {
     }
     if(strategy==='soros'){
       if(won){
-        // Ganhou: sobe para nível 1, depois reset e embolsa
-        if(this.sorosLevel < 1){
+        // Ganhou: sobe de nível até o Stop Gain de Sessão (3 vitórias)
+        if(this.sorosLevel < 2){
           this.sorosLevel++;
+          notify('🔥 SOROS N'+this.sorosLevel+': vitória! Subindo para próxima mão...');
         } else {
-          // Atingiu nível máximo (1) → reset, lucro embolsado
+          // Atingiu nível 3 (sorosLevel 2 concluído) → STOP GAIN DE SESSÃO
           this.sorosLevel = 0;
-          notify('🔄 SOROS: nível máximo atingido — lucro embolsado, voltando à base');
+          notify('🏆 STOP GAIN DE SESSÃO! 3 vitórias seguidas no Soros. Lucro protegido, resetando para base.');
+          if(typeof playSound==='function') playSound('stopgain');
         }
       } else {
         // Perdeu: zera sempre (Soros não dobra na perda)
@@ -5203,6 +5210,8 @@ function openModal(side, ev, proposal){
   }[S.strategy];
 
   const modal=document.getElementById('modal');
+  const overlay=document.getElementById('modalOverlay');
+  if(overlay) overlay.classList.add('show');
   modal.className='modal '+(isBuy?'buy':'sell');
   document.getElementById('modalIco').textContent=isBuy?'⬆':'⬇';
 
@@ -5598,13 +5607,24 @@ function calcSMC(candles){
   for(let i=n-10;i<n-2;i++){
     const c0=candles[i], c1=candles[i+1], c2=candles[i+2];
     const body1=Math.abs(c1.c-c1.o), body2=Math.abs(c2.c-c2.o);
+    
+    // MELHORIA SMC: Validação de Momentum (Impulso Institucional)
+    // Calcula a média do corpo dos últimos 10 candles para comparar
+    let avgBody = 0;
+    const lookback = Math.max(0, i-10);
+    for(let k=lookback; k<i; k++) avgBody += Math.abs(candles[k].c - candles[k].o);
+    avgBody /= (i - lookback) || 1;
+    const isStrongImpulse = (body1 > avgBody * 2) || (body2 > avgBody * 2);
+
     // Bullish OB: c0 bearish, c1 e c2 fortemente bullish (impulso)
     if(c0.c<c0.o && c1.c>c1.o && c2.c>c2.o && body1>body2*0.5){
       // Preço atual na zona do OB (retorno para testar)
       const obHigh=Math.max(c0.o,c0.c), obLow=Math.min(c0.o,c0.c);
       const lastC=cls[n-1];
       if(lastC>=obLow*0.9995 && lastC<=obHigh*1.001){
-        bull+=2; reasons.push('🏦 Order Block Bullish — preço no OB de compra');
+        const pts = isStrongImpulse ? 3 : 1; // Mais pontos se houver momentum forte
+        bull+=pts; 
+        reasons.push('🏦 Order Block Bullish '+(isStrongImpulse?'(FORTE)':'')+' — preço no OB de compra');
       }
     }
     // Bearish OB: c0 bullish, c1 e c2 fortemente bearish
@@ -5612,7 +5632,9 @@ function calcSMC(candles){
       const obHigh=Math.max(c0.o,c0.c), obLow=Math.min(c0.o,c0.c);
       const lastC=cls[n-1];
       if(lastC>=obLow*0.999 && lastC<=obHigh*1.0005){
-        bear+=2; reasons.push('🏦 Order Block Bearish — preço no OB de venda');
+        const pts = isStrongImpulse ? 3 : 1;
+        bear+=pts; 
+        reasons.push('🏦 Order Block Bearish '+(isStrongImpulse?'(FORTE)':'')+' — preço no OB de venda');
       }
     }
   }
@@ -6250,7 +6272,13 @@ function analyzeSignal(){
   }
 
   // ── FONTE 9: SMART MONEY CONCEPTS (max 5) ──
-  const smcResult = calcSMC(candleOHLC);
+  // Otimização: Cache de cálculos pesados (30s)
+  const now = Date.now();
+  if(!window._cacheSMC || (now - (window._lastSMC||0) > 30000)){
+    window._cacheSMC = calcSMC(candleOHLC);
+    window._lastSMC = now;
+  }
+  const smcResult = window._cacheSMC;
   buyPts.smc = smcResult.bull;
   selPts.smc = smcResult.bear;
   smcResult.reasons.forEach(r=>{
@@ -6285,7 +6313,12 @@ function analyzeSignal(){
   });
 
   // ── FONTE 13: PADRÕES HARMÔNICOS (max 5) ──
-  const harmResult = calcHarmonics(candleOHLC);
+  // Otimização: Cache de cálculos pesados (30s)
+  if(!window._cacheHarm || (now - (window._lastHarm||0) > 30000)){
+    window._cacheHarm = calcHarmonics(candleOHLC);
+    window._lastHarm = now;
+  }
+  const harmResult = window._cacheHarm;
   buyPts.harm = harmResult.bull;
   selPts.harm = harmResult.bear;
   harmResult.reasons.forEach(r=>{
