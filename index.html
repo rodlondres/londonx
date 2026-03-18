@@ -5252,16 +5252,11 @@ function openModal(side, ev, proposal){
     // Não cancela cdInterval global — startTradeCountdown gerencia por tradeId
     startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,durSecs);
     // Fecha modal
-    document.getElementById('modalOverlay').classList.remove('show');
-  };
+;
 
   // Botão CANCELAR
-  document.getElementById('modalCountdown').style.display='none';
-  document.getElementById('modalOverlay').classList.add('show');
-}
-
-// Map de intervalos por tradeId — permite múltiplas operações simultâneas
-if(!window._cdMap) window._cdMap = new Map();
+ document.getElementById(\'modalCountdown\').style.display=\'none\';
+  document.getElementById(\'modalOverlay\').classList.add(\'show\');
 
 // ── MULTI-COUNTDOWN — um card por operação ──
 function _getContainer(){ return document.getElementById('activeTradeContainer'); }
@@ -5401,8 +5396,7 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
       hideActiveTrade(tradeId); // remove só o card deste trade
       if(!tradeHistory.some(x=>x.result==='pending')){
         document.getElementById('modalCountdown').style.display='none';
-        document.getElementById('modalOverlay').classList.remove('show');
-      }
+       }
       renderHistory();
     }
   }
@@ -6213,12 +6207,23 @@ function analyzeSignal(){
     selPts.trend+=1; reasons.sell.push('Preço abaixo de todas EMAs ↓');
   }
 
-  // ── FONTE 8: AGULHADA DO DIDI (max 4) — agulhada exige ADX ≥ 20 ──
-  const didiArr = calcDidiIndex(closes);
-  // ADX real para validar agulhada
+  // ADX real para validar agulhada e para o filtro de exaustão
   var adxRealFull=calcADXFull(highs,lows,closes,14);
   const adxRealArr=adxRealFull.adx;
   const adxRealNow=adxRealArr[adxRealArr.length-1]||25;
+
+  // --- FILTRO DE EXAUSTÃO DO ADX ---
+  const ADX_EXHAUSTION_THRESHOLD = 60; // Se o ADX está acima de 60, a tendência pode estar exausta
+  if (adxRealNow >= ADX_EXHAUSTION_THRESHOLD) {
+    // Reduz a pontuação da fonte de tendência pela metade para cautela
+    buyPts.trend = Math.floor(buyPts.trend * 0.5);
+    selPts.trend = Math.floor(selPts.trend * 0.5);
+    reasons.buy.push('ADX em exaustão (' + adxRealNow.toFixed(0) + ') — cautela na tendência ↑');
+    reasons.sell.push('ADX em exaustão (' + adxRealNow.toFixed(0) + ') — cautela na tendência ↓');
+  }
+
+  // ── FONTE 8: AGULHADA DO DIDI (max 4) — agulhada exige ADX ≥ 20 ──
+  const didiArr = calcDidiIndex(closes);
   const didiAgu = detectDidiAgulhada(didiArr, adxRealNow);
   if(didiAgu.bull){
     buyPts.didi+=3; reasons.buy.push('Didi Index: AGULHADA DE COMPRA ↑ (ADX '+adxRealNow.toFixed(0)+')');
