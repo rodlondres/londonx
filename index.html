@@ -7642,355 +7642,221 @@ function ui(){
  document.body.appendChild(d);
 }
 
-// ============================================================
-// AUTO MODE ENGINE — Conservador e Agressivo
-// V75 OTC · 5M · US$100 fixo (cons) ou Soros (aggr)
-// ============================================================
-const autoMode = {
-  mode: 'manual',      // 'manual' | 'conservative' | 'aggressive'
-  active: false,
-  scanInterval: null,
-  stats: { signals:0, executed:0, skipped:0 },
-  sorosLevel: 0,       // nível Soros do automático (independente do manual)
-  baseStake: 100,      // stake base fixo
-  lastTradeTime: 0,    // evita entradas duplas
-
-  // Par e TF fixos para o automático
-  AUTO_PAIR_SYM: '1HZ75V',   // V75 OTC — símbolo Deriv
-  AUTO_TF: '5M',
-  AUTO_GRAN: 300,
-  AUTO_COUNT: 80,
-  MIN_INTERVAL: 90,    // mínimo 90s entre trades (evita entradas na mesma vela)
-
-  // ── Calcula stake baseado no nível Soros ──
-  getStake(){
-    if(this.mode === 'conservative') return this.baseStake;
-    // Agressivo: Soros com 3 níveis
-    const payout = 0.954;
-    if(this.sorosLevel === 0) return this.baseStake;
-    if(this.sorosLevel === 1){
-      return parseFloat((this.baseStake + this.baseStake * payout).toFixed(2));
-    }
-    // Nível 2
-    const lvl1 = parseFloat((this.baseStake + this.baseStake * payout).toFixed(2));
-    return parseFloat((lvl1 + lvl1 * payout).toFixed(2));
-  },
-
-  // ── Atualiza Soros após resultado ──
-  registerResult(won){
-    if(this.mode !== 'aggressive') return;
-    if(won){
-      if(this.sorosLevel < 2){
-        this.sorosLevel++;
-        notify('🔥 AUTO SOROS N'+this.sorosLevel+': vitória! Subindo stake...');
-      } else {
-        // 3 vitórias seguidas — stop gain, volta ao base
-        this.sorosLevel = 0;
-        notify('🏆 AUTO SOROS: 3 vitórias! Lucro protegido — voltando a US$'+this.baseStake);
-      }
-    } else {
-      if(this.sorosLevel > 0) notify('⚠ AUTO SOROS: perda — voltando a US$'+this.baseStake);
-      this.sorosLevel = 0;
-    }
-  },
-
-  // ── Encontra índice do V75 OTC no array PAIRS ──
-  findV75Index(){
-    return PAIRS.findIndex(p => p.deriv === this.AUTO_PAIR_SYM || p.sym === 'V75');
-  },
-
-  // ── Verifica se está no par/TF correto; força se necessário ──
-  ensureV75(){
-    const idx = this.findV75Index();
-    if(idx < 0){
-      this.setStatus('❌ V75 OTC não encontrado na lista de pares');
-      return false;
-    }
-    let changed = false;
-    if(S.pair !== idx){ selectPair(idx); changed = true; }
-    if(S.tf !== this.AUTO_TF){ selectTF(this.AUTO_TF); changed = true; }
-    return { idx, changed };
-  },
-
-  // ── Scan principal ──
-  async scan(){
-    if(!this.active) return;
-
-    // Garante V75 5M
-    const check = this.ensureV75();
-    if(!check) return;
-
-    // Anti-entrada dupla
-    const now = Date.now() / 1000;
-    if(now - this.lastTradeTime < this.MIN_INTERVAL){
-      const wait = Math.round(this.MIN_INTERVAL - (now - this.lastTradeTime));
-      this.setStatus(`⏳ Aguardando intervalo de segurança... ${wait}s`);
-      return;
-    }
-
-    // Verifica bloqueio de banca
-    if(bm.blocked){
-      this.setStatus('🛑 ' + bm.blockReason);
-      return;
-    }
-
-    this.setStatus('🔍 Analisando V75 · 5M...');
-
-    // Busca candles frescos
-    let candles;
-    if(S.tf === this.AUTO_TF && candleOHLC.length >= 25){
-      candles = [...candleOHLC];
-    } else {
-      candles = await semiAuto.fetchCandlesTF(this.AUTO_GRAN, this.AUTO_COUNT);
-    }
-
-    if(!this.active) return;
-    if(!candles || candles.length < 25){
-      this.setStatus('⏳ Aguardando dados do V75...');
-      return;
-    }
-
-    // Analisa sinal
-    const sig = semiAuto.analyzeCandles(candles);
-    if(!sig){
-      this.setStatus('⚠ Erro na análise — retentando...');
-      return;
-    }
-
-    this.stats.signals++;
-    this.updateStats();
-
-    // Valida condições — mais rigoroso que o manual
-    const probMin = this.mode === 'conservative' ? 70 : 68;
-    const srcMin  = this.mode === 'conservative' ? 10 : 9;
-
-    // ✅ FILTRO OBRIGATÓRIO: só opera com tendência confirmada (2/3 períodos alinhados)
-    const trendOkAuto = sig.trendOk === true;
-
-    if(!sig.thresholdOk || sig.prob < probMin || sig.sourcesConfirming < srcMin || !trendOkAuto){
-      const why = !sig.sessOk ? '🕐 Sessão fechada' :
-                  !trendOkAuto ? `📈 Sem tendência (${Math.max(S.trendBullCount||0, S.trendBearCount||0)}/3 EMAs)` :
-                  sig.prob < probMin ? `⏳ Prob ${sig.prob}% < ${probMin}%` :
-                  `⏳ ${sig.sourcesConfirming}/13 fontes < ${srcMin}`;
-      this.setStatus(`${sig.dir==='BUY'?'⬆':'⬇'} ${sig.prob}% · ${why}`);
-      this.stats.skipped++;
-      this.updateStats();
-      return;
-    }
-
-    // Verifica janela de candle (5-45%)
-    const w = semiAuto._checkCandleWindow(this.AUTO_GRAN);
-    if(w.pct < 5 || w.pct > 45){
-      this.setStatus(`⏳ Sinal pronto · Aguardando janela ideal · ${w.pct}%`);
-      return;
-    }
-
-    // Verifica padrão de reversão
-    const rev = semiAuto._checkReversal(sig.dir);
-    if(!rev.ok){
-      this.setStatus(rev.msg + ' · Aguardando próximo candle');
-      this.stats.skipped++;
-      this.updateStats();
-      return;
-    }
-
-    // ✅ TUDO OK — EXECUTA AUTOMATICAMENTE
-    const stake = this.getStake();
-    this.lastTradeTime = Date.now() / 1000;
-    this.stats.executed++;
-    this.updateStats();
-
-    const dir = sig.dir;
-    const isBuy = dir === 'BUY';
-    const payout = 0.954;
-    const profit = (stake * payout).toFixed(2);
-    const durSecs = 300; // 5M fixo
-
-    notify((isBuy ? '⬆ AUTO COMPRA' : '⬇ AUTO VENDA') + ' US$' + stake + ' · V75 · ' + sig.prob + '%');
-    this.setStatus((isBuy?'⬆ EXECUTANDO COMPRA':'⬇ EXECUTANDO VENDA') + ' · US$'+stake + ' · '+sig.prob+'%');
-
-    // Alerta sonoro e visual
-    semiAuto.playAlert(dir);
-    semiAuto.startPulse(dir);
-
-    // Envia para Deriv se conectado
-    if(wsReady && userToken){
-      const contractType = isBuy ? 'CALL' : 'PUT';
-      const symbol = PAIRS[S.pair].deriv;
-      const reqId = Date.now();
-      window._pendingProposals = window._pendingProposals || {};
-      window._pendingProposals[reqId] = { side: dir, stake, cb: (proposal) => {
-        if(proposal.error){
-          notify('❌ AUTO: ' + proposal.error.message);
-          this._registerAndCountdown(dir, stake, profit, payout, durSecs, null);
-          return;
-        }
-        derivSend({ buy: proposal.id, price: proposal.ask_price });
-        notify('✅ AUTO: Ordem US$'+stake+' enviada para Deriv!');
-        this._registerAndCountdown(dir, stake, profit, payout, durSecs, proposal.id);
-      }};
-      setTimeout(()=>{
-        if(window._pendingProposals && window._pendingProposals[reqId]){
-          delete window._pendingProposals[reqId];
-          notify('⏱ AUTO: timeout proposta — registrado em demo');
-          this._registerAndCountdown(dir, stake, profit, payout, durSecs, null);
-        }
-      }, 6000);
-      derivSend({ proposal:1, amount:stake, basis:'stake',
-        contract_type: contractType, currency:'USD',
-        duration: durSecs, duration_unit:'s',
-        symbol: symbol, req_id: reqId });
-    } else {
-      // Modo demo — registra sem enviar
-      notify('📋 AUTO (demo): ' + (isBuy?'COMPRA':'VENDA') + ' US$'+stake+' registrada');
-      this._registerAndCountdown(dir, stake, profit, payout, durSecs, null);
-    }
-  },
-
-  // ── Registra trade e inicia countdown ──
-  _registerAndCountdown(dir, stake, profit, payout, durSecs, contractId){
-    const isBuy = dir === 'BUY';
-    const time = new Date().toLocaleTimeString('pt-BR', {hour12:false});
-    const date = new Date().toLocaleDateString('pt-BR');
-    const pair = 'V75 OTC';
-    const tradeId = Date.now();
-
-    tradeMarkers.push({ idx: candleOHLC.length-1, side: dir, result: null, id: tradeId });
-    if(tradeMarkers.length > 10) tradeMarkers.shift();
-    drawChart();
-
-    tradeHistory.push({
-      id: tradeId, side: dir, pair, val: 'US$'+stake, stake, profit,
-      score: S.totalScore+'/'+S.totalMax, time, date, prob: S.prob,
-      result: 'pending', remaining: durSecs, entryPrice: S.chartTick||1,
-      isBuy, contractId: contractId||null,
-      strat: this.mode === 'aggressive' ? 'soros' : 'cons',
-      martLevel: 0, hour: new Date().getHours(),
-      sources: JSON.parse(JSON.stringify(S.srcScores||{})),
-      autoMode: this.mode
-    });
-    if(tradeHistory.length > 50) tradeHistory.shift();
-    try{ localStorage.setItem('londonx_history', JSON.stringify(tradeHistory)); }catch(e){}
-    renderHistory();
-
-    startTradeCountdown(tradeId, S.chartTick||1, isBuy, stake, profit, payout, durSecs);
-    semiAuto.stopPulse();
-
-    // Callback pós-resultado — atualiza Soros automático e ML
-    const origStart = window._cdMap.get ? window._cdMap.get(tradeId) : null;
-    // Monitora resultado via tradeHistory
-    const checkResult = setInterval(()=>{
-      const t = tradeHistory.find(x => x.id === tradeId);
-      if(!t || t.result === 'pending') return;
-      clearInterval(checkResult);
-      const won = t.result === 'win';
-      this.registerResult(won);
-      if(typeof ML !== 'undefined') setTimeout(()=>ML.update(), 300);
-      // Retoma scan após resultado
-      setTimeout(()=>{ if(this.active) this.scan(); }, 3000);
-    }, 2000);
-  },
-
-  setStatus(msg){
-    const el = document.getElementById('autoModeMsg');
-    if(el) el.textContent = msg;
-  },
-
-  updateStats(){
-    const s = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-    s('auto-signals',  this.stats.signals);
-    s('auto-executed', this.stats.executed);
-    s('auto-skipped',  this.stats.skipped);
-  },
-
-  start(mode){
-    this.mode = mode;
-    this.active = true;
-    this.stats = { signals:0, executed:0, skipped:0 };
-    this.sorosLevel = 0;
-
-    // Força V75 5M
-    const check = this.ensureV75();
-    if(!check){ this.stop(); return; }
-
-    const label = mode === 'conservative' ? '🔵 CONSERVADOR ATIVO' : '🔥 AGRESSIVO ATIVO';
-    const badge = mode === 'conservative' ? 'US$100 fixo' : 'Soros US$100';
-    const labelEl = document.getElementById('autoModeLabel');
-    const badgeEl = document.getElementById('autoModeBadge');
-    if(labelEl) labelEl.textContent = label;
-    if(badgeEl){
-      badgeEl.textContent = badge;
-      badgeEl.style.background = mode==='conservative'?'rgba(33,150,243,.2)':'rgba(255,109,0,.2)';
-      badgeEl.style.color = mode==='conservative'?'#2196f3':'var(--orange)';
-    }
-
-    document.getElementById('autoModeStatus').style.display = 'block';
-    document.getElementById('autoStats').style.display = 'block';
-    document.getElementById('semiPanel').style.display = 'none';
-
-    notify('🤖 AUTOMÁTICO ' + (mode==='conservative'?'CONSERVADOR':'AGRESSIVO') + ' ATIVADO · V75 OTC 5M');
-    this.setStatus('🔍 Iniciando análise V75 · 5M...');
-
-    setTimeout(()=>{ if(this.active) this.scan(); }, 2000);
-    this.scanInterval = setInterval(()=>{ if(this.active) this.scan(); }, 15000);
-  },
-
-  stop(){
-    this.active = false;
-    clearInterval(this.scanInterval);
-    this.scanInterval = null;
-    this.sorosLevel = 0;
-    document.getElementById('autoModeStatus').style.display = 'none';
-    document.getElementById('autoStats').style.display = 'none';
-    notify('🤖 Modo automático desativado');
-  }
-};
-
-// ── Chave seletora de modo ──────────────────────────────────
-let _currentMode = 'manual';
-
-function setMode(mode){
-  if(_currentMode === mode) return;
-
-  // Para qualquer modo anterior
-  if(_currentMode === 'manual'){
-    semiAuto.toggle(false);
-    document.getElementById('semiPanel').style.display = 'none';
-  } else {
-    autoMode.stop();
-  }
-
-  _currentMode = mode;
-
-  // Atualiza visual dos botões
-  ['modeManual','modeCons','modeAggr'].forEach(id=>{
-    const btn = document.getElementById(id);
-    if(btn) btn.className = 'mode-btn';
-  });
-
-  if(mode === 'manual'){
-    document.getElementById('modeManual').className = 'mode-btn mode-active';
-    document.getElementById('autoModeStatus').style.display = 'none';
-    document.getElementById('autoStats').style.display = 'none';
-    semiAuto.toggle(true);
-    document.getElementById('semiPanel').style.display = 'block';
-  } else if(mode === 'conservative'){
-    document.getElementById('modeCons').className = 'mode-btn mode-active-cons';
-    semiAuto.toggle(false);
-    S.strategy = 'cons';
-    autoMode.start('conservative');
-  } else if(mode === 'aggressive'){
-    document.getElementById('modeAggr').className = 'mode-btn mode-active-aggr';
-    semiAuto.toggle(false);
-    S.strategy = 'soros';
-    autoMode.start('aggressive');
-  }
-}
 
 window.addEventListener('load',()=>setTimeout(ui,1500));
 })();
 </script>
+
 <script>
+// ============================================================
+// AUTO MODE ENGINE — fora do IIFE para acesso global
+// ============================================================
+const autoMode = {
+  mode: 'manual',
+  active: false,
+  scanInterval: null,
+  stats: { signals:0, executed:0, skipped:0 },
+  sorosLevel: 0,
+  baseStake: 100,
+  lastTradeTime: 0,
+  AUTO_PAIR_SYM: '1HZ75V',
+  AUTO_TF: '5M',
+  AUTO_GRAN: 300,
+  AUTO_COUNT: 80,
+  MIN_INTERVAL: 90,
+
+  getStake(){
+    if(this.mode === 'conservative') return this.baseStake;
+    const payout = 0.954;
+    if(this.sorosLevel === 0) return this.baseStake;
+    if(this.sorosLevel === 1) return parseFloat((this.baseStake + this.baseStake*payout).toFixed(2));
+    const lvl1 = parseFloat((this.baseStake + this.baseStake*payout).toFixed(2));
+    return parseFloat((lvl1 + lvl1*payout).toFixed(2));
+  },
+
+  registerResult(won){
+    if(this.mode !== 'aggressive') return;
+    if(won){
+      if(this.sorosLevel < 2){ this.sorosLevel++; notify('🔥 AUTO SOROS N'+this.sorosLevel+': vitória!'); }
+      else { this.sorosLevel=0; notify('🏆 AUTO SOROS: 3 vitórias! Lucro protegido — voltando a US$'+this.baseStake); }
+    } else {
+      if(this.sorosLevel>0) notify('⚠ AUTO SOROS: perda — voltando a US$'+this.baseStake);
+      this.sorosLevel=0;
+    }
+  },
+
+  findV75Index(){
+    return PAIRS.findIndex(p=>p.deriv===this.AUTO_PAIR_SYM||p.sym==='V75');
+  },
+
+  ensureV75(){
+    const idx=this.findV75Index();
+    if(idx<0){ this.setStatus('❌ V75 OTC não encontrado'); return false; }
+    if(S.pair!==idx) selectPair(idx);
+    if(S.tf!==this.AUTO_TF) selectTF(this.AUTO_TF);
+    return true;
+  },
+
+  async scan(){
+    if(!this.active) return;
+    if(!this.ensureV75()) return;
+    const now=Date.now()/1000;
+    if(now-this.lastTradeTime<this.MIN_INTERVAL){
+      const wait=Math.round(this.MIN_INTERVAL-(now-this.lastTradeTime));
+      this.setStatus(`⏳ Intervalo de segurança... ${wait}s`);
+      return;
+    }
+    if(bm.blocked){ this.setStatus('🛑 '+bm.blockReason); return; }
+    this.setStatus('🔍 Analisando V75 · 5M...');
+    let candles;
+    if(S.tf===this.AUTO_TF&&candleOHLC.length>=25){ candles=[...candleOHLC]; }
+    else { candles=await semiAuto.fetchCandlesTF(this.AUTO_GRAN,this.AUTO_COUNT); }
+    if(!this.active) return;
+    if(!candles||candles.length<25){ this.setStatus('⏳ Aguardando dados V75...'); return; }
+    const sig=semiAuto.analyzeCandles(candles);
+    if(!sig){ this.setStatus('⚠ Erro na análise — retentando...'); return; }
+    this.stats.signals++; this.updateStats();
+    const probMin=this.mode==='conservative'?70:68;
+    const srcMin=this.mode==='conservative'?10:9;
+    const trendOkAuto=sig.trendOk===true;
+    if(!sig.thresholdOk||sig.prob<probMin||sig.sourcesConfirming<srcMin||!trendOkAuto){
+      const tBC=S.trendBullCount||window._trendBullCount||0;
+      const tSC=S.trendBearCount||window._trendBearCount||0;
+      const why=!sig.sessOk?'🕐 Sessão fechada':
+                !trendOkAuto?`📈 Tendência ${Math.max(tBC,tSC)}/3 EMAs`:
+                sig.prob<probMin?`⏳ Prob ${sig.prob}% < ${probMin}%`:
+                `⏳ ${sig.sourcesConfirming}/13 fontes < ${srcMin}`;
+      this.setStatus(`${sig.dir==='BUY'?'⬆':'⬇'} ${sig.prob}% · ${why}`);
+      this.stats.skipped++; this.updateStats(); return;
+    }
+    const w=semiAuto._checkCandleWindow(this.AUTO_GRAN);
+    if(w.pct<5||w.pct>45){ this.setStatus(`⏳ Aguardando janela ideal · ${w.pct}%`); return; }
+    const rev=semiAuto._checkReversal(sig.dir);
+    if(!rev.ok){ this.setStatus(rev.msg); this.stats.skipped++; this.updateStats(); return; }
+    const stake=this.getStake();
+    this.lastTradeTime=Date.now()/1000;
+    this.stats.executed++; this.updateStats();
+    const dir=sig.dir; const isBuy=dir==='BUY';
+    const payout=0.954; const profit=(stake*payout).toFixed(2); const durSecs=300;
+    notify((isBuy?'⬆ AUTO COMPRA':'⬇ AUTO VENDA')+' US$'+stake+' · V75 · '+sig.prob+'%');
+    this.setStatus((isBuy?'⬆ EXECUTANDO':'⬇ EXECUTANDO')+' US$'+stake+' · '+sig.prob+'%');
+    semiAuto.playAlert(dir); semiAuto.startPulse(dir);
+    if(wsReady&&userToken){
+      const contractType=isBuy?'CALL':'PUT'; const symbol=PAIRS[S.pair].deriv; const reqId=Date.now();
+      window._pendingProposals=window._pendingProposals||{};
+      window._pendingProposals[reqId]={side:dir,stake,cb:(proposal)=>{
+        if(proposal.error){ notify('❌ AUTO: '+proposal.error.message); this._registerAndCountdown(dir,stake,profit,payout,durSecs,null); return; }
+        derivSend({buy:proposal.id,price:proposal.ask_price});
+        notify('✅ AUTO: Ordem US$'+stake+' enviada!');
+        this._registerAndCountdown(dir,stake,profit,payout,durSecs,proposal.id);
+      }};
+      setTimeout(()=>{ if(window._pendingProposals&&window._pendingProposals[reqId]){ delete window._pendingProposals[reqId]; this._registerAndCountdown(dir,stake,profit,payout,durSecs,null); } },6000);
+      derivSend({proposal:1,amount:stake,basis:'stake',contract_type:contractType,currency:'USD',duration:durSecs,duration_unit:'s',symbol,req_id:reqId});
+    } else {
+      notify('📋 AUTO (demo): '+(isBuy?'COMPRA':'VENDA')+' US$'+stake);
+      this._registerAndCountdown(dir,stake,profit,payout,durSecs,null);
+    }
+  },
+
+  _registerAndCountdown(dir,stake,profit,payout,durSecs,contractId){
+    const isBuy=dir==='BUY';
+    const time=new Date().toLocaleTimeString('pt-BR',{hour12:false});
+    const date=new Date().toLocaleDateString('pt-BR');
+    const tradeId=Date.now();
+    tradeMarkers.push({idx:candleOHLC.length-1,side:dir,result:null,id:tradeId});
+    if(tradeMarkers.length>10)tradeMarkers.shift();
+    drawChart();
+    tradeHistory.push({id:tradeId,side:dir,pair:'V75 OTC',val:'US$'+stake,stake,profit,
+      score:S.totalScore+'/'+S.totalMax,time,date,prob:S.prob,
+      result:'pending',remaining:durSecs,entryPrice:S.chartTick||1,
+      isBuy,contractId:contractId||null,
+      strat:this.mode==='aggressive'?'soros':'cons',
+      martLevel:0,hour:new Date().getHours(),
+      sources:JSON.parse(JSON.stringify(S.srcScores||{})),autoMode:this.mode});
+    if(tradeHistory.length>50)tradeHistory.shift();
+    try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
+    renderHistory();
+    startTradeCountdown(tradeId,S.chartTick||1,isBuy,stake,profit,payout,durSecs);
+    semiAuto.stopPulse();
+    const checkResult=setInterval(()=>{
+      const t=tradeHistory.find(x=>x.id===tradeId);
+      if(!t||t.result==='pending')return;
+      clearInterval(checkResult);
+      this.registerResult(t.result==='win');
+      if(typeof ML!=='undefined')setTimeout(()=>ML.update(),300);
+      setTimeout(()=>{ if(this.active)this.scan(); },3000);
+    },2000);
+  },
+
+  setStatus(msg){ const el=document.getElementById('autoModeMsg'); if(el)el.textContent=msg; },
+
+  updateStats(){
+    const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    s('auto-signals',this.stats.signals);
+    s('auto-executed',this.stats.executed);
+    s('auto-skipped',this.stats.skipped);
+  },
+
+  start(mode){
+    this.mode=mode; this.active=true;
+    this.stats={signals:0,executed:0,skipped:0}; this.sorosLevel=0;
+    if(!this.ensureV75()){this.stop();return;}
+    const label=mode==='conservative'?'🔵 CONSERVADOR ATIVO':'🔥 AGRESSIVO ATIVO';
+    const badge=mode==='conservative'?'US$100 fixo':'Soros US$100';
+    const labelEl=document.getElementById('autoModeLabel');
+    const badgeEl=document.getElementById('autoModeBadge');
+    if(labelEl)labelEl.textContent=label;
+    if(badgeEl){badgeEl.textContent=badge;badgeEl.style.background=mode==='conservative'?'rgba(33,150,243,.2)':'rgba(255,109,0,.2)';badgeEl.style.color=mode==='conservative'?'#2196f3':'var(--orange)';}
+    document.getElementById('autoModeStatus').style.display='block';
+    document.getElementById('autoStats').style.display='block';
+    document.getElementById('semiPanel').style.display='none';
+    notify('🤖 AUTO '+(mode==='conservative'?'CONSERVADOR':'AGRESSIVO')+' ATIVO · V75 5M');
+    this.setStatus('🔍 Iniciando análise V75 · 5M...');
+    setTimeout(()=>{if(this.active)this.scan();},2000);
+    this.scanInterval=setInterval(()=>{if(this.active)this.scan();},15000);
+  },
+
+  stop(){
+    this.active=false; clearInterval(this.scanInterval); this.scanInterval=null; this.sorosLevel=0;
+    const s=document.getElementById('autoModeStatus'); if(s)s.style.display='none';
+    const st=document.getElementById('autoStats'); if(st)st.style.display='none';
+    notify('🤖 Modo automático desativado');
+  }
+};
+
+let _currentMode='manual';
+
+function setMode(mode){
+  if(_currentMode===mode)return;
+  if(_currentMode==='manual'){
+    semiAuto.toggle(false);
+    const p=document.getElementById('semiPanel'); if(p)p.style.display='none';
+  } else {
+    autoMode.stop();
+  }
+  _currentMode=mode;
+  ['modeManual','modeCons','modeAggr'].forEach(id=>{
+    const btn=document.getElementById(id); if(btn)btn.className='mode-btn';
+  });
+  if(mode==='manual'){
+    document.getElementById('modeManual').className='mode-btn mode-active';
+    const s=document.getElementById('autoModeStatus'); if(s)s.style.display='none';
+    const st=document.getElementById('autoStats'); if(st)st.style.display='none';
+    semiAuto.toggle(true);
+    const p=document.getElementById('semiPanel'); if(p)p.style.display='block';
+  } else if(mode==='conservative'){
+    document.getElementById('modeCons').className='mode-btn mode-active-cons';
+    semiAuto.toggle(false);
+    S.strategy='cons';
+    autoMode.start('conservative');
+  } else if(mode==='aggressive'){
+    document.getElementById('modeAggr').className='mode-btn mode-active-aggr';
+    semiAuto.toggle(false);
+    S.strategy='soros';
+    autoMode.start('aggressive');
+  }
+}
+</script>
 // ============================================================
 // DASHBOARD DE PERFORMANCE — LondonX
 // ============================================================
