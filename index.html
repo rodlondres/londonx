@@ -7723,7 +7723,12 @@ const autoMode = {
 
   async scan(){
     if(!this.active) return;
-    // ✅ TRAVA PRINCIPAL: nunca abre nova operação enquanto há uma pendente
+    // ✅ TRAVA 1: flag imediata — seta antes de qualquer await
+    if(this._executing){
+      this.setStatus('⏳ Execução em andamento...');
+      return;
+    }
+    // ✅ TRAVA 2: verifica trades pendentes no histórico
     if(tradeHistory.some(t=>t.result==='pending'&&t.autoMode)){
       this.setStatus('⏳ Operação em andamento — aguardando resultado...');
       return;
@@ -7737,13 +7742,14 @@ const autoMode = {
     }
     if(bm.blocked){ this.setStatus('🛑 '+bm.blockReason); return; }
     this.setStatus('🔍 Analisando V75 · 5M...');
+    this._executing = true; // 🔒 trava imediata
     let candles;
     if(S.tf===this.AUTO_TF&&candleOHLC.length>=25){ candles=[...candleOHLC]; }
     else { candles=await semiAuto.fetchCandlesTF(this.AUTO_GRAN,this.AUTO_COUNT); }
-    if(!this.active) return;
-    if(!candles||candles.length<25){ this.setStatus('⏳ Aguardando dados V75...'); return; }
+    if(!this.active){ this._executing=false; return; }
+    if(!candles||candles.length<25){ this.setStatus('⏳ Aguardando dados V75...'); this._executing=false; return; }
     const sig=semiAuto.analyzeCandles(candles);
-    if(!sig){ this.setStatus('⚠ Erro na análise — retentando...'); return; }
+    if(!sig){ this.setStatus('⚠ Erro na análise — retentando...'); this._executing=false; return; }
     this.stats.signals++; this.updateStats();
     const probMin=this.mode==='conservative'?70:68;
     const srcMin=this.mode==='conservative'?10:9;
@@ -7757,12 +7763,12 @@ const autoMode = {
                 `⏳ ${sig.sourcesConfirming}/13 fontes < ${srcMin}`;
       this.setStatus(`${sig.dir==='BUY'?'⬆':'⬇'} ${sig.prob}% · ${why}`);
       this.logBlock(`${why} (${sig.prob}% · ${sig.sourcesConfirming}/13)`);
-      this.stats.skipped++; this.updateStats(); return;
+      this.stats.skipped++; this.updateStats(); this._executing=false; return;
     }
     const w=semiAuto._checkCandleWindow(this.AUTO_GRAN);
-    if(w.pct<5||w.pct>45){ this.setStatus(`⏳ Aguardando janela ideal · ${w.pct}%`); return; }
+    if(w.pct<5||w.pct>45){ this.setStatus(`⏳ Aguardando janela ideal · ${w.pct}%`); this._executing=false; return; }
     const rev=semiAuto._checkReversal(sig.dir);
-    if(!rev.ok){ this.setStatus(rev.msg); this.stats.skipped++; this.updateStats(); return; }
+    if(!rev.ok){ this.setStatus(rev.msg); this.logBlock(rev.msg); this.stats.skipped++; this.updateStats(); this._executing=false; return; }
 
     // ── CONFIRMAÇÃO MULTI-TIMEFRAME 1M ─────────────────────────
     // 5M define a direção — 1M confirma o momento da entrada
@@ -7788,12 +7794,12 @@ const autoMode = {
       if(!confirm1m){
         const msg=`⏳ 1M contra tendência — aguardando ${sig.dir==='BUY'?'⬆ alta':'⬇ baixa'}`;
         this.setStatus(msg); this.logBlock(`1M contra tendência (${sig.dir})`);
-        this.stats.skipped++; this.updateStats(); return;
+        this.stats.skipped++; this.updateStats(); this._executing=false; return;
       }
       if(!bodyStrong){
         const msg=`⏳ 1M fraco (doji/indecisão) — aguardando candle mais forte`;
         this.setStatus(msg); this.logBlock('1M fraco — doji/indecisão');
-        this.stats.skipped++; this.updateStats(); return;
+        this.stats.skipped++; this.updateStats(); this._executing=false; return;
       }
       // ✅ 1M confirmou — registra nos motivos
       notify(`✅ 1M confirmado ${sig.dir==='BUY'?'⬆':'⬇'} · entrando na tendência`);
@@ -7846,6 +7852,7 @@ const autoMode = {
     renderHistory();
     startTradeCountdown(tradeId,S.chartTick||1,isBuy,stake,profit,payout,durSecs);
     semiAuto.stopPulse();
+    this._executing = false; // 🔓 libera trava após registrar o trade
     const checkResult=setInterval(()=>{
       const t=tradeHistory.find(x=>x.id===tradeId);
       if(!t) return;
@@ -7889,6 +7896,7 @@ const autoMode = {
   start(mode){
     this.mode=mode; this.active=true;
     this.stats={signals:0,executed:0,skipped:0}; this.sorosLevel=0;
+    this._executing=false; // garante flag limpa ao iniciar
     if(!this.ensureV75()){this.stop();return;}
     const label=mode==='conservative'?'🔵 CONSERVADOR ATIVO':'🔥 AGRESSIVO ATIVO';
     const badge=mode==='conservative'?'US$100 fixo':'Soros US$100';
