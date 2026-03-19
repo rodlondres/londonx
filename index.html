@@ -5554,7 +5554,9 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
 }
 
 function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct=0.85){
-  const exitPrice=S.chartTick||entryPrice;
+  // Pega preço de saída — tenta chartTick primeiro, depois último candle disponível
+  const exitPrice = S.chartTick ||
+    (candleOHLC&&candleOHLC.length>0 ? candleOHLC[candleOHLC.length-1].c : entryPrice);
   const priceWent=exitPrice>entryPrice;
   const won=isBuy?priceWent:!priceWent;
   const t=tradeHistory.find(x=>x.id===tradeId);
@@ -7789,9 +7791,12 @@ const autoMode = {
       const t=tradeHistory.find(x=>x.id===tradeId);
       if(!t||t.result==='pending')return;
       clearInterval(checkResult);
-      this.registerResult(t.result==='win');
+      const won=t.result==='win';
+      this.registerResult(won);
       if(typeof ML!=='undefined')setTimeout(()=>ML.update(),300);
-      setTimeout(()=>{ if(this.active)this.scan(); },3000);
+      // ✅ Aguarda overlay fechar (8s auto-close) + 2s buffer antes de retomar scan
+      const delay = won ? 10000 : 10000;
+      setTimeout(()=>{ if(this.active) this.scan(); }, delay);
     },2000);
   },
 
