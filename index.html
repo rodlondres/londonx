@@ -7954,8 +7954,7 @@ function setMode(mode){
 
   // Para qualquer modo anterior
   if(_currentMode === 'manual'){
-    const tog = document.getElementById('semiToggle');
-    if(tog && tog.checked){ tog.checked=false; semiAuto.toggle(false); }
+    semiAuto.toggle(false);
     document.getElementById('semiPanel').style.display = 'none';
   } else {
     autoMode.stop();
@@ -7973,27 +7972,24 @@ function setMode(mode){
     document.getElementById('modeManual').className = 'mode-btn mode-active';
     document.getElementById('autoModeStatus').style.display = 'none';
     document.getElementById('autoStats').style.display = 'none';
-    // Ativa semi-auto manual
-    const tog = document.getElementById('semiToggle');
-    if(tog){ tog.checked=true; semiAuto.toggle(true); }
+    semiAuto.toggle(true);
     document.getElementById('semiPanel').style.display = 'block';
   } else if(mode === 'conservative'){
     document.getElementById('modeCons').className = 'mode-btn mode-active-cons';
-    // Para semi-auto manual se estava ativo
-    const tog = document.getElementById('semiToggle');
-    if(tog && tog.checked){ tog.checked=false; semiAuto.toggle(false); }
-    // Força estratégia conservadora
+    semiAuto.toggle(false);
     S.strategy = 'cons';
     autoMode.start('conservative');
   } else if(mode === 'aggressive'){
     document.getElementById('modeAggr').className = 'mode-btn mode-active-aggr';
-    const tog = document.getElementById('semiToggle');
-    if(tog && tog.checked){ tog.checked=false; semiAuto.toggle(false); }
-    // Força estratégia Soros
+    semiAuto.toggle(false);
     S.strategy = 'soros';
     autoMode.start('aggressive');
   }
 }
+
+window.addEventListener('load',()=>setTimeout(ui,1500));
+})();
+</script>
 <script>
 // ============================================================
 // DASHBOARD DE PERFORMANCE — LondonX
