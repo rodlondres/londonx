@@ -784,14 +784,15 @@ canvas{width:100%;display:block;}
 #activeTrade{display:none;}
 
 /* ── OVERLAY RESULTADO ── */
-#resultOverlay{display:none;position:fixed;inset:0;z-index:25000;
+#resultOverlay{display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:25000;
   align-items:center;justify-content:center;
-  background:rgba(0,0,0,.85);backdrop-filter:blur(4px);}
+  background:rgba(0,0,0,.88);}
 #resultOverlay.show{display:flex;}
-.ro-box{background:linear-gradient(135deg,#0a1628,#0d1f35);
+.ro-box{background:#0a1628;
   border-radius:20px;padding:40px 48px;text-align:center;
   border:3px solid #ffd600;box-shadow:0 0 60px rgba(255,215,0,.3);
-  min-width:280px;max-width:360px;animation:fade-in .3s ease;}
+  min-width:280px;max-width:360px;animation:fade-in .3s ease;
+  position:relative;z-index:25001;}
 .ro-box.win{border-color:#00e676;box-shadow:0 0 80px rgba(0,230,118,.4);}
 .ro-box.loss{border-color:#ff1744;box-shadow:0 0 80px rgba(255,23,68,.4);}
 .ro-emoji{font-size:64px;display:block;margin-bottom:12px;line-height:1;}
@@ -5482,9 +5483,11 @@ function showResultOverlay(won,stake,profit,pairName,tf,entryPrice,exitPrice,nex
   nxt.textContent=nextInfo||'';
   nxt.className='ro-next';
   ov.classList.add('show');
-  // Auto-fecha em 8s
+  // Garante visibilidade no desktop — força posição no viewport atual
+  ov.style.top='0'; ov.style.left='0';
+  // Auto-fecha em 12s — tempo suficiente para ler o resultado
   clearTimeout(window._roTimer);
-  window._roTimer=setTimeout(closeResultOverlay,8000);
+  window._roTimer=setTimeout(closeResultOverlay,12000);
 }
 
 function closeResultOverlay(){
@@ -7718,6 +7721,11 @@ const autoMode = {
 
   async scan(){
     if(!this.active) return;
+    // ✅ TRAVA PRINCIPAL: nunca abre nova operação enquanto há uma pendente
+    if(tradeHistory.some(t=>t.result==='pending'&&t.autoMode)){
+      this.setStatus('⏳ Operação em andamento — aguardando resultado...');
+      return;
+    }
     if(!this.ensureV75()) return;
     const now=Date.now()/1000;
     if(now-this.lastTradeTime<this.MIN_INTERVAL){
@@ -7752,13 +7760,49 @@ const autoMode = {
     if(w.pct<5||w.pct>45){ this.setStatus(`⏳ Aguardando janela ideal · ${w.pct}%`); return; }
     const rev=semiAuto._checkReversal(sig.dir);
     if(!rev.ok){ this.setStatus(rev.msg); this.stats.skipped++; this.updateStats(); return; }
+
+    // ── CONFIRMAÇÃO MULTI-TIMEFRAME 1M ─────────────────────────
+    // 5M define a direção — 1M confirma o momento da entrada
+    // Evita entrar quando o movimento já está maduro e reversão próxima
+    this.setStatus(`🔍 Confirmando entrada no 1M...`);
+    const candles1m = await semiAuto.fetchCandlesTF(60, 5); // últimos 5 candles de 1M
+    if(!this.active) return;
+
+    if(candles1m && candles1m.length >= 2){
+      // Pega o último candle de 1M FECHADO (penúltimo da lista)
+      const last1m = candles1m[candles1m.length - 2];
+      const isBullish1m = last1m.c > last1m.o;
+      const isBearish1m = last1m.c < last1m.o;
+
+      // Confirma: candle 1M fechou na direção do sinal 5M?
+      const confirm1m = (sig.dir==='BUY' && isBullish1m) || (sig.dir==='SELL' && isBearish1m);
+
+      // Também verifica força mínima do candle 1M (corpo > 30% do range)
+      const body = Math.abs(last1m.c - last1m.o);
+      const range = last1m.h - last1m.l;
+      const bodyStrong = range > 0 && (body/range) >= 0.3;
+
+      if(!confirm1m){
+        this.setStatus(`⏳ 1M contra tendência — aguardando confirmação ${sig.dir==='BUY'?'⬆':'⬇'}`);
+        this.stats.skipped++; this.updateStats(); return;
+      }
+      if(!bodyStrong){
+        this.setStatus(`⏳ 1M fraco (doji/indecisão) — aguardando candle mais forte`);
+        this.stats.skipped++; this.updateStats(); return;
+      }
+      // ✅ 1M confirmou — registra nos motivos
+      notify(`✅ 1M confirmado ${sig.dir==='BUY'?'⬆':'⬇'} · entrando na tendência`);
+    }
+    // Se não conseguiu buscar 1M (offline/timeout), prossegue sem o filtro
+    // ─────────────────────────────────────────────────────────────
+
     const stake=this.getStake();
     this.lastTradeTime=Date.now()/1000;
     this.stats.executed++; this.updateStats();
     const dir=sig.dir; const isBuy=dir==='BUY';
     const payout=0.954; const profit=(stake*payout).toFixed(2); const durSecs=300;
-    notify((isBuy?'⬆ AUTO COMPRA':'⬇ AUTO VENDA')+' US$'+stake+' · V75 · '+sig.prob+'%');
-    this.setStatus((isBuy?'⬆ EXECUTANDO':'⬇ EXECUTANDO')+' US$'+stake+' · '+sig.prob+'%');
+    notify((isBuy?'⬆ AUTO COMPRA':'⬇ AUTO VENDA')+' US$'+stake+' · V75 · '+sig.prob+'% · 1M ✅');
+    this.setStatus((isBuy?'⬆ EXECUTANDO':'⬇ EXECUTANDO')+' US$'+stake+' · '+sig.prob+'% · 1M ✅');
     semiAuto.playAlert(dir); semiAuto.startPulse(dir);
     if(wsReady&&userToken){
       const contractType=isBuy?'CALL':'PUT'; const symbol=PAIRS[S.pair].deriv; const reqId=Date.now();
@@ -7799,15 +7843,20 @@ const autoMode = {
     semiAuto.stopPulse();
     const checkResult=setInterval(()=>{
       const t=tradeHistory.find(x=>x.id===tradeId);
-      if(!t||t.result==='pending')return;
+      if(!t) return;
+      // Atualiza status com tempo restante durante a operação
+      if(t.result==='pending'){
+        const rem=Math.max(0,Math.round(((t._endTime||0)-Date.now())/1000));
+        this.setStatus(`⏱ Operação em andamento · ${rem}s restantes`);
+        return;
+      }
       clearInterval(checkResult);
       const won=t.result==='win';
       this.registerResult(won);
       if(typeof ML!=='undefined')setTimeout(()=>ML.update(),300);
-      // ✅ Aguarda overlay fechar (8s auto-close) + 2s buffer antes de retomar scan
-      const delay = won ? 10000 : 10000;
-      setTimeout(()=>{ if(this.active) this.scan(); }, delay);
-    },2000);
+      // Aguarda overlay fechar (8s) + buffer generoso antes de retomar scan
+      setTimeout(()=>{ if(this.active) this.scan(); }, 12000);
+    },1000);
   },
 
   setStatus(msg){ const el=document.getElementById('autoModeMsg'); if(el)el.textContent=msg; },
