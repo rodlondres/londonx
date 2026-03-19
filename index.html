@@ -1431,7 +1431,7 @@ div, span {
     <button class="mode-btn" id="modeAggr" onclick="setMode('aggressive')">
       <div style="font-size:15px">🔥</div>
       <div style="font-size:10px;font-weight:900;letter-spacing:1px;margin-top:2px">AGRESSIVO</div>
-      <div style="font-size:9px;color:var(--text3);margin-top:1px">Auto · Soros</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:1px">Auto · Soros 2 níveis</div>
     </button>
   </div>
 
@@ -7685,18 +7685,25 @@ const autoMode = {
 
   getStake(){
     if(this.mode === 'conservative') return this.baseStake;
+    // Soros 2 níveis: 100 → 195 → reset
+    // Mais consistente: 41% de ciclos completos vs 26% com 3 níveis
     const payout = 0.954;
     if(this.sorosLevel === 0) return this.baseStake;
-    if(this.sorosLevel === 1) return parseFloat((this.baseStake + this.baseStake*payout).toFixed(2));
-    const lvl1 = parseFloat((this.baseStake + this.baseStake*payout).toFixed(2));
-    return parseFloat((lvl1 + lvl1*payout).toFixed(2));
+    // Nível 1: base + lucro anterior
+    return parseFloat((this.baseStake + this.baseStake*payout).toFixed(2));
   },
 
   registerResult(won){
     if(this.mode !== 'aggressive') return;
     if(won){
-      if(this.sorosLevel < 2){ this.sorosLevel++; notify('🔥 AUTO SOROS N'+this.sorosLevel+': vitória!'); }
-      else { this.sorosLevel=0; notify('🏆 AUTO SOROS: 3 vitórias! Lucro protegido — voltando a US$'+this.baseStake); }
+      if(this.sorosLevel < 1){
+        this.sorosLevel++;
+        notify('🔥 AUTO SOROS N'+this.sorosLevel+': vitória! Reinvestindo...');
+      } else {
+        // 2 vitórias seguidas — stop gain, protege lucro
+        this.sorosLevel=0;
+        notify('🏆 AUTO SOROS: 2 vitórias! US$'+(this.baseStake+(this.baseStake*payout)).toFixed(0)+' lucro protegido — voltando a US$'+this.baseStake);
+      }
     } else {
       if(this.sorosLevel>0) notify('⚠ AUTO SOROS: perda — voltando a US$'+this.baseStake);
       this.sorosLevel=0;
@@ -7899,7 +7906,7 @@ const autoMode = {
     this._executing=false; // garante flag limpa ao iniciar
     if(!this.ensureV75()){this.stop();return;}
     const label=mode==='conservative'?'🔵 CONSERVADOR ATIVO':'🔥 AGRESSIVO ATIVO';
-    const badge=mode==='conservative'?'US$100 fixo':'Soros US$100';
+    const badge=mode==='conservative'?'US$100 fixo':'Soros 2 níveis';
     const labelEl=document.getElementById('autoModeLabel');
     const badgeEl=document.getElementById('autoModeBadge');
     if(labelEl)labelEl.textContent=label;
