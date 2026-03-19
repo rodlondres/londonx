@@ -7065,6 +7065,16 @@ function init(){
   bm.updateLimits();
   bm.updatePanel();
   bm.updateButtons(); // garante botões corretos na abertura
+  // ✅ Restaura modo de operação salvo (sincroniza entre dispositivos)
+  setTimeout(()=>{
+    try{
+      const savedMode = localStorage.getItem('londonx_mode');
+      if(savedMode && savedMode !== 'manual'){
+        notify('🔄 Restaurando modo: ' + (savedMode==='conservative'?'🔵 CONSERVADOR':'🔥 AGRESSIVO'));
+        setMode(savedMode);
+      }
+    }catch(e){}
+  }, 2500); // aguarda Firebase sync + candles carregarem
   try{derivConnect();}catch(e){}
 }
 // ══ SISTEMA DE SONS ═══════════════════════════════════════════
@@ -7847,6 +7857,8 @@ function setMode(mode){
     autoMode.stop();
   }
   _currentMode=mode;
+  // ✅ Persiste modo no localStorage para sincronizar entre dispositivos
+  try{localStorage.setItem('londonx_mode', mode);}catch(e){}
   ['modeManual','modeCons','modeAggr'].forEach(id=>{
     const btn=document.getElementById(id); if(btn)btn.className='mode-btn';
   });
