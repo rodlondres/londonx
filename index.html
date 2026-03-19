@@ -1472,6 +1472,8 @@ div, span {
       <div class="semi-stat"><div class="semi-stat-val" id="auto-executed" style="color:var(--green)">0</div><div class="semi-stat-lbl">Executadas</div></div>
       <div class="semi-stat"><div class="semi-stat-val" id="auto-skipped" style="color:var(--orange)">0</div><div class="semi-stat-lbl">Bloqueadas</div></div>
     </div>
+    <!-- Último motivo de bloqueio -->
+    <div id="autoBlockLog" style="margin-top:6px;padding:6px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border);font-size:11px;color:var(--text2);display:none;line-height:1.6"></div>
   </div>
 </div>
 
@@ -7754,6 +7756,7 @@ const autoMode = {
                 sig.prob<probMin?`⏳ Prob ${sig.prob}% < ${probMin}%`:
                 `⏳ ${sig.sourcesConfirming}/13 fontes < ${srcMin}`;
       this.setStatus(`${sig.dir==='BUY'?'⬆':'⬇'} ${sig.prob}% · ${why}`);
+      this.logBlock(`${why} (${sig.prob}% · ${sig.sourcesConfirming}/13)`);
       this.stats.skipped++; this.updateStats(); return;
     }
     const w=semiAuto._checkCandleWindow(this.AUTO_GRAN);
@@ -7783,11 +7786,13 @@ const autoMode = {
       const bodyStrong = range > 0 && (body/range) >= 0.3;
 
       if(!confirm1m){
-        this.setStatus(`⏳ 1M contra tendência — aguardando confirmação ${sig.dir==='BUY'?'⬆':'⬇'}`);
+        const msg=`⏳ 1M contra tendência — aguardando ${sig.dir==='BUY'?'⬆ alta':'⬇ baixa'}`;
+        this.setStatus(msg); this.logBlock(`1M contra tendência (${sig.dir})`);
         this.stats.skipped++; this.updateStats(); return;
       }
       if(!bodyStrong){
-        this.setStatus(`⏳ 1M fraco (doji/indecisão) — aguardando candle mais forte`);
+        const msg=`⏳ 1M fraco (doji/indecisão) — aguardando candle mais forte`;
+        this.setStatus(msg); this.logBlock('1M fraco — doji/indecisão');
         this.stats.skipped++; this.updateStats(); return;
       }
       // ✅ 1M confirmou — registra nos motivos
@@ -7860,6 +7865,19 @@ const autoMode = {
   },
 
   setStatus(msg){ const el=document.getElementById('autoModeMsg'); if(el)el.textContent=msg; },
+
+  logBlock(reason){
+    // Registra motivo de bloqueio no painel — acumula até 5 últimos
+    const el=document.getElementById('autoBlockLog');
+    if(!el) return;
+    if(!this._blockLog) this._blockLog=[];
+    const time=new Date().toLocaleTimeString('pt-BR',{hour12:false,hour:'2-digit',minute:'2-digit'});
+    this._blockLog.unshift(`${time} · ${reason}`);
+    if(this._blockLog.length>5) this._blockLog.pop();
+    el.style.display='block';
+    el.innerHTML='<span style="color:var(--orange);font-weight:700;letter-spacing:1px">ÚLTIMO BLOQUEIO:</span><br>'+
+      this._blockLog.map((l,i)=>`<span style="opacity:${1-i*0.18}">${l}</span>`).join('<br>');
+  },
 
   updateStats(){
     const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
