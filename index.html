@@ -7659,7 +7659,8 @@ const autoMode = {
   sorosLevel: 0,
   baseStake: 100,
   lastTradeTime: 0,
-  AUTO_PAIR_SYM: '1HZ75V',
+  AUTO_PAIR_SYM: 'R_75',   // V75 — símbolo Deriv correto
+  AUTO_PAIR_SYM_ALT: '1HZ75V', // símbolo alternativo OTC
   AUTO_TF: '5M',
   AUTO_GRAN: 300,
   AUTO_COUNT: 80,
@@ -7686,7 +7687,13 @@ const autoMode = {
   },
 
   findV75Index(){
-    return PAIRS.findIndex(p=>p.deriv===this.AUTO_PAIR_SYM||p.sym==='V75');
+    // Busca por símbolo Deriv ou nome — cobre R_75 (vol) e 1HZ75V (OTC)
+    return PAIRS.findIndex(p=>
+      p.deriv===this.AUTO_PAIR_SYM ||
+      p.deriv===this.AUTO_PAIR_SYM_ALT ||
+      p.sym==='VOL 75' ||
+      p.sym==='V75'
+    );
   },
 
   ensureV75(){
