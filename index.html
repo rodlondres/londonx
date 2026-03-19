@@ -706,7 +706,25 @@ canvas{width:100%;display:block;}
 }
 #lx-ui button#sniperBtn:hover{opacity:1;}
 
-/* ── MODAL AJUDA ── */
+/* ── BOTÕES DE MODO ── */
+.mode-btn{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:8px 4px;cursor:pointer;text-align:center;transition:all .2s;
+  color:var(--text);font-family:'Rajdhani',sans-serif;
+}
+.mode-btn:hover{border-color:var(--border2);background:var(--card2);}
+.mode-btn.mode-active{
+  border-color:var(--cyan);background:rgba(0,229,255,.1);
+  box-shadow:0 0 12px rgba(0,229,255,.2);
+}
+.mode-btn.mode-active-cons{
+  border-color:#2196f3;background:rgba(33,150,243,.12);
+  box-shadow:0 0 12px rgba(33,150,243,.2);
+}
+.mode-btn.mode-active-aggr{
+  border-color:var(--orange);background:rgba(255,109,0,.12);
+  box-shadow:0 0 12px rgba(255,109,0,.2);
+}
 #helpModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:20000;
   overflow-y:auto;padding:16px;}
 #helpInner{max-width:900px;margin:0 auto;background:#0a1628;border:1px solid #1e3a5f;
@@ -1395,18 +1413,38 @@ div, span {
   <div class="si"><div class="si-v" style="color:var(--red)">FECHADA</div><div class="si-l">🌏 Tóquio</div></div>
 </div>
 
-<!-- SEMI-AUTO -->
-<div class="semi-card">
-  <div class="semi-toggle">
-    <div>
-      <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--cyan)">🤖 MODO SEMI-AUTOMÁTICO</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:2px">Bot analisa — você confirma</div>
-    </div>
-    <label class="semi-switch">
-      <input type="checkbox" id="semiToggle" onchange="semiAuto.toggle(this.checked)">
-      <span class="semi-slider"></span>
-    </label>
+<!-- MODO DE OPERAÇÃO -->
+<div class="semi-card" id="modeCard">
+  <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:8px;letter-spacing:2px">⚙ MODO DE OPERAÇÃO</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+    <button class="mode-btn mode-active" id="modeManual" onclick="setMode('manual')">
+      <div style="font-size:15px">⚪</div>
+      <div style="font-size:10px;font-weight:900;letter-spacing:1px;margin-top:2px">MANUAL</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:1px">Você decide</div>
+    </button>
+    <button class="mode-btn" id="modeCons" onclick="setMode('conservative')">
+      <div style="font-size:15px">🔵</div>
+      <div style="font-size:10px;font-weight:900;letter-spacing:1px;margin-top:2px">CONSERV.</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:1px">Auto · US$100 fixo</div>
+    </button>
+    <button class="mode-btn" id="modeAggr" onclick="setMode('aggressive')">
+      <div style="font-size:15px">🔥</div>
+      <div style="font-size:10px;font-weight:900;letter-spacing:1px;margin-top:2px">AGRESSIVO</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:1px">Auto · Soros</div>
+    </button>
   </div>
+
+  <!-- Status do modo automático -->
+  <div id="autoModeStatus" style="display:none;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);margin-bottom:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span id="autoModeLabel" style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700"></span>
+      <span id="autoModeBadge" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px"></span>
+    </div>
+    <div id="autoModeMsg" style="font-size:12px;color:var(--text2);margin-top:4px">V75 OTC · 5M · Aguardando sinal...</div>
+    <div id="autoModeWarn" style="font-size:11px;color:var(--orange);margin-top:3px;display:none">⚠ Apenas V75 OTC 5M no modo automático</div>
+  </div>
+
+  <!-- Painel semi-auto (modo manual) -->
   <div id="semiPanel" style="display:none">
     <div class="signal-box waiting" id="sigBox">
       <div class="sig-dir" id="sigDir" style="color:var(--text3)">— AGUARDANDO —</div>
@@ -1420,9 +1458,18 @@ div, span {
       </div>
     </div>
     <div class="semi-stats">
-      <div class="semi-stat"><div class="semi-stat-val" id="sa-signals" style="color:var(--cyan)">0</div><div class="semi-stat-lbl">Sinais Gerados</div></div>
+      <div class="semi-stat"><div class="semi-stat-val" id="sa-signals" style="color:var(--cyan)">0</div><div class="semi-stat-lbl">Sinais</div></div>
       <div class="semi-stat"><div class="semi-stat-val" id="sa-confirmed" style="color:var(--green)">0</div><div class="semi-stat-lbl">Confirmados</div></div>
       <div class="semi-stat"><div class="semi-stat-val" id="sa-ignored" style="color:var(--text3)">0</div><div class="semi-stat-lbl">Ignorados</div></div>
+    </div>
+  </div>
+
+  <!-- Stats modo automático -->
+  <div id="autoStats" style="display:none">
+    <div class="semi-stats">
+      <div class="semi-stat"><div class="semi-stat-val" id="auto-signals" style="color:var(--cyan)">0</div><div class="semi-stat-lbl">Sinais</div></div>
+      <div class="semi-stat"><div class="semi-stat-val" id="auto-executed" style="color:var(--green)">0</div><div class="semi-stat-lbl">Executadas</div></div>
+      <div class="semi-stat"><div class="semi-stat-val" id="auto-skipped" style="color:var(--orange)">0</div><div class="semi-stat-lbl">Bloqueadas</div></div>
     </div>
   </div>
 </div>
@@ -5527,6 +5574,8 @@ function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct=0.85
   // Atualiza estratégia de banca
   bankroll.update(S.strategy, won);
   bm.registerResult(won, stake, profit);
+  // ✅ FIX ML: atualiza pesos após cada resultado — aprendizado em tempo real
+  if(typeof ML !== 'undefined') setTimeout(()=>ML.update(), 300);
 
   // Próxima entrada
   const nextStake = bankroll.getStake(S.strategy, bankroll.baseStake);
@@ -6456,7 +6505,7 @@ function analyzeSignal(){
   S.sourcesConfirming = sourcesConfirming;
   S.sessOk       = sessOk;
 
-  // Atualiza S com os 12 scores reais
+  // Atualiza S com os 13 scores reais
   S.srcScores = {
     tech:   Math.min(srcScores.tech||0,   6),
     price:  Math.min(srcScores.price||0,  5),
@@ -6666,17 +6715,20 @@ const semiAuto = {
 
     // Verifica todas as condições — usa thresholdOk do motor (inclui ADX adaptativo)
     const sessOkSemi = sig.sessOk !== false;
-    const trendOkSemi = sig.trendOk !== false;
+    const trendOkSemi = sig.trendOk === true; // ✅ tendência obrigatória nos 3 modos
     const adxOkSemi = (PAIRS[S.pair]&&PAIRS[S.pair].vol) ? true : (sig.adxNow||0) >= ((sig.agulhadaBull||sig.agulhadaBear) ? 20 : 25);
-    const threshOkSemi = sig.thresholdOk === true; // já inclui 9/13 + sessão + tendência + ADX
+    const threshOkSemi = sig.thresholdOk === true; // já inclui 9/13 + sessão + ADX
     const probOkSemi = sig.prob >= this.minProb;
-    const allConditions = threshOkSemi && probOkSemi;
+    // ✅ trendOkSemi é agora obrigatório — sem tendência, sem sinal
+    const allConditions = threshOkSemi && probOkSemi && trendOkSemi;
 
     if(!allConditions){
       const dir = sig.dir==='BUY' ? '⬆' : '⬇';
+      const tBC = S.trendBullCount||window._trendBullCount||0;
+      const tSC = S.trendBearCount||window._trendBearCount||0;
       const why = !sessOkSemi ? '🕐 Sessão fechada' :
-                  !trendOkSemi ? '📈 Tendência insuficiente' :
-                  !adxOkSemi ? '📊 ADX '+(sig.adxNow||0).toFixed(0)+' — sem tendência' :
+                  !trendOkSemi ? `📈 Tendência ${Math.max(tBC,tSC)}/3 EMAs — aguardando 2` :
+                  !adxOkSemi ? '📊 ADX '+(sig.adxNow||0).toFixed(0)+' — sem força' :
                   sig.sourcesConfirming < (window._mlDynamicThreshold||this.minSources) ? sig.sourcesConfirming+'/13 — aguardando '+(window._mlDynamicThreshold||this.minSources) :
                   '⏳ prob '+sig.prob+'% — aguardando 65%';
       this.setWaiting(`${PAIRS[S.pair].sym} · ${tfLabel} · ${dir} ${sig.prob}% · ${why}`);
@@ -7590,12 +7642,358 @@ function ui(){
  document.body.appendChild(d);
 }
 
-window.addEventListener('load',()=>setTimeout(ui,1500));
-})();
-</script>
+// ============================================================
+// AUTO MODE ENGINE — Conservador e Agressivo
+// V75 OTC · 5M · US$100 fixo (cons) ou Soros (aggr)
+// ============================================================
+const autoMode = {
+  mode: 'manual',      // 'manual' | 'conservative' | 'aggressive'
+  active: false,
+  scanInterval: null,
+  stats: { signals:0, executed:0, skipped:0 },
+  sorosLevel: 0,       // nível Soros do automático (independente do manual)
+  baseStake: 100,      // stake base fixo
+  lastTradeTime: 0,    // evita entradas duplas
 
-</body>
-</html>
+  // Par e TF fixos para o automático
+  AUTO_PAIR_SYM: '1HZ75V',   // V75 OTC — símbolo Deriv
+  AUTO_TF: '5M',
+  AUTO_GRAN: 300,
+  AUTO_COUNT: 80,
+  MIN_INTERVAL: 90,    // mínimo 90s entre trades (evita entradas na mesma vela)
+
+  // ── Calcula stake baseado no nível Soros ──
+  getStake(){
+    if(this.mode === 'conservative') return this.baseStake;
+    // Agressivo: Soros com 3 níveis
+    const payout = 0.954;
+    if(this.sorosLevel === 0) return this.baseStake;
+    if(this.sorosLevel === 1){
+      return parseFloat((this.baseStake + this.baseStake * payout).toFixed(2));
+    }
+    // Nível 2
+    const lvl1 = parseFloat((this.baseStake + this.baseStake * payout).toFixed(2));
+    return parseFloat((lvl1 + lvl1 * payout).toFixed(2));
+  },
+
+  // ── Atualiza Soros após resultado ──
+  registerResult(won){
+    if(this.mode !== 'aggressive') return;
+    if(won){
+      if(this.sorosLevel < 2){
+        this.sorosLevel++;
+        notify('🔥 AUTO SOROS N'+this.sorosLevel+': vitória! Subindo stake...');
+      } else {
+        // 3 vitórias seguidas — stop gain, volta ao base
+        this.sorosLevel = 0;
+        notify('🏆 AUTO SOROS: 3 vitórias! Lucro protegido — voltando a US$'+this.baseStake);
+      }
+    } else {
+      if(this.sorosLevel > 0) notify('⚠ AUTO SOROS: perda — voltando a US$'+this.baseStake);
+      this.sorosLevel = 0;
+    }
+  },
+
+  // ── Encontra índice do V75 OTC no array PAIRS ──
+  findV75Index(){
+    return PAIRS.findIndex(p => p.deriv === this.AUTO_PAIR_SYM || p.sym === 'V75');
+  },
+
+  // ── Verifica se está no par/TF correto; força se necessário ──
+  ensureV75(){
+    const idx = this.findV75Index();
+    if(idx < 0){
+      this.setStatus('❌ V75 OTC não encontrado na lista de pares');
+      return false;
+    }
+    let changed = false;
+    if(S.pair !== idx){ selectPair(idx); changed = true; }
+    if(S.tf !== this.AUTO_TF){ selectTF(this.AUTO_TF); changed = true; }
+    return { idx, changed };
+  },
+
+  // ── Scan principal ──
+  async scan(){
+    if(!this.active) return;
+
+    // Garante V75 5M
+    const check = this.ensureV75();
+    if(!check) return;
+
+    // Anti-entrada dupla
+    const now = Date.now() / 1000;
+    if(now - this.lastTradeTime < this.MIN_INTERVAL){
+      const wait = Math.round(this.MIN_INTERVAL - (now - this.lastTradeTime));
+      this.setStatus(`⏳ Aguardando intervalo de segurança... ${wait}s`);
+      return;
+    }
+
+    // Verifica bloqueio de banca
+    if(bm.blocked){
+      this.setStatus('🛑 ' + bm.blockReason);
+      return;
+    }
+
+    this.setStatus('🔍 Analisando V75 · 5M...');
+
+    // Busca candles frescos
+    let candles;
+    if(S.tf === this.AUTO_TF && candleOHLC.length >= 25){
+      candles = [...candleOHLC];
+    } else {
+      candles = await semiAuto.fetchCandlesTF(this.AUTO_GRAN, this.AUTO_COUNT);
+    }
+
+    if(!this.active) return;
+    if(!candles || candles.length < 25){
+      this.setStatus('⏳ Aguardando dados do V75...');
+      return;
+    }
+
+    // Analisa sinal
+    const sig = semiAuto.analyzeCandles(candles);
+    if(!sig){
+      this.setStatus('⚠ Erro na análise — retentando...');
+      return;
+    }
+
+    this.stats.signals++;
+    this.updateStats();
+
+    // Valida condições — mais rigoroso que o manual
+    const probMin = this.mode === 'conservative' ? 70 : 68;
+    const srcMin  = this.mode === 'conservative' ? 10 : 9;
+
+    // ✅ FILTRO OBRIGATÓRIO: só opera com tendência confirmada (2/3 períodos alinhados)
+    const trendOkAuto = sig.trendOk === true;
+
+    if(!sig.thresholdOk || sig.prob < probMin || sig.sourcesConfirming < srcMin || !trendOkAuto){
+      const why = !sig.sessOk ? '🕐 Sessão fechada' :
+                  !trendOkAuto ? `📈 Sem tendência (${Math.max(S.trendBullCount||0, S.trendBearCount||0)}/3 EMAs)` :
+                  sig.prob < probMin ? `⏳ Prob ${sig.prob}% < ${probMin}%` :
+                  `⏳ ${sig.sourcesConfirming}/13 fontes < ${srcMin}`;
+      this.setStatus(`${sig.dir==='BUY'?'⬆':'⬇'} ${sig.prob}% · ${why}`);
+      this.stats.skipped++;
+      this.updateStats();
+      return;
+    }
+
+    // Verifica janela de candle (5-45%)
+    const w = semiAuto._checkCandleWindow(this.AUTO_GRAN);
+    if(w.pct < 5 || w.pct > 45){
+      this.setStatus(`⏳ Sinal pronto · Aguardando janela ideal · ${w.pct}%`);
+      return;
+    }
+
+    // Verifica padrão de reversão
+    const rev = semiAuto._checkReversal(sig.dir);
+    if(!rev.ok){
+      this.setStatus(rev.msg + ' · Aguardando próximo candle');
+      this.stats.skipped++;
+      this.updateStats();
+      return;
+    }
+
+    // ✅ TUDO OK — EXECUTA AUTOMATICAMENTE
+    const stake = this.getStake();
+    this.lastTradeTime = Date.now() / 1000;
+    this.stats.executed++;
+    this.updateStats();
+
+    const dir = sig.dir;
+    const isBuy = dir === 'BUY';
+    const payout = 0.954;
+    const profit = (stake * payout).toFixed(2);
+    const durSecs = 300; // 5M fixo
+
+    notify((isBuy ? '⬆ AUTO COMPRA' : '⬇ AUTO VENDA') + ' US$' + stake + ' · V75 · ' + sig.prob + '%');
+    this.setStatus((isBuy?'⬆ EXECUTANDO COMPRA':'⬇ EXECUTANDO VENDA') + ' · US$'+stake + ' · '+sig.prob+'%');
+
+    // Alerta sonoro e visual
+    semiAuto.playAlert(dir);
+    semiAuto.startPulse(dir);
+
+    // Envia para Deriv se conectado
+    if(wsReady && userToken){
+      const contractType = isBuy ? 'CALL' : 'PUT';
+      const symbol = PAIRS[S.pair].deriv;
+      const reqId = Date.now();
+      window._pendingProposals = window._pendingProposals || {};
+      window._pendingProposals[reqId] = { side: dir, stake, cb: (proposal) => {
+        if(proposal.error){
+          notify('❌ AUTO: ' + proposal.error.message);
+          this._registerAndCountdown(dir, stake, profit, payout, durSecs, null);
+          return;
+        }
+        derivSend({ buy: proposal.id, price: proposal.ask_price });
+        notify('✅ AUTO: Ordem US$'+stake+' enviada para Deriv!');
+        this._registerAndCountdown(dir, stake, profit, payout, durSecs, proposal.id);
+      }};
+      setTimeout(()=>{
+        if(window._pendingProposals && window._pendingProposals[reqId]){
+          delete window._pendingProposals[reqId];
+          notify('⏱ AUTO: timeout proposta — registrado em demo');
+          this._registerAndCountdown(dir, stake, profit, payout, durSecs, null);
+        }
+      }, 6000);
+      derivSend({ proposal:1, amount:stake, basis:'stake',
+        contract_type: contractType, currency:'USD',
+        duration: durSecs, duration_unit:'s',
+        symbol: symbol, req_id: reqId });
+    } else {
+      // Modo demo — registra sem enviar
+      notify('📋 AUTO (demo): ' + (isBuy?'COMPRA':'VENDA') + ' US$'+stake+' registrada');
+      this._registerAndCountdown(dir, stake, profit, payout, durSecs, null);
+    }
+  },
+
+  // ── Registra trade e inicia countdown ──
+  _registerAndCountdown(dir, stake, profit, payout, durSecs, contractId){
+    const isBuy = dir === 'BUY';
+    const time = new Date().toLocaleTimeString('pt-BR', {hour12:false});
+    const date = new Date().toLocaleDateString('pt-BR');
+    const pair = 'V75 OTC';
+    const tradeId = Date.now();
+
+    tradeMarkers.push({ idx: candleOHLC.length-1, side: dir, result: null, id: tradeId });
+    if(tradeMarkers.length > 10) tradeMarkers.shift();
+    drawChart();
+
+    tradeHistory.push({
+      id: tradeId, side: dir, pair, val: 'US$'+stake, stake, profit,
+      score: S.totalScore+'/'+S.totalMax, time, date, prob: S.prob,
+      result: 'pending', remaining: durSecs, entryPrice: S.chartTick||1,
+      isBuy, contractId: contractId||null,
+      strat: this.mode === 'aggressive' ? 'soros' : 'cons',
+      martLevel: 0, hour: new Date().getHours(),
+      sources: JSON.parse(JSON.stringify(S.srcScores||{})),
+      autoMode: this.mode
+    });
+    if(tradeHistory.length > 50) tradeHistory.shift();
+    try{ localStorage.setItem('londonx_history', JSON.stringify(tradeHistory)); }catch(e){}
+    renderHistory();
+
+    startTradeCountdown(tradeId, S.chartTick||1, isBuy, stake, profit, payout, durSecs);
+    semiAuto.stopPulse();
+
+    // Callback pós-resultado — atualiza Soros automático e ML
+    const origStart = window._cdMap.get ? window._cdMap.get(tradeId) : null;
+    // Monitora resultado via tradeHistory
+    const checkResult = setInterval(()=>{
+      const t = tradeHistory.find(x => x.id === tradeId);
+      if(!t || t.result === 'pending') return;
+      clearInterval(checkResult);
+      const won = t.result === 'win';
+      this.registerResult(won);
+      if(typeof ML !== 'undefined') setTimeout(()=>ML.update(), 300);
+      // Retoma scan após resultado
+      setTimeout(()=>{ if(this.active) this.scan(); }, 3000);
+    }, 2000);
+  },
+
+  setStatus(msg){
+    const el = document.getElementById('autoModeMsg');
+    if(el) el.textContent = msg;
+  },
+
+  updateStats(){
+    const s = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+    s('auto-signals',  this.stats.signals);
+    s('auto-executed', this.stats.executed);
+    s('auto-skipped',  this.stats.skipped);
+  },
+
+  start(mode){
+    this.mode = mode;
+    this.active = true;
+    this.stats = { signals:0, executed:0, skipped:0 };
+    this.sorosLevel = 0;
+
+    // Força V75 5M
+    const check = this.ensureV75();
+    if(!check){ this.stop(); return; }
+
+    const label = mode === 'conservative' ? '🔵 CONSERVADOR ATIVO' : '🔥 AGRESSIVO ATIVO';
+    const badge = mode === 'conservative' ? 'US$100 fixo' : 'Soros US$100';
+    const labelEl = document.getElementById('autoModeLabel');
+    const badgeEl = document.getElementById('autoModeBadge');
+    if(labelEl) labelEl.textContent = label;
+    if(badgeEl){
+      badgeEl.textContent = badge;
+      badgeEl.style.background = mode==='conservative'?'rgba(33,150,243,.2)':'rgba(255,109,0,.2)';
+      badgeEl.style.color = mode==='conservative'?'#2196f3':'var(--orange)';
+    }
+
+    document.getElementById('autoModeStatus').style.display = 'block';
+    document.getElementById('autoStats').style.display = 'block';
+    document.getElementById('semiPanel').style.display = 'none';
+
+    notify('🤖 AUTOMÁTICO ' + (mode==='conservative'?'CONSERVADOR':'AGRESSIVO') + ' ATIVADO · V75 OTC 5M');
+    this.setStatus('🔍 Iniciando análise V75 · 5M...');
+
+    setTimeout(()=>{ if(this.active) this.scan(); }, 2000);
+    this.scanInterval = setInterval(()=>{ if(this.active) this.scan(); }, 15000);
+  },
+
+  stop(){
+    this.active = false;
+    clearInterval(this.scanInterval);
+    this.scanInterval = null;
+    this.sorosLevel = 0;
+    document.getElementById('autoModeStatus').style.display = 'none';
+    document.getElementById('autoStats').style.display = 'none';
+    notify('🤖 Modo automático desativado');
+  }
+};
+
+// ── Chave seletora de modo ──────────────────────────────────
+let _currentMode = 'manual';
+
+function setMode(mode){
+  if(_currentMode === mode) return;
+
+  // Para qualquer modo anterior
+  if(_currentMode === 'manual'){
+    const tog = document.getElementById('semiToggle');
+    if(tog && tog.checked){ tog.checked=false; semiAuto.toggle(false); }
+    document.getElementById('semiPanel').style.display = 'none';
+  } else {
+    autoMode.stop();
+  }
+
+  _currentMode = mode;
+
+  // Atualiza visual dos botões
+  ['modeManual','modeCons','modeAggr'].forEach(id=>{
+    const btn = document.getElementById(id);
+    if(btn) btn.className = 'mode-btn';
+  });
+
+  if(mode === 'manual'){
+    document.getElementById('modeManual').className = 'mode-btn mode-active';
+    document.getElementById('autoModeStatus').style.display = 'none';
+    document.getElementById('autoStats').style.display = 'none';
+    // Ativa semi-auto manual
+    const tog = document.getElementById('semiToggle');
+    if(tog){ tog.checked=true; semiAuto.toggle(true); }
+    document.getElementById('semiPanel').style.display = 'block';
+  } else if(mode === 'conservative'){
+    document.getElementById('modeCons').className = 'mode-btn mode-active-cons';
+    // Para semi-auto manual se estava ativo
+    const tog = document.getElementById('semiToggle');
+    if(tog && tog.checked){ tog.checked=false; semiAuto.toggle(false); }
+    // Força estratégia conservadora
+    S.strategy = 'cons';
+    autoMode.start('conservative');
+  } else if(mode === 'aggressive'){
+    document.getElementById('modeAggr').className = 'mode-btn mode-active-aggr';
+    const tog = document.getElementById('semiToggle');
+    if(tog && tog.checked){ tog.checked=false; semiAuto.toggle(false); }
+    // Força estratégia Soros
+    S.strategy = 'soros';
+    autoMode.start('aggressive');
+  }
+}
 <script>
 // ============================================================
 // DASHBOARD DE PERFORMANCE — LondonX
@@ -8250,3 +8648,5 @@ var ML = (function(){
 
 })();
 </script>
+</body>
+</html>
