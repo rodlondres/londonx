@@ -161,7 +161,7 @@ canvas{width:100%;display:block;}
 .sources-col{flex:1;display:flex;flex-direction:column;gap:5px;}
 .src-row{display:flex;align-items:center;gap:5px;}
 .src-ico{font-size:11px;width:15px;text-align:center;flex-shrink:0;}
-.src-nm{font-size:12px;font-weight:800;color:#dff0ff;width:68px;flex-shrink:0;letter-spacing:.5px;}
+.src-nm{font-size:12px;font-weight:800;color:#dff0ff;width:72px;flex-shrink:0;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .src-bw{flex:1;height:7px;background:var(--border);border-radius:3px;overflow:hidden;}
 .src-bf{height:100%;border-radius:4px;transition:width .7s ease;}
 .src-pc{font-family:'Share Tech Mono',monospace;font-size:12px;width:24px;text-align:right;flex-shrink:0;}
@@ -231,7 +231,7 @@ canvas{width:100%;display:block;}
 .a-content{animation:fade-in .3s ease;}
 .a-row{display:flex;align-items:center;padding:5px 0;border-bottom:1px solid rgba(26,45,79,.5);}
 .a-row:last-child{border-bottom:none;}
-.a-lbl{font-size:13px;color:#dff0ff;font-weight:700;flex:1.2;}
+.a-lbl{font-size:13px;color:#dff0ff;font-weight:700;flex:0 0 auto;width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .a-bar{flex:1;margin:0 8px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
 .a-fill{height:100%;border-radius:2px;}
 .a-val{font-family:'Share Tech Mono',monospace;font-size:13px;min-width:80px;text-align:right;}
@@ -2397,6 +2397,13 @@ function selectPair(i){
   // Limpa TUDO ao trocar de par — evita resquícios do par anterior
   S.chartData=[];candleBuffer=[];candleOHLC=[];tradeMarkers=[];
   window._tickRaf=null; window._ohlcRaf=null;
+  // ✅ FIX Bug 2: limpa proposals pendentes para evitar ordem no par errado
+  window._lastProposal=null;
+  window._pendingProposals={};
+  // ✅ FIX Bug 3: invalida cache de SMC e Harmônicos ao trocar par
+  window._cacheSMC=null; window._lastSMC=0;
+  window._cacheHarm=null; window._lastHarm=0;
+  window._cacheFib=null; window._lastFib=0;
   // Cancela subscrição anterior imediatamente
   if(currentSub){derivSend({forget:currentSub});currentSub=null;}
   buildPairs();
@@ -2430,6 +2437,13 @@ function buildTF(){
 function selectTF(t){
   S.tf=t;S.chartData=[];candleBuffer=[];candleOHLC=[];
   window._tickRaf=null; window._ohlcRaf=null;
+  // ✅ FIX Bug 2: limpa proposal ao trocar TF — evita ordem com duração errada
+  window._lastProposal=null;
+  window._pendingProposals={};
+  // ✅ FIX Bug 3: invalida cache ao trocar TF — dados de candles mudam
+  window._cacheSMC=null; window._lastSMC=0;
+  window._cacheHarm=null; window._lastHarm=0;
+  window._cacheFib=null; window._lastFib=0;
   buildTF();
   const lbl=document.getElementById('chartTFLabel');if(lbl)lbl.textContent=t;
   document.getElementById('confTF').textContent=t+' · '+S.regime.toUpperCase();
@@ -4995,7 +5009,8 @@ const bm = {
   // Persiste estado do dia no localStorage
   saveDay(){
     const today = new Date().toDateString();
-    const data = {date:today, dayStartBal:this.dayStartBal, dayPnl:this.dayPnl, dayWins:this.dayWins, dayLosses:this.dayLosses};
+    // ✅ FIX Bug 1: inclui seqLosses para preservar pausa obrigatória entre sessões
+    const data = {date:today, dayStartBal:this.dayStartBal, dayPnl:this.dayPnl, dayWins:this.dayWins, dayLosses:this.dayLosses, seqLosses:this.seqLosses};
     try{localStorage.setItem('londonx_bm_day', JSON.stringify(data));if(typeof window.FB!=='undefined') window.FB.push('bm_day');}catch(e){}
   },
 
@@ -5020,6 +5035,8 @@ const bm = {
         this.dayPnl=0; this.dayWins=0; this.dayLosses=0; this._maxDd=0;
         this.seqLosses=0; this.dayStartBal=null;
         this.blocked=false; this.blockReason='';
+        // ✅ FIX: reseta estratégia no início de novo dia
+        this.sorosLevel=0; this.martLevel=0; this.lastResult=null;
         localStorage.removeItem('londonx_bm_day');
       }
     }catch(e){
@@ -5057,7 +5074,8 @@ const bm = {
       return baseStake * mult[Math.min(this.martLevel, mult.length-1)];
     }
     if(strategy==='soros'){
-      // Soros Protegido — 3 níveis (Melhoria V75) com trava de exposição máxima (10% da banca)
+      // ✅ FIX: garante que sorosLevel nunca ultrapasse 2 por corrupção de localStorage
+      this.sorosLevel = Math.min(this.sorosLevel || 0, 2);
       const payout = 0.954; // VOL 75 payout padrão
       const maxExp = Math.max(baseStake, (this.currentBal||11344)*0.10); // teto 10% da banca
       
@@ -6318,7 +6336,12 @@ function analyzeSignal(){
   });
 
   // ── FONTE 10: FIBONACCI (max 5) ──
-  const fibResult = calcFibonacci(candleOHLC);
+  // ✅ FIX Bug 4: cache 30s igual ao SMC e Harmônicos — evita recalcular a cada 3s
+  if(!window._cacheFib || (now - (window._lastFib||0) > 30000)){
+    window._cacheFib = calcFibonacci(candleOHLC);
+    window._lastFib = now;
+  }
+  const fibResult = window._cacheFib;
   buyPts.fib = fibResult.bull;
   selPts.fib = fibResult.bear;
   fibResult.reasons.forEach(r=>{
