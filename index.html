@@ -8100,7 +8100,7 @@ const autoMode = {
     const sig=semiAuto.analyzeCandles(candles);
     if(!sig){ this.setStatus('⚠ Erro na análise — retentando...'); this._executing=false; return; }
     this.stats.signals++; this.updateStats();
-    const probMin=this.mode==='conservative'?68:62;
+    const probMin=this.mode==='conservative'?68:60;
     const srcMin=this.mode==='conservative'?10:9;
     const trendOkAuto=sig.trendOk===true;
     if(!sig.thresholdOk||sig.prob<probMin||sig.sourcesConfirming<srcMin||!trendOkAuto){
