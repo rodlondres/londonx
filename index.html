@@ -685,14 +685,16 @@ canvas{width:100%;display:block;}
 
 /* ── BOTÕES FIXOS — BARRA INFERIOR ESQUERDA ── */
 /* Manual + Guia + Ajuda ficam juntos no canto inferior esquerdo */
-#manualBtn{position:fixed;bottom:6px;left:6px;background:linear-gradient(135deg,#1a3a6a,#0d2137);
+#resetMLBtn{position:fixed;bottom:6px;left:6px;background:linear-gradient(135deg,#4a0080,#1a0040);border:1px solid #9c27b0;color:#ce93d8;border-radius:8px;padding:6px 10px;font-family:'Orbitron',monospace;font-size:9px;font-weight:700;cursor:pointer;z-index:9999;letter-spacing:1px;}
+#resetMLBtn:hover{opacity:1;border-color:#e040fb;}
+#manualBtn{position:fixed;bottom:6px;left:56px;background:linear-gradient(135deg,#1a3a6a,#0d2137);
   color:#a0c4e8;border:1px solid #00e5ff44;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;
   letter-spacing:1px;cursor:pointer;z-index:9999;opacity:0.85;transition:opacity .2s;}
 #manualBtn:hover{opacity:1;}
-#guiaBtn{position:fixed;bottom:6px;left:90px;background:linear-gradient(135deg,#00897b,#004d40);
+#guiaBtn{position:fixed;bottom:6px;left:136px;background:linear-gradient(135deg,#00897b,#004d40);
   color:#fff;border:none;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;opacity:.85;z-index:9999;letter-spacing:.5px;transition:opacity .2s;}
 #guiaBtn:hover{opacity:1;}
-#bolsoBtn{position:fixed;bottom:6px;left:174px;background:linear-gradient(135deg,#f57c00,#bf360c);
+#bolsoBtn{position:fixed;bottom:6px;left:220px;background:linear-gradient(135deg,#f57c00,#bf360c);
   color:#fff;border:none;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;opacity:.85;z-index:9999;letter-spacing:.5px;transition:opacity .2s;}
 #bolsoBtn:hover{opacity:1;}
 #helpBtn{position:fixed;bottom:6px;left:258px;background:linear-gradient(135deg,#00e5ff,#0066cc);
@@ -5223,6 +5225,13 @@ const bankroll = bm;
 bm.load(); // restaura nível martingale da sessão anterior
 
 
+function resetML(){
+  if(!confirm('Resetar pesos ML para os valores calibrados com seus 269 trades?')) return;
+  localStorage.removeItem('londonx_ml_weights');
+  if(typeof ML !== 'undefined' && ML.load) ML.load();
+  notify('✅ ML resetado! Pesos calibrados ativos.');
+}
+
 function openManualModal(type){
   document.getElementById('manualModal').style.display='none';
   document.getElementById('guiaModal').style.display='none';
@@ -7346,6 +7355,7 @@ window.addEventListener('resize', function(){
   <div id="debugLog"></div>
 </div>
 <!-- ── BOTÃO AJUDA ── -->
+<div id="resetMLBtn" onclick="resetML()" title="Resetar pesos ML para calibrados">🔄 ML</div>
 <div id="manualBtn" onclick="openManualModal('manual')">📘 MANUAL</div>
 <div id="guiaBtn" onclick="openManualModal('guia')">📗 GUIA</div>
 <div id="bolsoBtn" onclick="openManualModal('bolso')">📙 BOLSO</div>
