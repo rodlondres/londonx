@@ -8063,9 +8063,7 @@ const autoMode = {
   },
 
   ensureV75(){
-    const idx=this.findV75Index();
-    if(idx<0){ this.setStatus('❌ V75 OTC não encontrado'); return false; }
-    if(S.pair!==idx) selectPair(idx);
+    // Usa o par atualmente selecionado — não força VOL 75
     if(S.tf!==this.AUTO_TF) selectTF(this.AUTO_TF);
     return true;
   },
