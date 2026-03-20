@@ -6557,7 +6557,7 @@ function analyzeSignal(){
   const adxOkCalc = isVolPair ? true : adxNow >= adxLimitCalc;
   // Threshold: 9/13 fontes + sessão + tendência + ADX (só Forex/Crypto/Commodity)
   // ── MELHORIA 2: usa threshold dinâmico do ML se disponível ──
-  var _dynThresh = (typeof window._mlDynamicThreshold === 'number') ? window._mlDynamicThreshold : 8;
+  var _dynThresh = (typeof window._mlDynamicThreshold === 'number') ? window._mlDynamicThreshold : 9;
   // MELHORIA: Score ponderado adicional — fontes fortes (peso > 1.1) contam como 1.5
   const _wts = (typeof ML !== 'undefined' && ML.getWeights) ? ML.getWeights() : {};
   const weightedSourceCount = Object.keys(srcScores).reduce(function(sum, k){
@@ -6662,7 +6662,7 @@ const semiAuto = {
   fetchInterval: null,
   stats: { signals:0, confirmed:0, ignored:0 },
   minSources: 9,         // mínimo 9/13 fontes alinhadas
-  minProb: 60,           // probabilidade mínima
+  minProb: 65,           // probabilidade mínima
   scanEvery: 15000,      // escaneia a cada 15s (era 20s)
   // Semi-auto analisa qualquer par selecionado pelo usuário
   ensureActivePair(){
@@ -8100,7 +8100,7 @@ const autoMode = {
     const sig=semiAuto.analyzeCandles(candles);
     if(!sig){ this.setStatus('⚠ Erro na análise — retentando...'); this._executing=false; return; }
     this.stats.signals++; this.updateStats();
-    const probMin=this.mode==='conservative'?68:60;
+    const probMin=this.mode==='conservative'?70:68;
     const srcMin=this.mode==='conservative'?10:9;
     const trendOkAuto=sig.trendOk===true;
     if(!sig.thresholdOk||sig.prob<probMin||sig.sourcesConfirming<srcMin||!trendOkAuto){
@@ -8644,13 +8644,13 @@ function renderDashSources(){
   });
   rows.sort(function(a,b){return b.wr-a.wr;});
 
-  var dynThresh = window._mlDynamicThreshold || 8;
+  var dynThresh = window._mlDynamicThreshold || 9;
   var weakSrcs  = window._mlWeakSources || [];
 
   var html='<div class="dash-section-lbl">WIN RATE POR FONTE — limiar adaptativo ML</div>';
 
   // Badge threshold dinâmico
-  if(dynThresh > 8){
+  if(dynThresh > 9){
     html += '<div style="margin-bottom:10px;padding:7px 10px;background:rgba(255,109,0,.08);border:1px solid rgba(255,109,0,.25);border-radius:8px;font-size:12px;color:#ff9800">'
       + '⚡ ML detectou '+weakSrcs.length+' fonte(s) fraca(s) — threshold elevado para <strong>'+dynThresh+'/13</strong></div>';
   } else {
