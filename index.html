@@ -5243,10 +5243,8 @@ function openManualModal(type){
   if(modal){
     modal.style.display='block';
     modal.scrollTop = 0;
-    // Fix iOS Safari
+    // Fix iOS Safari - só overflow, sem position:fixed que trava desktop
     document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
   }
   else if(type==='bolso') document.getElementById('bolsoModal').style.display='block';
 }
@@ -5255,8 +5253,6 @@ function closeManualModal(){
   document.getElementById('guiaModal').style.display='none';
   // Restaura scroll iOS
   document.body.style.overflow = '';
-  document.body.style.position = '';
-  document.body.style.width = '';
   document.getElementById('bolsoModal').style.display='none';
 }
 
