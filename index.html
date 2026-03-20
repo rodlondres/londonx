@@ -5243,7 +5243,8 @@ function openManualModal(type){
   if(modal){
     modal.style.display='block';
     modal.scrollTop = 0;
-    // Fix iOS Safari - só overflow, sem position:fixed que trava desktop
+    // Rolar página para o topo para o modal aparecer no centro visível
+    window.scrollTo({top:0, behavior:'instant'});
     document.body.style.overflow = 'hidden';
   }
   else if(type==='bolso') document.getElementById('bolsoModal').style.display='block';
