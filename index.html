@@ -6840,24 +6840,6 @@ const semiAuto = {
     sig.alignedTFs = tfLabel;
     sig.tfScores   = { [tfLabel]: `${sig.dir==='BUY'?'⬆':'⬇'} ${sig.prob}%` };
 
-    // ── FILTRO 90 SEGUNDOS — evita last second reversal ─────────
-    // Se faltam menos de 90s para fechar o candle → não entrar
-    const elapsed = candleOHLC && candleOHLC.length > 0
-      ? Math.floor(Date.now()/1000) - candleOHLC[candleOHLC.length-1].epoch
-      : 0;
-    const remaining = gran - elapsed;
-    if(remaining < 90){
-      this.setWaiting(`⏳ AGUARDANDO · Faltam ${remaining}s · Evitando reversão final`);
-      this.currentSignal = null;
-      // Tenta no próximo candle
-      if(!this._windowWatcher){
-        this._windowWatcher = setInterval(()=>{ this._checkWindowAndFire(); }, 2000);
-        this._pendingAutoSignal = sig;
-        this._pendingAutoGran   = gran;
-      }
-      return;
-    }
-
     // ── VERIFICAR JANELA 5-45% ANTES DE MOSTRAR ──────────────
     // Se candle está fora da janela ideal, aguarda automaticamente
     const candleWindow = this._checkCandleWindow(gran);
