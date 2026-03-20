@@ -5243,8 +5243,6 @@ function openManualModal(type){
   if(modal){
     modal.style.display='block';
     modal.scrollTop = 0;
-    // Rolar página para o topo para o modal aparecer no centro visível
-    window.scrollTo({top:0, behavior:'instant'});
     document.body.style.overflow = 'hidden';
   }
   else if(type==='bolso') document.getElementById('bolsoModal').style.display='block';
@@ -7358,7 +7356,7 @@ window.addEventListener('resize', function(){
 <div id="bolsoBtn" onclick="openManualModal('bolso')">📙 BOLSO</div>
 
 <!-- ══ MODAL MANUAL COMPLETO ══ -->
-<div id="manualModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:96vw;max-width:680px;max-height:85vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
+<div id="manualModal" style="display:none;position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:96vw;max-width:680px;height:90vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
 <div style="max-width:700px;margin:20px auto;padding:24px;background:#0a1628;border-radius:16px;border:1px solid #1e4080;color:#c8d8e8;font-family:'Rajdhani',sans-serif;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
     <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:900;color:#00e5ff;letter-spacing:2px">📘 MANUAL COMPLETO v7.0</div>
@@ -7445,7 +7443,7 @@ window.addEventListener('resize', function(){
 </div>
 
 <!-- ══ MODAL GUIA DE INTERPRETAÇÃO ══ -->
-<div id="guiaModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:96vw;max-width:680px;max-height:85vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
+<div id="guiaModal" style="display:none;position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:96vw;max-width:680px;height:90vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
 <div style="max-width:700px;margin:20px auto;padding:24px;background:#0a1628;border-radius:16px;border:1px solid #00897b;color:#c8d8e8;font-family:'Rajdhani',sans-serif;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
     <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:900;color:#00e676;letter-spacing:2px">📗 GUIA DE INTERPRETAÇÃO v7.0</div>
@@ -7521,7 +7519,7 @@ window.addEventListener('resize', function(){
 </div>
 
 <!-- ══ MODAL MANUAL DE BOLSO ══ -->
-<div id="bolsoModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:96vw;max-width:680px;max-height:85vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
+<div id="bolsoModal" style="display:none;position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:96vw;max-width:680px;height:90vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
 <div style="max-width:600px;margin:20px auto;padding:24px;background:#0a1628;border-radius:16px;border:1px solid #f57c00;color:#c8d8e8;font-family:'Rajdhani',sans-serif;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
     <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:900;color:#ff9800;letter-spacing:2px">📙 MANUAL DE BOLSO v7.0</div>
