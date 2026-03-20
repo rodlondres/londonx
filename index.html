@@ -6662,7 +6662,7 @@ const semiAuto = {
   fetchInterval: null,
   stats: { signals:0, confirmed:0, ignored:0 },
   minSources: 9,         // mínimo 9/13 fontes alinhadas
-  minProb: 65,           // probabilidade mínima
+  minProb: 60,           // probabilidade mínima
   scanEvery: 15000,      // escaneia a cada 15s (era 20s)
   // Semi-auto analisa qualquer par selecionado pelo usuário
   ensureActivePair(){
@@ -8100,7 +8100,7 @@ const autoMode = {
     const sig=semiAuto.analyzeCandles(candles);
     if(!sig){ this.setStatus('⚠ Erro na análise — retentando...'); this._executing=false; return; }
     this.stats.signals++; this.updateStats();
-    const probMin=this.mode==='conservative'?70:68;
+    const probMin=this.mode==='conservative'?68:62;
     const srcMin=this.mode==='conservative'?10:9;
     const trendOkAuto=sig.trendOk===true;
     if(!sig.thresholdOk||sig.prob<probMin||sig.sourcesConfirming<srcMin||!trendOkAuto){
