@@ -8250,17 +8250,16 @@ var _dashOpen = false;
 var _dashTab  = 'overview';
 
 function toggleDash(){
-  try{
-    _dashOpen = !_dashOpen;
-    var panel = document.getElementById('dashPanel');
-    var arrow = document.getElementById('dashArrow');
-    if(panel) panel.style.display = _dashOpen ? 'block' : 'none';
-    if(arrow) arrow.textContent = _dashOpen ? '▲' : '▼';
-    if(_dashOpen){
-      try{ renderDash(_dashTab); }catch(e){ console.error('renderDash erro:',e); }
-    }
-    notify(_dashOpen ? '📊 Dashboard aberto' : '📊 Dashboard fechado');
-  }catch(e){ console.error('toggleDash erro:',e); }
+  var panel = document.getElementById('dashPanel');
+  if(!panel) return;
+  if(panel.style.display === 'none' || panel.style.display === ''){
+    panel.style.display = 'block';
+    _dashOpen = true;
+    try{ renderDash(_dashTab||'overview'); }catch(e){}
+  } else {
+    panel.style.display = 'none';
+    _dashOpen = false;
+  }
 }
 
 function selectDTab(t){
