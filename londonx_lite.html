@@ -928,22 +928,48 @@ function drawRSIChart(){
 
 // ── ADX CHART ────────────────────────────────────────────
 function calcADXFull(vis, period){
-  if(vis.length<period+2) return [];
+  if(vis.length < period*2 + 2) return [];
+
+  // Passo 1: TR, +DM, -DM brutos
   var trs=[], dmPs=[], dmNs=[];
-  for(var i=1;i<vis.length;i++){
+  for(var i=1; i<vis.length; i++){
     var c=vis[i], p=vis[i-1];
-    trs.push(Math.max(c.h-c.l,Math.abs(c.h-p.c),Math.abs(c.l-p.c)));
-    dmPs.push(c.h-p.h>p.l-c.l&&c.h-p.h>0?c.h-p.h:0);
-    dmNs.push(p.l-c.l>c.h-p.h&&p.l-c.l>0?p.l-c.l:0);
+    trs.push( Math.max(c.h-c.l, Math.abs(c.h-p.c), Math.abs(c.l-p.c)) );
+    var upMove = c.h - p.h;
+    var dnMove = p.l - c.l;
+    dmPs.push( upMove > dnMove && upMove > 0 ? upMove : 0 );
+    dmNs.push( dnMove > upMove && dnMove > 0 ? dnMove : 0 );
   }
-  var sTR=trs.slice(0,period).reduce(function(a,b){return a+b;},0);
-  var sP=dmPs.slice(0,period).reduce(function(a,b){return a+b;},0);
-  var sN=dmNs.slice(0,period).reduce(function(a,b){return a+b;},0);
-  var res=[];
-  for(var i=period;i<trs.length;i++){
-    sTR=sTR-sTR/period+trs[i]; sP=sP-sP/period+dmPs[i]; sN=sN-sN/period+dmNs[i];
-    var dP=sTR>0?100*sP/sTR:0, dN=sTR>0?100*sN/sTR:0;
-    res.push({adx:(dP+dN>0?100*Math.abs(dP-dN)/(dP+dN):0), dP:dP, dN:dN});
+
+  // Passo 2: Primeira suavização Wilder (seed = soma simples dos primeiros `period` valores)
+  var sTR = trs.slice(0,period).reduce(function(a,b){return a+b;}, 0);
+  var sP  = dmPs.slice(0,period).reduce(function(a,b){return a+b;}, 0);
+  var sN  = dmNs.slice(0,period).reduce(function(a,b){return a+b;}, 0);
+
+  // Passo 3: Calcular DX série e coletar para suavizar em ADX
+  var dxArr = [];
+  for(var i=period; i<trs.length; i++){
+    sTR = sTR - sTR/period + trs[i];
+    sP  = sP  - sP /period + dmPs[i];
+    sN  = sN  - sN /period + dmNs[i];
+    var dP = sTR > 0 ? 100*sP/sTR : 0;
+    var dN = sTR > 0 ? 100*sN/sTR : 0;
+    var dx = (dP+dN > 0) ? 100*Math.abs(dP-dN)/(dP+dN) : 0;
+    dxArr.push({ dx:dx, dP:dP, dN:dN });
+  }
+
+  if(dxArr.length < period) return [];
+
+  // Passo 4: Segunda suavização Wilder → ADX real
+  var adxSeed = 0;
+  for(var i=0; i<period; i++) adxSeed += dxArr[i].dx;
+  adxSeed /= period;
+
+  var res = [];
+  var adxSmooth = adxSeed;
+  for(var i=period; i<dxArr.length; i++){
+    adxSmooth = (adxSmooth*(period-1) + dxArr[i].dx) / period;
+    res.push({ adx: adxSmooth, dP: dxArr[i].dP, dN: dxArr[i].dN });
   }
   return res;
 }
@@ -958,25 +984,51 @@ function drawADXChart(){
 
   var all = candles.concat(currentCandle?[Object.assign({},currentCandle)]:[]);
   var vis = all.slice(-60);
-  if(vis.length<16){ ctx.fillStyle='#3a5a7c'; ctx.font='9px monospace'; ctx.textAlign='center'; ctx.fillText('ADX — aguardando...',W/2,H/2); return; }
+  if(vis.length<30){ ctx.fillStyle='#3a5a7c'; ctx.font='9px monospace'; ctx.textAlign='center'; ctx.fillText('ADX — aguardando...',W/2,H/2); return; }
 
   var adxData=calcADXFull(vis,14);
   if(adxData.length<2) return;
 
-  var PAD=4, rW=W-PAD*2;
-  var maxV=Math.max(100, Math.max.apply(null, adxData.map(function(d){return Math.max(d.adx,d.dP,d.dN);})));
+  var PAD=4, PAD_R=24, rW=W-PAD-PAD_R;
 
-  // Linha 25
-  ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
-  var y25=PAD+(1-25/maxV)*(H-PAD*2);
-  ctx.beginPath(); ctx.moveTo(PAD,y25); ctx.lineTo(W-PAD,y25); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='#ffffff'; ctx.font='bold 8px monospace'; ctx.textAlign='right';
-  ctx.fillText('25', W-2, y25+2);
+  // Escala dinâmica: min/max dos dados reais com margem de 15%
+  var allVals = adxData.reduce(function(acc,d){ acc.push(d.adx,d.dP,d.dN); return acc; }, []);
+  var dataMin = Math.min.apply(null, allVals);
+  var dataMax = Math.max.apply(null, allVals);
+  var margin  = Math.max((dataMax - dataMin) * 0.2, 5);
+  var minV    = Math.max(0, dataMin - margin);
+  var maxV    = dataMax + margin;
+  var rng     = maxV - minV || 1;
+
+  function toY(v){ return PAD + (1 - (Math.min(Math.max(v, minV), maxV) - minV) / rng) * (H - PAD*2); }
+
+  // Labels do eixo Y
+  ctx.font='7px monospace'; ctx.textAlign='left'; ctx.fillStyle='#3a5a7c';
+  [minV, (minV+maxV)/2, maxV].forEach(function(v){
+    var y = toY(v);
+    ctx.fillText(Math.round(v), W-PAD_R+3, y+3);
+    ctx.strokeStyle='rgba(26,45,79,.4)'; ctx.lineWidth=0.5; ctx.setLineDash([2,4]);
+    ctx.beginPath(); ctx.moveTo(PAD,y); ctx.lineTo(W-PAD_R,y); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Linha de referência 25
+  if(25 >= minV && 25 <= maxV){
+    var y25 = toY(25);
+    ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(PAD,y25); ctx.lineTo(W-PAD_R,y25); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#aaaaaa'; ctx.font='bold 7px monospace'; ctx.textAlign='left';
+    ctx.fillText('25', W-PAD_R+3, y25+3);
+  }
 
   function drawADXLine(arr, col, lw){
     ctx.beginPath(); ctx.strokeStyle=col; ctx.lineWidth=lw;
-    arr.forEach(function(v,i){ var x=PAD+(i/(arr.length-1))*rW, y=PAD+(1-Math.min(v,maxV)/maxV)*(H-PAD*2); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    arr.forEach(function(v,i){
+      var x = PAD + (i/(arr.length-1)) * rW;
+      var y = toY(v);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
     ctx.stroke();
   }
 
