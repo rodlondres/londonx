@@ -599,7 +599,7 @@ canvas{width:100%;display:block;}
 .regime-badge.active.volatile{background:rgba(255,23,68,.25);color:#fff;border:2px solid var(--red);box-shadow:0 0 18px rgba(255,23,68,.7),0 0 6px rgba(255,23,68,.4);animation:pulseVolatile 1.2s ease-in-out infinite;}
 
 /* MODO BOTÕES */
-.mode-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.mode-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
 .mode-btn{border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;border:1px solid;transition:all .2s;}
 .mode-btn .mode-ico{font-size:16px;display:block;margin-bottom:3px;}
 .mode-btn .mode-nm{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;}
@@ -726,10 +726,15 @@ canvas{width:100%;display:block;}
       <div class="mode-nm">SEMI-AUTO</div>
       <div class="mode-desc">Bot sugere</div>
     </div>
+    <div class="mode-btn cons" onclick="setMode('cons')">
+      <span class="mode-ico">🛡️</span>
+      <div class="mode-nm">CONSERV.</div>
+      <div class="mode-desc">Fixo automático</div>
+    </div>
     <div class="mode-btn aggr" onclick="setMode('aggr')">
-      <span class="mode-ico">🔥</span>
-      <div class="mode-nm">AUTOMÁTICO</div>
-      <div class="mode-desc">Bot opera</div>
+      <span class="mode-ico">🐊</span>
+      <div class="mode-nm">AGRESSIVO</div>
+      <div class="mode-desc">Soros 2 níveis</div>
     </div>
   </div>
 </div>
@@ -1912,23 +1917,30 @@ function setMode(m){
   ST.mode=m;
   document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.remove('on');});
   var btn=document.querySelector('.mode-btn.'+m);if(btn)btn.classList.add('on');
-  var msgs={manual:'🕹️ Manual — você decide a entrada',semi:'🎯 Semi-Auto — bot sugere, você confirma',aggr:'🔥 Automático Agressivo — bot opera sozinho'};
+  var msgs={
+    manual:'🕹️ Manual — você decide a entrada',
+    semi:'🎯 Semi-Auto — bot sugere, você confirma',
+    cons:'🛡️ Conservador — automático stake fixo',
+    aggr:'🐊 Agressivo — Soros 2 níveis automático'
+  };
   setSts(msgs[m]||'');
-  // Scanner só no semi e auto
   if(_scanTimer)clearInterval(_scanTimer);
-  if(m==='semi'||m==='aggr'){
+  if(m==='semi'||m==='cons'||m==='aggr'){
     _scanTimer=setInterval(function(){
       var sig=analyzeSignal();
       if(sig)renderSignal(sig);
-      // Modo agressivo: executa automaticamente
-      if(m==='aggr'&&sig&&sig.thresholdOk&&sig.prob>=65&&!ST.running){
+      // Cons e Aggr: executam automaticamente se threshold ok
+      if((m==='cons'||m==='aggr')&&sig&&sig.thresholdOk&&sig.prob>=65&&!ST.running){
+        // Filtro RSI extremo
+        var rsiV=parseFloat(sig.rsi||50);
+        if((sig.dir==='BUY'&&rsiV>78)||(sig.dir==='SELL'&&rsiV<22)){
+          setSts('🔴 RSI extremo '+rsiV.toFixed(0)+' — aguardando normalizar');return;
+        }
         doTrade(sig.dir==='BUY'?'CALL':'PUT');
       }
     },5000);
-    // Primeira análise imediata
     setTimeout(function(){var sig=analyzeSignal();if(sig)renderSignal(sig);},1500);
   } else {
-    // Manual: reseta destaques
     document.querySelectorAll('.dir-btn').forEach(function(b){b.style.filter='none';b.style.opacity='1';});
     document.getElementById('confWrap').style.display='none';
   }
