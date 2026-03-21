@@ -261,7 +261,7 @@ body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;ma
     </div>
   </div>
   <!-- CHART PREÇOS -->
-  <div id="priceWrap" style="width:100%;height:180px;position:relative;background:#050505;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+  <div id="priceWrap" style="width:100%;height:180px;position:relative;background:#050505;border-radius:8px;overflow:hidden;border:1px solid var(--border);display:block;">
     <canvas id="liteChart" style="position:absolute;top:0;left:0;"></canvas>
   </div>
   <!-- RSI -->
@@ -517,6 +517,24 @@ function onMsg(e){
   }
 }
 
+function loadCandles(){
+  if(!ST.connected || !ws || ws.readyState!==1) return;
+  var sym = LITE_PAIRS[ST.pair].s;
+  var gran = LITE_TFS[ST.tf].g;
+  candleInterval = gran;
+  candles = []; currentCandle = null;
+  ws.send(JSON.stringify({
+    ticks_history: sym,
+    adjust_start_time: 1,
+    count: 100,
+    end: 'latest',
+    granularity: gran,
+    start: 1,
+    style: 'candles',
+    subscribe: 1
+  }));
+}
+
 function subTicks(){
   try{ ws.send(JSON.stringify({forget_all:'ticks'})); }catch(e){}
   try{ ws.send(JSON.stringify({forget_all:'candles'})); }catch(e){}
@@ -740,21 +758,22 @@ var candles = [];
 var currentCandle = null;
 var candleInterval = 300;
 
-function getCanvasSize(id){
-  var el = document.getElementById(id);
-  if(!el) return {w:360,h:160};
-  var wrap = el.parentElement;
-  var w = wrap.clientWidth || wrap.offsetWidth || 360;
-  var h = wrap.clientHeight || wrap.offsetHeight || 160;
-  return {w:Math.max(w,100), h:Math.max(h,40)};
-}
-
 function sizeCanvas(id){
   var canvas = document.getElementById(id);
   if(!canvas) return null;
-  var sz = getCanvasSize(id);
-  canvas.width = sz.w;
-  canvas.height = sz.h;
+  var wrap = canvas.parentElement;
+  if(!wrap) return null;
+  var rect = wrap.getBoundingClientRect();
+  var w = Math.round(rect.width) || wrap.offsetWidth || 360;
+  var h = Math.round(rect.height) || wrap.offsetHeight || 60;
+  if(w < 10 || h < 10){
+    // fallback por id
+    var defaults = {liteChart:{w:360,h:180}, rsiChart:{w:360,h:60}, adxChart:{w:360,h:60}};
+    var d = defaults[id] || {w:360,h:60};
+    w = w||d.w; h = h||d.h;
+  }
+  canvas.width = w;
+  canvas.height = h;
   return canvas;
 }
 
@@ -1085,15 +1104,23 @@ setInterval(function(){
   }
 },800);
 
-// Init simulação
-setTimeout(function(){
+// Init simulação — espera DOM estar totalmente renderizado
+function initCharts(){
   simP=1000;
-  for(var i=0;i<50;i++){
+  candles=[];
+  currentCandle=null;
+  for(var i=0;i<60;i++){
     simP=parseFloat((simP+(Math.random()-.48)*1.5).toFixed(4));
     buildCandle(simP);
   }
   redrawAll();
-},300);
+}
+// Múltiplos fallbacks para garantir execução após render
+if(document.readyState==='complete'){
+  setTimeout(initCharts, 100);
+} else {
+  window.addEventListener('load', function(){ setTimeout(initCharts, 100); });
+}
 
 window.addEventListener('resize',redrawAll);
 
