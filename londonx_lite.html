@@ -637,19 +637,7 @@ canvas{width:100%;display:block;}
 </style>
 </head>
 <body>
-<script>
-// Força reload se cache serviu versão antiga
-(function(){
-  var BUILD='2528';
-  var stored=localStorage.getItem('lx_build');
-  if(stored && stored!==BUILD){
-    localStorage.setItem('lx_build',BUILD);
-    window.location.reload(true);
-    return;
-  }
-  localStorage.setItem('lx_build',BUILD);
-})();
-</script>
+
 <div class="scan-line"></div>
 
 <div class="container">
@@ -2216,7 +2204,7 @@ function autoDetectRegime(){
 
 // ══ STAKE / STOPS ══════════════════════════════════════════
 function adjS(v){var i=document.getElementById('stkInp');i.value=Math.max(1,(parseFloat(i.value)||50)+v);ST.stake=parseFloat(i.value);}
-document.getElementById('stkInp').onchange=function(){ST.stake=parseFloat(this.value)||50;};
+// stkInp.onchange configurado no window.load abaixo
 function adjStop(t,v){var id=t==='sl'?'slInp':'sgInp';var i=document.getElementById(id);i.value=Math.max(1,Math.min(100,(parseInt(i.value)||5)+v));updStopInfo();}
 function updStopInfo(){var sl=parseInt(document.getElementById('slInp').value)||5;var sg=parseInt(document.getElementById('sgInp').value)||10;document.getElementById('stopInfo').textContent='SL: -'+sl+'% | SG: +'+sg+'%';}
 function setSts(t){document.getElementById('stsTxt').textContent=t||'';}
@@ -2527,6 +2515,9 @@ setInterval(function(){
 },10000);
 window.addEventListener('resize',redrawAll);
 window.addEventListener('load',function(){
+  // Configurar event handlers que precisam do DOM pronto
+  var stkEl=document.getElementById('stkInp');
+  if(stkEl) stkEl.onchange=function(){ST.stake=parseFloat(this.value)||50;};
   var t=localStorage.getItem('lx_lite_tok');
   if(t){
     document.getElementById('tokInp').value=t;
