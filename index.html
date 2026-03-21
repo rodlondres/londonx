@@ -722,6 +722,10 @@ canvas{width:100%;display:block;}
   border-color:var(--cyan);background:rgba(0,229,255,.1);
   box-shadow:0 0 12px rgba(0,229,255,.2);
 }
+.mode-btn.mode-active-semi{
+  background:rgba(255,214,0,.15);border-color:#ffd600;color:#ffd600;
+  box-shadow:0 0 14px rgba(255,214,0,.3);
+}
 .mode-btn.mode-active-cons{
   border-color:#2196f3;background:rgba(33,150,243,.12);
   box-shadow:0 0 12px rgba(33,150,243,.2);
@@ -1425,21 +1429,26 @@ div, span {
 <!-- MODO DE OPERAÇÃO -->
 <div class="semi-card" id="modeCard">
   <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:8px;letter-spacing:2px">⚙ MODO DE OPERAÇÃO</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:10px">
     <button class="mode-btn mode-active" id="modeManual" onclick="setMode('manual')">
-      <div style="font-size:15px">⚪</div>
-      <div style="font-size:10px;font-weight:900;letter-spacing:1px;margin-top:2px">MANUAL</div>
-      <div style="font-size:9px;color:var(--text3);margin-top:1px">Você decide</div>
+      <div style="font-size:14px">⚪</div>
+      <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px">MANUAL</div>
+      <div style="font-size:8px;color:var(--text3);margin-top:1px">Você decide</div>
+    </button>
+    <button class="mode-btn" id="modeSemi" onclick="setMode('semi')">
+      <div style="font-size:14px">🎯</div>
+      <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px">SEMI-AUTO</div>
+      <div style="font-size:8px;color:var(--text3);margin-top:1px">Bot sugere</div>
     </button>
     <button class="mode-btn" id="modeCons" onclick="setMode('conservative')">
-      <div style="font-size:15px">🔵</div>
-      <div style="font-size:10px;font-weight:900;letter-spacing:1px;margin-top:2px">CONSERV.</div>
-      <div style="font-size:9px;color:var(--text3);margin-top:1px">Auto · US$100 fixo</div>
+      <div style="font-size:14px">🔵</div>
+      <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px">CONSERV.</div>
+      <div style="font-size:8px;color:var(--text3);margin-top:1px">Auto 9/13</div>
     </button>
     <button class="mode-btn" id="modeAggr" onclick="setMode('aggressive')">
-      <div style="font-size:15px">🔥</div>
-      <div style="font-size:10px;font-weight:900;letter-spacing:1px;margin-top:2px">AGRESSIVO</div>
-      <div style="font-size:9px;color:var(--text3);margin-top:1px">Auto · Soros 2 níveis</div>
+      <div style="font-size:14px">🔥</div>
+      <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px">AGRESSIVO</div>
+      <div style="font-size:8px;color:var(--text3);margin-top:1px">Soros 2 níveis</div>
     </button>
   </div>
 
@@ -8024,40 +8033,116 @@ const autoMode = {
   scanInterval: null,
   stats: { signals:0, executed:0, skipped:0 },
   sorosLevel: 0,
-  baseStake: 100,
+  baseStake: 50,          // US$50 = 0.5% da banca US$9,458
   lastTradeTime: 0,
-  AUTO_PAIR_SYM: 'R_75',   // V75 — símbolo Deriv correto
-  AUTO_PAIR_SYM_ALT: '1HZ75V', // símbolo alternativo OTC
+  AUTO_PAIR_SYM: 'R_75',
+  AUTO_PAIR_SYM_ALT: '1HZ75V',
   AUTO_TF: '5M',
   AUTO_GRAN: 300,
   AUTO_COUNT: 80,
   MIN_INTERVAL: 90,
+  // ── MIX STRATEGY ──────────────────────────────────────────
+  _mixMode: 'cons',        // 'cons' ou 'aggr' — modo atual interno
+  _winStreak: 0,           // wins consecutivos
+  _lossStreak: 0,          // losses consecutivos
+  _pauseUntil: null,       // pausa 15min após 2 losses
+  _dayPnl: 0,              // P&L do dia (acumulado)
+  _dayBankroll: 9358,      // banca do dia
+  STOP_LOSS_PCT: 0.05,     // -5% = -US$472
+  STOP_GAIN_PCT: 0.10,     // +10% = +US$945
+  MIX_WIN_TRIGGER: 2,      // wins para ativar Soros
+  MIX_LOSS_PAUSE: 2,       // losses para pausar 15min
 
   getStake(){
-    if(this.mode === 'conservative') return this.baseStake;
-    // Soros 2 níveis: 100 → 195 → reset
-    // Mais consistente: 41% de ciclos completos vs 26% com 3 níveis
+    // Se em pausa, usa baseStake reduzido
+    if(this._pauseUntil && Date.now() < this._pauseUntil) return this.baseStake;
+    // Modo Conservador (stake fixo)
+    if(this._mixMode === 'cons') return this.baseStake;
+    // Modo Soros (reinveste lucro)
     const payout = 0.954;
     if(this.sorosLevel === 0) return this.baseStake;
-    // Nível 1: base + lucro anterior
     return parseFloat((this.baseStake + this.baseStake*payout).toFixed(2));
   },
 
-  registerResult(won){
-    if(this.mode !== 'aggressive') return;
+  // ── Verifica stops do dia ──────────────────────────────────
+  checkDayLimits(){
+    const stopLoss = -(this._dayBankroll * this.STOP_LOSS_PCT);
+    const stopGain =  (this._dayBankroll * this.STOP_GAIN_PCT);
+    if(this._dayPnl <= stopLoss){
+      notify('🛑 STOP LOSS DO DIA: -US$'+Math.abs(this._dayPnl).toFixed(0)+' — Encerrando!');
+      this.setStatus('🛑 STOP LOSS -'+this.STOP_LOSS_PCT*100+'% atingido · Dia encerrado');
+      this.stop(); return true;
+    }
+    if(this._dayPnl >= stopGain){
+      notify('🏆 META DO DIA: +US$'+this._dayPnl.toFixed(0)+' — Perfeito! Encerrando!');
+      this.setStatus('🏆 META +'+this.STOP_GAIN_PCT*100+'% atingida · Excelente dia!');
+      this.stop(); return true;
+    }
+    return false;
+  },
+
+  // ── Atualiza modo interno cons ↔ soros ────────────────────
+  _updateMixMode(won, stake, profit){
+    const payout = 0.954;
+    // Atualiza P&L do dia
+    this._dayPnl += won ? parseFloat((stake*payout).toFixed(2)) : -stake;
+    // Verifica stop do dia
+    if(this.checkDayLimits()) return;
+
     if(won){
-      if(this.sorosLevel < 1){
-        this.sorosLevel++;
-        notify('🔥 AUTO SOROS N'+this.sorosLevel+': vitória! Reinvestindo...');
+      this._lossStreak = 0;
+      this._winStreak++;
+      if(this._mixMode === 'cons'){
+        if(this._winStreak >= this.MIX_WIN_TRIGGER){
+          this._mixMode = 'aggr';
+          this.sorosLevel = 0;
+          this.setStatus('🚀 '+this._winStreak+' wins! Ativando Soros...');
+          notify('🐊 MIX: '+this._winStreak+' wins seguidos → SOROS ATIVO!');
+        }
       } else {
-        // 2 vitórias seguidas — stop gain, protege lucro
-        this.sorosLevel=0;
-        notify('🏆 AUTO SOROS: 2 vitórias! US$'+(this.baseStake+(this.baseStake*payout)).toFixed(0)+' lucro protegido — voltando a US$'+this.baseStake);
+        // Soros: registra nível
+        if(this.sorosLevel < 1){
+          this.sorosLevel++;
+          notify('🔥 SOROS N'+this.sorosLevel+': vitória! Reinvestindo...');
+        } else {
+          this.sorosLevel=0;
+          notify('🏆 SOROS: 2 wins! Lucro protegido → volta US$'+this.baseStake);
+        }
       }
     } else {
-      if(this.sorosLevel>0) notify('⚠ AUTO SOROS: perda — voltando a US$'+this.baseStake);
-      this.sorosLevel=0;
+      this._winStreak = 0;
+      this.sorosLevel = 0;
+      this._lossStreak++;
+      if(this._mixMode === 'aggr'){
+        this._mixMode = 'cons';
+        notify('🛡️ Loss no Soros → voltando Conservador');
+        this.setStatus('🛡️ Loss — voltou ao Conservador');
+      }
+      if(this._lossStreak >= this.MIX_LOSS_PAUSE){
+        this._pauseUntil = Date.now() + 15*60*1000;
+        this._lossStreak = 0;
+        notify('⏸️ 2 losses seguidos → pausa 15min · stake reduzido');
+        this.setStatus('⏸️ Pausa 15min · losses seguidos');
+      }
     }
+    // Atualiza badge de modo
+    const badge = document.getElementById('autoModeBadge');
+    if(badge){
+      badge.textContent = this._mixMode==='aggr' ?
+        '🐊 Soros · P&L US$'+(this._dayPnl>=0?'+':'')+this._dayPnl.toFixed(0) :
+        '🛡️ Conserv. · P&L US$'+(this._dayPnl>=0?'+':'')+this._dayPnl.toFixed(0);
+      badge.style.background = this._mixMode==='aggr'?'rgba(255,109,0,.2)':'rgba(33,150,243,.2)';
+      badge.style.color = this._mixMode==='aggr'?'var(--orange)':'#2196f3';
+    }
+  },
+
+  registerResult(won){
+    if(this.mode === 'manual') return;
+    // Usa stake/profit da última operação
+    const lastTrade = tradeHistory.filter(t=>t.autoMode).slice(-1)[0];
+    const stake = lastTrade ? parseFloat(lastTrade.stake||this.baseStake) : this.baseStake;
+    const profit = lastTrade ? parseFloat(lastTrade.profit||stake*0.954) : stake*0.954;
+    this._updateMixMode(won, stake, profit);
   },
 
   findV75Index(){
@@ -8080,13 +8165,41 @@ const autoMode = {
     if(!this.active) return;
     // ✅ TRAVA 1: flag imediata — seta antes de qualquer await
     if(this._executing){
-      this.setStatus('⏳ Execução em andamento...');
-      return;
+      // Se trava está ativa há mais de 3 minutos, força reset
+      if(this._executingStart && (Date.now()-this._executingStart)>180000){
+        console.warn('[autoMode] _executing preso >3min — forçando reset');
+        this._executing=false; this._executingStart=0;
+      } else {
+        this.setStatus('⏳ Execução em andamento...');
+        return;
+      }
     }
-    // ✅ TRAVA 2: verifica trades pendentes no histórico
-    if(tradeHistory.some(t=>t.result==='pending'&&t.autoMode)){
-      this.setStatus('⏳ Operação em andamento — aguardando resultado...');
-      return;
+    this._executingStart=Date.now(); // marca quando travou
+    // ✅ TRAVA 2: verifica trades pendentes (mas com timeout de segurança 6min)
+    const pendingAuto = tradeHistory.filter(t=>t.result==='pending'&&t.autoMode);
+    if(pendingAuto.length>0){
+      const oldest = pendingAuto.reduce((a,b)=>a.id<b.id?a:b);
+      const elapsed = (Date.now() - oldest.id) / 1000; // id = Date.now() em ms
+      if(elapsed < 370){ // 6min10s de segurança (trade dura 5min)
+        this.setStatus('⏳ Operação em andamento — aguardando resultado...');
+        return;
+      } else {
+        // Trade preso — força resolução
+        pendingAuto.forEach(t=>{ t.result='loss'; });
+        try{ renderHistory(); }catch(e){}
+        this.logBlock('⚠ Trade preso >6min — forçando continuação');
+        console.warn('[autoMode] TRAVA2 expirada — forçando resolução');
+      }
+    }
+    // Verifica pausa 15min
+    if(this._pauseUntil && Date.now() < this._pauseUntil){
+      const rem = Math.ceil((this._pauseUntil - Date.now())/60000);
+      this.setStatus('⏸️ Pausa por '+rem+'min · 2 losses seguidos');
+      this._executing=false; return;
+    } else if(this._pauseUntil && Date.now() >= this._pauseUntil){
+      this._pauseUntil=null;
+      notify('▶️ Pausa encerrada — retomando Conservador');
+      this._mixMode='cons'; this._winStreak=0;
     }
     if(!this.ensureV75()) return;
     const now=Date.now()/1000;
@@ -8225,7 +8338,7 @@ const autoMode = {
       score:S.totalScore+'/'+S.totalMax,time,date,prob:S.prob,
       result:'pending',remaining:durSecs,entryPrice:S.chartTick||1,
       isBuy,contractId:contractId||null,
-      strat:this.mode==='aggressive'?'soros':'cons',
+      strat:this._mixMode==='aggr'?'soros':'cons',
       martLevel:0,hour:new Date().getHours(),
       sources:JSON.parse(JSON.stringify(S.srcScores||{})),autoMode:this.mode});
     if(tradeHistory.length>50)tradeHistory.shift();
@@ -8236,7 +8349,7 @@ const autoMode = {
     this._executing = false; // 🔓 libera trava após registrar o trade
     const checkResult=setInterval(()=>{
       const t=tradeHistory.find(x=>x.id===tradeId);
-      if(!t) return;
+      if(!t){ clearInterval(checkResult); setTimeout(()=>{ if(this.active) this.scan(); }, 5000); return; }
       // Atualiza status com tempo restante durante a operação
       if(t.result==='pending'){
         const rem=Math.max(0,Math.round(((t._endTime||0)-Date.now())/1000));
@@ -8277,10 +8390,15 @@ const autoMode = {
   start(mode){
     this.mode=mode; this.active=true;
     this.stats={signals:0,executed:0,skipped:0}; this.sorosLevel=0;
-    this._executing=false; // garante flag limpa ao iniciar
+    this._executing=false;
+    // Reset mix strategy
+    this._mixMode='cons'; this._winStreak=0; this._lossStreak=0;
+    this._pauseUntil=null;
+    // P&L do dia: preserva se já operou hoje
+    if(!this._dayStarted){ this._dayPnl=0; this._dayStarted=true; }
     if(!this.ensureV75()){this.stop();return;}
-    const label=mode==='conservative'?'🔵 CONSERVADOR ATIVO':'🔥 AGRESSIVO ATIVO';
-    const badge=mode==='conservative'?'US$100 fixo':'Soros 2 níveis';
+    const label='⚡ MIX AUTOMÁTICO ATIVO';
+    const badge='🛡️ Conserv. início · US$'+this.baseStake+'  →  🐊 Soros c/ 2 wins';
     const labelEl=document.getElementById('autoModeLabel');
     const badgeEl=document.getElementById('autoModeBadge');
     if(labelEl)labelEl.textContent=label;
@@ -8289,7 +8407,8 @@ const autoMode = {
     document.getElementById('autoStats').style.display='block';
     document.getElementById('semiPanel').style.display='none';
     notify('🤖 AUTO '+(mode==='conservative'?'CONSERVADOR':'AGRESSIVO')+' ATIVO · V75 5M');
-    this.setStatus('🔍 Iniciando análise V75 · 5M...');
+    this.setStatus('🛡️ Mix ativo · Conservador → 2 wins → Soros');
+    notify('⚡ MIX AUTO: Conserv. US$'+this.baseStake+' → Soros c/ '+this.MIX_WIN_TRIGGER+' wins · Stop: -'+Math.round(this._dayBankroll*this.STOP_LOSS_PCT)+'/ +'+Math.round(this._dayBankroll*this.STOP_GAIN_PCT));
     setTimeout(()=>{if(this.active)this.scan();},2000);
     this.scanInterval=setInterval(()=>{if(this.active)this.scan();},15000);
   },
@@ -8315,7 +8434,7 @@ function setMode(mode){
   _currentMode=mode;
   // ✅ Persiste modo no localStorage para sincronizar entre dispositivos
   try{localStorage.setItem('londonx_mode', mode);}catch(e){}
-  ['modeManual','modeCons','modeAggr'].forEach(id=>{
+  ['modeManual','modeSemi','modeCons','modeAggr'].forEach(id=>{
     const btn=document.getElementById(id); if(btn)btn.className='mode-btn';
   });
   if(mode==='manual'){
@@ -8324,6 +8443,12 @@ function setMode(mode){
     const st=document.getElementById('autoStats'); if(st)st.style.display='none';
     semiAuto.toggle(true);
     const p=document.getElementById('semiPanel'); if(p)p.style.display='block';
+  } else if(mode==='semi'){
+    document.getElementById('modeSemi').className='mode-btn mode-active-semi';
+    semiAuto.toggle(true); // ativa scanner semi-auto
+    const p=document.getElementById('semiPanel'); if(p)p.style.display='block';
+    const s=document.getElementById('autoModeStatus'); if(s)s.style.display='none';
+    const st=document.getElementById('autoStats'); if(st)st.style.display='none';
   } else if(mode==='conservative'){
     document.getElementById('modeCons').className='mode-btn mode-active-cons';
     semiAuto.toggle(false);
@@ -8335,6 +8460,30 @@ function setMode(mode){
     S.strategy='soros';
     autoMode.start('aggressive');
   }
+// ══ WATCHDOG — libera travas se trades ficarem presos ══════
+// Resolve trades pending cujo _endTime já passou (iOS background kill)
+setInterval(function(){
+  var now = Date.now();
+  var stuck = tradeHistory.filter(function(t){
+    return t.result==='pending' && t._endTime && now > t._endTime + 5000;
+  });
+  stuck.forEach(function(t){
+    console.warn('[watchdog] Resolvendo trade preso:', t.id);
+    try{
+      resolveTradeResult(t.id, t.entryPrice||t.entry||1, t.isBuy,
+        parseFloat(t.stake||1), parseFloat(t.profit||0.85), t.payout||0.85);
+      hideActiveTrade(t.id);
+    }catch(e){ t.result='loss'; } // fallback: marca como loss se resolveTradeResult falhar
+    try{ renderHistory(); }catch(e){}
+  });
+  // Garante que _executing nunca fica preso por mais de 3 min
+  if(autoMode._executing && autoMode._executingStart && (now - autoMode._executingStart) > 180000){
+    console.warn('[watchdog] _executing preso — resetando');
+    autoMode._executing = false;
+    autoMode._executingStart = 0;
+  }
+}, 30000); // verifica a cada 30 segundos
+
 }
 </script>
 <script>
