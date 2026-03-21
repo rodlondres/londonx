@@ -2556,7 +2556,7 @@ function setRegime(r,el){
 }
 
 function applyRegimeThreshold(r){
-  var base = window._mlDynamicThreshold||9;
+  var base = window._mlDynamicThreshold||8;
   if(r==='lateral'){
     // Lateral: eleva threshold para 11/13 + reduz entrada 50%
     window._regimeThreshold = 11;
@@ -6661,7 +6661,7 @@ const semiAuto = {
   scanInterval: null,
   fetchInterval: null,
   stats: { signals:0, confirmed:0, ignored:0 },
-  minSources: 9,         // mínimo 9/13 fontes alinhadas
+  minSources: 8,         // mínimo 8/13 fontes alinhadas
   minProb: 65,           // probabilidade mínima
   scanEvery: 15000,      // escaneia a cada 15s (era 20s)
   // Semi-auto analisa qualquer par selecionado pelo usuário
@@ -7432,7 +7432,7 @@ window.addEventListener('resize', function(){
     <tr style="background:#1a3a5c"><th style="padding:6px 10px;text-align:left">Modo</th><th style="padding:6px 10px;text-align:left">Descrição</th></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px">⚪ Manual</td><td style="padding:6px 10px">Você decide — bot exibe sinais mas não executa</td></tr>
     <tr><td style="padding:6px 10px">🔵 Conservador</td><td style="padding:6px 10px">Auto · ≥70% prob · 10/13 fontes · US$100 fixo</td></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">🔥 Agressivo</td><td style="padding:6px 10px">Auto · ≥68% prob · 9/13 fontes · Soros 2 níveis</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">🔥 Agressivo</td><td style="padding:6px 10px">Auto · ≥68% prob · 8/13 fontes · Soros 2 níveis</td></tr>
   </table>
 
   <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">2. OS 13 FILTROS OBRIGATÓRIOS</h3>
@@ -7594,7 +7594,7 @@ window.addEventListener('resize', function(){
   <div style="background:#0d1f35;border-left:3px solid #ffd600;padding:12px 16px;border-radius:6px;">
     <b style="color:#ffd600;font-family:'Orbitron',monospace;font-size:12px">🎯 OS 13 FILTROS</b><br><br>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;">
-      <span>1. Sessão aberta</span><span>2. ≥ 9/13 fontes</span>
+      <span>1. Sessão aberta</span><span>2. ≥ 8/13 fontes</span>
       <span>3. Prob ≥ 68%</span><span>4. Tendência 2/3 EMAs</span>
       <span>5. ADX ≥ 25</span><span>6. ATR 0.5x–1.5x</span>
       <span>7. Sem trade aberto</span><span>8. Intervalo ≥ 90s</span>
@@ -8903,7 +8903,7 @@ var ML = (function(){
     // Se >= 2 fontes fracas confirmadas (WR<45%, conf>=50%),
     // aumenta o threshold de 9 para 10 para compensar ruído.
     // Salva na janela global para uso em analyzeSignal.
-    window._mlDynamicThreshold = weakSources.length >= 2 ? 10 : 9;
+    window._mlDynamicThreshold = weakSources.length >= 2 ? 9 : 8;
     window._mlWeakSources = weakSources.map(function(x){return x.k;});
 
     save();
