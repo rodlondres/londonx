@@ -3068,12 +3068,16 @@ function renderConf(){
   } else {
     // Sem threshold — mostra prob + quantas fontes confirmam
     var trendOk=S.trendOk; var tBC2=S.trendBullCount||0; var tSC2=S.trendBearCount||0;
+    // RSI extremo para display
+    var rsiNowDisp=S._rsiNow||50;
+    var rsiExtBlocked=(nConf>0)&&((dir==='up'&&rsiNowDisp>78)||(dir==='dn'&&rsiNowDisp<22));
     var waitMsg=!sessOk?'🕐 Sessão fechada':
                 !atrFilterOk?(S._atrFilterMsg||'⚡ ATR fora do range'):
                 !reversalFilterOk?(S._reversalFilterMsg||'⛔ Padrão de reversão detectado'):
                 !trendOk?'📈 Tendência '+Math.max(tBC2,tSC2)+'/3 — aguardando 2':
                 (!adxOk&&!isVolBtn)?'📊 ADX '+adxNowVal.toFixed(0)+' — aguardando >'+(adxLimit)+((agu_bull||agu_bear)?' 🎯 Agulhada':''):
                 !S.candlePositionOk?(S.candlePositionMsg||'⏱ Fora da janela ideal'):
+                rsiExtBlocked?'🔴 RSI '+rsiNowDisp.toFixed(0)+' — extremo (exaustão)':
                 '⏳ '+nConf+'/13 — aguardando '+(window._mlDynamicThreshold||8);
     if(buyBtn){buyBtn.style.opacity='0.75';buyBtn.style.filter='none';buyBtn.style.boxShadow='none';}
     if(sellBtn){sellBtn.style.opacity='0.75';sellBtn.style.filter='none';sellBtn.style.boxShadow='none';}
@@ -6593,6 +6597,7 @@ function analyzeSignal(){
   const thresholdOkFinal = thresholdOk && !conflictBlocked;
   S.thresholdOk  = thresholdOkFinal;
   S.sourcesConfirming = sourcesConfirming;
+  S._rsiNow = rNow;  // para filtro RSI extremo no display
   S.sessOk       = sessOk;
 
   // Atualiza S com os 13 scores reais
@@ -6643,6 +6648,9 @@ function analyzeSignal(){
     rsi: rNow.toFixed(1),
     zScore: zScore.toFixed(2),
     atr: atr.toFixed(5),
+    // BB width para filtro de exaustão no autoBot
+    bbwNow: bbWNow,
+    bbwMean: bbWMean,
     // condições obrigatórias — usadas pelo semi-auto
     sessOk, trendOk, thresholdOk,
     adxNow,
@@ -8114,6 +8122,32 @@ const autoMode = {
     }
     const w=semiAuto._checkCandleWindow(this.AUTO_GRAN);
     if(w.pct<5||w.pct>45){ this.setStatus(`⏳ Aguardando janela ideal · ${w.pct}%`); this._executing=false; return; }
+
+    // ── FILTRO RSI EXTREMO ─────────────────────────────────────
+    // Bloqueia CALL quando RSI > 78 (sobrecomprado — exaustão)
+    // Bloqueia PUT  quando RSI < 22 (sobrevendido — exaustão)
+    // Exceção: se há divergência RSI (reversão iminente), libera
+    const rsiNowAuto = parseFloat(sig.rsi||50);
+    const rsiOverbought = rsiNowAuto > 78;
+    const rsiOversold   = rsiNowAuto < 22;
+    const rsiExtremeBlocked = (sig.dir==='BUY' && rsiOverbought) || (sig.dir==='SELL' && rsiOversold);
+    if(rsiExtremeBlocked){
+      const msg=`🔴 RSI EXTREMO ${rsiNowAuto.toFixed(0)} — ${rsiOverbought?'sobrecomprado (CALL bloqueado)':'sobrevendido (PUT bloqueado)'}`;
+      this.setStatus(msg); this.logBlock(msg);
+      this.stats.skipped++; this.updateStats(); this._executing=false; return;
+    }
+
+    // ── FILTRO BB EXAUSTÃO ─────────────────────────────────────
+    // Quando BB width está > 1.8× a média dos últimos 20 candles = mercado exausto
+    // Risco de reversão súbita — bloqueia novas entradas na direção da tendência
+    const bbwNowAuto = parseFloat(sig.bbwNow||0);
+    const bbwMeanAuto = parseFloat(sig.bbwMean||bbwNowAuto);
+    const bbExhaustAuto = bbwMeanAuto > 0 && bbwNowAuto > bbwMeanAuto * 1.8;
+    if(bbExhaustAuto){
+      const msg=`🔴 BB EXAUSTÃO (${(bbwNowAuto*100).toFixed(2)}% vs média ${(bbwMeanAuto*100).toFixed(2)}%) — volatilidade esgotada`;
+      this.setStatus(msg); this.logBlock(msg);
+      this.stats.skipped++; this.updateStats(); this._executing=false; return;
+    }
     const rev=semiAuto._checkReversal(sig.dir);
     if(!rev.ok){ this.setStatus(rev.msg); this.logBlock(rev.msg); this.stats.skipped++; this.updateStats(); this._executing=false; return; }
 
