@@ -635,55 +635,13 @@ function showTradeOpen(dir, stake, durationSecs){
   barEl.style.background='#00e676';
 }
 
-var _tradeTimer=null, _tradeDur=0, _tradeEl=0;
-
-function showTradeOpen(dir, stake, durSecs){
-  var box=document.getElementById('tradeOpen');
-  var dirTxt=document.getElementById('tradeDirTxt');
-  var infoTxt=document.getElementById('tradeInfoTxt');
-  var cdTxt=document.getElementById('tradeCdTxt');
-  var fill=document.getElementById('tradeCdFill');
-  if(!box) return;
-  box.className='trade-open col-full '+(dir==='CALL'?'call':'put');
-  box.style.display='block';
-  dirTxt.textContent=(dir==='CALL'?'⬆ CALL':'⬇ PUT');
-  infoTxt.textContent='US$'+stake.toFixed(2)+' · '+LITE_PAIRS[ST.pair].n+' · '+LITE_TFS[ST.tf].n;
-  _tradeDur=durSecs; _tradeEl=durSecs;
-  var col=dir==='CALL'?'#00e676':'#ff1744';
-  fill.style.background=col;
-  if(_tradeTimer) clearInterval(_tradeTimer);
-  _tradeTimer=setInterval(function(){
-    _tradeEl--;
-    if(_tradeEl<=0){ clearInterval(_tradeTimer); return; }
-    var pct=(_tradeEl/_tradeDur)*100;
-    fill.style.width=pct+'%';
-    if(_tradeEl>=60){
-      var m=Math.floor(_tradeEl/60), s=_tradeEl%60;
-      cdTxt.textContent=m+'m'+String(s).padStart(2,'0')+'s';
-    } else {
-      cdTxt.textContent=_tradeEl+'s';
-    }
-  },1000);
-  cdTxt.textContent=durSecs>=60?(Math.floor(durSecs/60)+'m'+String(durSecs%60).padStart(2,'0')+'s'):durSecs+'s';
-  fill.style.width='100%';
-}
-
-function hideTradeOpen(){
-  var box=document.getElementById('tradeOpen');
-  if(box) box.style.display='none';
-  if(_tradeTimer){ clearInterval(_tradeTimer); _tradeTimer=null; }
-}
-
 function doTrade(dir){
   ST.running=true;
   var stake=parseFloat(document.getElementById('stkInp').value)||50;
   ST.stake=stake;
   var durSecs=LITE_TFS[ST.tf].g;
-  showTradeOpen(dir, stake, durSecs);
-  setSts('⏳ ENVIANDO '+dir+' US$'+stake.toFixed(2)+'...');
-  ST.lastDir = dir;
-  var durSecs = LITE_TFS[ST.tf].g;
   showOpStatus(dir, stake, durSecs);
+  setSts('⏳ ENVIANDO '+dir+' US$'+stake.toFixed(2)+'...');
   ws.send(JSON.stringify({
     buy:1,price:stake,
     parameters:{
@@ -698,7 +656,6 @@ function doTrade(dir){
 }
 
 function finishTrade(prof){
-  hideTradeOpen();
   var box=document.getElementById('tradeOpen');
   if(box) box.style.display='none';
   if(tradeTimer){clearInterval(tradeTimer);tradeTimer=null;}
@@ -826,8 +783,8 @@ function drawPriceChart(){
   }
 
   // BB antes dos candles
-  var BB_P = Math.min(20, Math.max(3, Math.floor(vis.length/2)));
-  if(vis.length >= BB_P){
+  var BB_P = vis.length >= 20 ? 20 : Math.max(3, Math.floor(vis.length/3));
+  if(vis.length >= BB_P && BB_P >= 3){
     var closes = vis.map(function(c){return c.c;});
     var bbU=[], bbM=[], bbL=[];
     for(var bi=BB_P-1; bi<closes.length; bi++){
@@ -937,7 +894,7 @@ function drawRSIChart(){
   ctx.lineTo(PAD+rW,H-PAD); ctx.lineTo(PAD,H-PAD); ctx.closePath();
   ctx.fillStyle=last>70?'rgba(255,23,68,.1)':last<30?'rgba(0,230,118,.1)':'rgba(0,229,255,.08)'; ctx.fill();
 
-  ctx.beginPath(); ctx.strokeStyle=col; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.strokeStyle='#ffffff'; ctx.lineWidth=2.5;
   rsi.forEach(function(v,i){ var x=PAD+(i/(rsi.length-1))*rW, y=PAD+(1-v/100)*(H-PAD*2); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
   ctx.stroke();
 }
@@ -983,11 +940,11 @@ function drawADXChart(){
   var maxV=Math.max(100, Math.max.apply(null, adxData.map(function(d){return Math.max(d.adx,d.dP,d.dN);})));
 
   // Linha 25
-  ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=0.5; ctx.setLineDash([3,3]);
+  ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
   var y25=PAD+(1-25/maxV)*(H-PAD*2);
   ctx.beginPath(); ctx.moveTo(PAD,y25); ctx.lineTo(W-PAD,y25); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle='#3a5a7c'; ctx.font='7px monospace'; ctx.textAlign='right';
+  ctx.fillStyle='#ffffff'; ctx.font='bold 8px monospace'; ctx.textAlign='right';
   ctx.fillText('25', W-2, y25+2);
 
   function drawADXLine(arr, col, lw){
@@ -996,9 +953,9 @@ function drawADXChart(){
     ctx.stroke();
   }
 
-  drawADXLine(adxData.map(function(d){return d.dN;}), 'rgba(255,23,68,.6)',  1.2);
-  drawADXLine(adxData.map(function(d){return d.dP;}), 'rgba(0,230,118,.6)', 1.2);
-  drawADXLine(adxData.map(function(d){return d.adx;}), '#7c4dff', 2);
+  drawADXLine(adxData.map(function(d){return d.dN;}), '#00aaff', 2);
+  drawADXLine(adxData.map(function(d){return d.dP;}), '#ffd600', 2);
+  drawADXLine(adxData.map(function(d){return d.adx;}), '#cc44ff', 2.5);
 
   var last=adxData[adxData.length-1];
   document.getElementById('adxVal').textContent=Math.round(last.adx);
