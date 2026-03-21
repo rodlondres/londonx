@@ -2824,7 +2824,7 @@ function renderConf(){
   var isVolDisp = PAIRS[S.pair] && PAIRS[S.pair].vol;
   var confTxt=nConf+'/13 | '+sessName+(isVolDisp?'':' | ADX '+adxStr+'>'+adxLimitLbl)+' | '+trendStr;
 
-  // Sinal FORTE: 9/13 + sessão ativa + tendência + ADX > 25
+  // Sinal FORTE: 8/13 + sessão ativa + tendência + ADX > 25
   var trendOkBtn = S.trendOk!==false;
   var adxNowVal  = S.adxNow||0;
   var isVolBtn   = PAIRS[S.pair] && PAIRS[S.pair].vol;
@@ -3074,7 +3074,7 @@ function renderConf(){
                 !trendOk?'📈 Tendência '+Math.max(tBC2,tSC2)+'/3 — aguardando 2':
                 (!adxOk&&!isVolBtn)?'📊 ADX '+adxNowVal.toFixed(0)+' — aguardando >'+(adxLimit)+((agu_bull||agu_bear)?' 🎯 Agulhada':''):
                 !S.candlePositionOk?(S.candlePositionMsg||'⏱ Fora da janela ideal'):
-                '⏳ '+nConf+'/13 — aguardando 9';
+                '⏳ '+nConf+'/13 — aguardando '+(window._mlDynamicThreshold||8);
     if(buyBtn){buyBtn.style.opacity='0.75';buyBtn.style.filter='none';buyBtn.style.boxShadow='none';}
     if(sellBtn){sellBtn.style.opacity='0.75';sellBtn.style.filter='none';sellBtn.style.boxShadow='none';}
     document.getElementById('buyTxt').innerHTML=
@@ -6510,7 +6510,7 @@ function analyzeSignal(){
   const srcScores = dir==='BUY' ? buyPts : selPts;
   const allReasons = dir==='BUY' ? reasons.buy : reasons.sell;
 
-  // Conta quantas das 13 fontes confirmam (threshold 9/13)
+  // Conta quantas das 13 fontes confirmam (threshold 8/13)
   const srcMax = {tech:6,price:5,tape:5,quant:5,ml:4,candle:5,trend:5,didi:4,smc:5,fib:5,sess:4,news:4,harm:5};
   const oppScores = dir==='BUY' ? selPts : buyPts;
   // FILTRO DE QUALIDADE: fontes com WR historicamente ruim
@@ -6555,7 +6555,7 @@ function analyzeSignal(){
   const hasAgulhada = S.agulhadaBull || S.agulhadaBear;
   const adxLimitCalc = hasAgulhada ? 20 : 25;
   const adxOkCalc = isVolPair ? true : adxNow >= adxLimitCalc;
-  // Threshold: 9/13 fontes + sessão + tendência + ADX (só Forex/Crypto/Commodity)
+  // Threshold: 8/13 fontes + sessão + tendência + ADX (só Forex/Crypto/Commodity)
   // ── MELHORIA 2: usa threshold dinâmico do ML se disponível ──
   var _dynThresh = (typeof window._mlDynamicThreshold === 'number') ? window._mlDynamicThreshold : 8;
   // MELHORIA: Score ponderado adicional — fontes fortes (peso > 1.1) contam como 1.5
@@ -6818,7 +6818,7 @@ const semiAuto = {
     const sessOkSemi = sig.sessOk !== false;
     const trendOkSemi = sig.trendOk === true; // ✅ tendência obrigatória nos 3 modos
     const adxOkSemi = (PAIRS[S.pair]&&PAIRS[S.pair].vol) ? true : (sig.adxNow||0) >= ((sig.agulhadaBull||sig.agulhadaBear) ? 20 : 25);
-    const threshOkSemi = sig.thresholdOk === true; // já inclui 9/13 + sessão + ADX
+    const threshOkSemi = sig.thresholdOk === true; // já inclui 8/13 + sessão + ADX
     const probOkSemi = sig.prob >= this.minProb;
     // ✅ trendOkSemi é agora obrigatório — sem tendência, sem sinal
     const allConditions = threshOkSemi && probOkSemi && trendOkSemi;
@@ -7439,7 +7439,7 @@ window.addEventListener('resize', function(){
   <table style="width:100%;border-collapse:collapse;font-size:12px;">
     <tr style="background:#1a3a5c"><th style="padding:6px 10px">#</th><th style="padding:6px 10px;text-align:left">Filtro</th><th style="padding:6px 10px;text-align:left">Critério</th></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">1</td><td style="padding:6px 10px">Sessão</td><td style="padding:6px 10px">Mercado aberto</td></tr>
-    <tr><td style="padding:6px 10px;text-align:center">2</td><td style="padding:6px 10px">Fontes</td><td style="padding:6px 10px">≥ 9/13 alinhadas</td></tr>
+    <tr><td style="padding:6px 10px;text-align:center">2</td><td style="padding:6px 10px">Fontes</td><td style="padding:6px 10px">≥ 8/13 alinhadas</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">3</td><td style="padding:6px 10px">Probabilidade</td><td style="padding:6px 10px">≥ 68%</td></tr>
     <tr><td style="padding:6px 10px;text-align:center">4</td><td style="padding:6px 10px">Tendência EMAs</td><td style="padding:6px 10px">2/3 períodos alinhados</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">5</td><td style="padding:6px 10px">ADX</td><td style="padding:6px 10px">≥ 25 (relaxado para V75)</td></tr>
@@ -8099,7 +8099,7 @@ const autoMode = {
     if(!sig){ this.setStatus('⚠ Erro na análise — retentando...'); this._executing=false; return; }
     this.stats.signals++; this.updateStats();
     const probMin=this.mode==='conservative'?68:65;
-    const srcMin=this.mode==='conservative'?10:9;
+    const srcMin=this.mode==='conservative'?9:(window._mlDynamicThreshold||8);
     const trendOkAuto=sig.trendOk===true;
     if(!sig.thresholdOk||sig.prob<probMin||sig.sourcesConfirming<srcMin||!trendOkAuto){
       const tBC=S.trendBullCount||window._trendBullCount||0;
@@ -8653,7 +8653,7 @@ function renderDashSources(){
       + '⚡ ML detectou '+weakSrcs.length+' fonte(s) fraca(s) — threshold elevado para <strong>'+dynThresh+'/13</strong></div>';
   } else {
     html += '<div style="margin-bottom:10px;padding:7px 10px;background:rgba(0,230,118,.05);border:1px solid rgba(0,230,118,.15);border-radius:8px;font-size:12px;color:#00e676">'
-      + '✅ Threshold padrão <strong>9/13</strong> — fontes dentro do esperado</div>';
+      + '✅ Threshold padrão <strong>8/13</strong> — fontes dentro do esperado</div>';
   }
 
   rows.forEach(function(r){
