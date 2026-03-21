@@ -8119,10 +8119,10 @@ const autoMode = {
         this.setStatus('🛡️ Loss — voltou ao Conservador');
       }
       if(this._lossStreak >= this.MIX_LOSS_PAUSE){
-        this._pauseUntil = Date.now() + 15*60*1000;
+        this._pauseUntil = Date.now() + 5*60*1000;
         this._lossStreak = 0;
-        notify('⏸️ 2 losses seguidos → pausa 15min · stake reduzido');
-        this.setStatus('⏸️ Pausa 15min · losses seguidos');
+        notify('⏸️ 2 losses seguidos → pausa 5min · retoma Conservador');
+        this.setStatus('⏸️ Pausa 5min após 2 losses · aguarde...');
       }
     }
     // Atualiza badge de modo
@@ -8395,7 +8395,9 @@ const autoMode = {
     this._mixMode='cons'; this._winStreak=0; this._lossStreak=0;
     this._pauseUntil=null;
     // P&L do dia: preserva se já operou hoje
-    if(!this._dayStarted){ this._dayPnl=0; this._dayStarted=true; }
+    // Reseta P&L se mudou o dia
+    const today=new Date().toDateString();
+    if(this._lastDay!==today){ this._dayPnl=0; this._lastDay=today; }
     if(!this.ensureV75()){this.stop();return;}
     const label='⚡ MIX AUTOMÁTICO ATIVO';
     const badge='🛡️ Conserv. início · US$'+this.baseStake+'  →  🐊 Soros c/ 2 wins';
