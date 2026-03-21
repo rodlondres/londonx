@@ -261,20 +261,18 @@ body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;ma
     </div>
   </div>
   <!-- CHART PREÇOS -->
-  <div id="priceWrap" style="width:100%;height:180px;position:relative;background:#050505;border-radius:8px;overflow:hidden;border:1px solid var(--border);display:block;">
-    <canvas id="liteChart" style="position:absolute;top:0;left:0;"></canvas>
+  <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid #1a2d4f;margin-bottom:4px;">
+    <canvas id="liteChart" width="360" height="180" style="display:block;width:100%;"></canvas>
   </div>
-  <!-- RSI -->
-  <div id="rsiWrap" style="width:100%;height:60px;position:relative;background:#050505;border-radius:8px;overflow:hidden;border:1px solid var(--border);margin-top:4px;">
-    <span style="position:absolute;top:3px;left:6px;font-family:'Orbitron',monospace;font-size:8px;color:#4a6d8c;z-index:2;">RSI 14</span>
-    <span id="rsiVal" style="position:absolute;top:3px;right:6px;font-family:'Orbitron',monospace;font-size:10px;font-weight:900;z-index:2;">—</span>
-    <canvas id="rsiChart" style="position:absolute;top:0;left:0;"></canvas>
+  <div style="position:relative;border-radius:6px;overflow:hidden;border:1px solid #1a2d4f;margin-bottom:4px;">
+    <span style="position:absolute;top:3px;left:6px;font-family:'Orbitron',monospace;font-size:8px;color:#4a6d8c;z-index:2;pointer-events:none;">RSI 14</span>
+    <span id="rsiVal" style="position:absolute;top:3px;right:6px;font-family:'Orbitron',monospace;font-size:10px;font-weight:900;z-index:2;pointer-events:none;">—</span>
+    <canvas id="rsiChart" width="360" height="60" style="display:block;width:100%;"></canvas>
   </div>
-  <!-- ADX -->
-  <div id="adxWrap" style="width:100%;height:60px;position:relative;background:#050505;border-radius:8px;overflow:hidden;border:1px solid var(--border);margin-top:4px;">
-    <span style="position:absolute;top:3px;left:6px;font-family:'Orbitron',monospace;font-size:8px;color:#4a6d8c;z-index:2;">ADX 14</span>
-    <span id="adxVal" style="position:absolute;top:3px;right:6px;font-family:'Orbitron',monospace;font-size:10px;font-weight:900;color:#7c4dff;z-index:2;">—</span>
-    <canvas id="adxChart" style="position:absolute;top:0;left:0;"></canvas>
+  <div style="position:relative;border-radius:6px;overflow:hidden;border:1px solid #1a2d4f;">
+    <span style="position:absolute;top:3px;left:6px;font-family:'Orbitron',monospace;font-size:8px;color:#4a6d8c;z-index:2;pointer-events:none;">ADX 14 &nbsp;<span style="color:#cc44ff;">■</span> <span style="color:#ffd600;">■</span>DI+ <span style="color:#00aaff;">■</span>DI-</span>
+    <span id="adxVal" style="position:absolute;top:3px;right:6px;font-family:'Orbitron',monospace;font-size:10px;font-weight:900;color:#cc44ff;z-index:2;pointer-events:none;">—</span>
+    <canvas id="adxChart" width="360" height="60" style="display:block;width:100%;"></canvas>
   </div>
 </div>
 <!-- OPERAÇÃO ABERTA -->
@@ -718,17 +716,10 @@ var candleInterval = 300;
 function sizeCanvas(id){
   var canvas = document.getElementById(id);
   if(!canvas) return null;
-  var wrap = canvas.parentElement;
-  if(!wrap) return null;
-  var rect = wrap.getBoundingClientRect();
-  var w = Math.round(rect.width) || wrap.offsetWidth || 360;
-  var h = Math.round(rect.height) || wrap.offsetHeight || 60;
-  if(w < 10 || h < 10){
-    // fallback por id
-    var defaults = {liteChart:{w:360,h:180}, rsiChart:{w:360,h:60}, adxChart:{w:360,h:60}};
-    var d = defaults[id] || {w:360,h:60};
-    w = w||d.w; h = h||d.h;
-  }
+  // Usar offsetWidth do canvas (definido pelo CSS width:100%)
+  var w = canvas.offsetWidth || 360;
+  var defaults = {liteChart:180, rsiChart:60, adxChart:60};
+  var h = defaults[id] || 60;
   canvas.width = w;
   canvas.height = h;
   return canvas;
