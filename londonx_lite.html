@@ -847,56 +847,41 @@ canvas{width:100%;display:block;}
   <div id="stopInfo" style="margin-top:8px;font-size:10px;color:var(--text2);text-align:center;font-family:'Share Tech Mono',monospace;">SL: -5% | SG: +10%</div>
 </div>
 
-<!-- ══ PAINEL DE CONFLUÊNCIA (compacto, igual ao PRO) ══════ -->
-<div class="slabel">🎯 CONFLUÊNCIA — 13 FONTES</div>
-<div class="conf-card" id="confCard" style="margin-bottom:8px;">
-  <div class="conf-top">
-    <span class="conf-pair" id="liteConfPair">VOL 75</span>
-    <span class="conf-tf" id="liteConfTF">5M · —</span>
+<!-- ══ PAINEL SINAL SIMPLES ══════════════════════════════════ -->
+<div id="confCard" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:8px;text-align:center;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--text2);letter-spacing:1px;" id="liteConfPair">VOL 75</span>
+    <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--text2);" id="liteConfTF">5M</span>
   </div>
-  <!-- Círculo prob + barra score -->
-  <div class="conf-body">
-    <div class="circle-wrap">
-      <svg viewBox="0 0 108 108">
-        <circle cx="54" cy="54" r="46" fill="none" stroke="var(--border)" stroke-width="8"/>
-        <circle id="liteProbArc" cx="54" cy="54" r="46" fill="none" stroke="var(--cyan)" stroke-width="8"
-          stroke-dasharray="289 289" stroke-dashoffset="289" stroke-linecap="round"
-          transform="rotate(-90 54 54)" style="transition:all .7s ease;"/>
-      </svg>
-      <div class="circle-inner">
-        <div class="big-prob" id="liteProbVal" style="color:var(--cyan);">—</div>
-        <div class="big-pct">%</div>
-        <div class="big-lbl" id="liteDirLbl">AGUARD.</div>
-      </div>
+  <!-- Probabilidade grande -->
+  <div style="font-family:'Orbitron',monospace;font-size:48px;font-weight:900;line-height:1;" id="liteProbVal" style="color:var(--cyan);">—</div>
+  <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">%  PROBABILIDADE</div>
+  <!-- Direção -->
+  <div style="font-family:'Orbitron',monospace;font-size:18px;font-weight:900;margin-bottom:10px;" id="liteDirLbl">AGUARD.</div>
+  <!-- Fontes e score em linha -->
+  <div style="display:flex;justify-content:center;gap:16px;">
+    <div>
+      <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:900;" id="liteSrcCnt">—<span style="font-size:10px;color:var(--text2);">/13</span></div>
+      <div style="font-size:9px;color:var(--text2);letter-spacing:1px;">FONTES</div>
     </div>
-    <!-- Fontes confirmando -->
-    <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:10px;letter-spacing:1px;color:#a0c4e8;font-weight:700;">FONTES</span>
-        <span style="font-family:'Orbitron',monospace;font-size:14px;font-weight:900;" id="liteSrcCnt"><span style="color:var(--cyan)">—</span>/13</span>
-      </div>
-      <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
-        <div id="liteSrcBar" style="height:100%;border-radius:4px;background:var(--cyan);width:0%;transition:width .7s ease;"></div>
-      </div>
-      <!-- Mini filtros status -->
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;" id="liteFiltersRow">
-        <span id="fSess" style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--yellow);">SESSÃO ⏳</span>
-        <span id="fTrend" style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--yellow);">TREND ⏳</span>
-        <span id="fAdx" style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--yellow);">ADX ⏳</span>
-        <span id="fConfl" style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--yellow);">CONFL ⏳</span>
-      </div>
+    <div style="width:1px;background:var(--border);"></div>
+    <div>
+      <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:900;" id="liteScoreVal">—</div>
+      <div style="font-size:9px;color:var(--text2);letter-spacing:1px;">SCORE</div>
     </div>
   </div>
-  <!-- Score bar total -->
-  <div class="score-bar-row">
-    <span class="score-bar-label">SCORE</span>
-    <div class="score-bar-track">
-      <div class="score-bar-fill" id="liteScoreBar" style="width:0%;background:var(--cyan);"></div>
-    </div>
-    <span class="score-bar-val" id="liteScoreVal" style="color:var(--cyan);">—</span>
+  <!-- Barra de fontes -->
+  <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:10px;">
+    <div id="liteSrcBar" style="height:100%;border-radius:3px;background:var(--cyan);width:0%;transition:width .7s ease;"></div>
   </div>
-  <!-- Razões (top 3) -->
-  <div id="liteReasons" style="display:flex;flex-wrap:wrap;gap:3px;"></div>
+  <!-- Filtros em linha -->
+  <div style="display:flex;justify-content:center;gap:4px;margin-top:8px;flex-wrap:wrap;" id="liteFiltersRow">
+    <span id="fSess" style="font-size:9px;padding:2px 7px;border-radius:4px;font-weight:700;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--yellow);">SESSÃO</span>
+    <span id="fTrend" style="font-size:9px;padding:2px 7px;border-radius:4px;font-weight:700;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--yellow);">TREND</span>
+    <span id="fAdx" style="font-size:9px;padding:2px 7px;border-radius:4px;font-weight:700;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--yellow);">ADX</span>
+    <span id="fConfl" style="font-size:9px;padding:2px 7px;border-radius:4px;font-weight:700;background:rgba(255,214,0,.1);border:1px solid rgba(255,214,0,.2);color:var(--yellow);">CONFL</span>
+  </div>
+  <div id="liteReasons" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;justify-content:center;"></div>
 </div>
 
 <!-- ══ STATUS ══════════════════════════════════════════════ -->
@@ -2045,171 +2030,80 @@ function setMode(m){
 }
 
 function renderSignal(sig){
-  if(!sig){
-    // Sem sinal ainda — mas atualiza badges de filtros se há dados
-    if(candles.length>=25){
-      var el=function(id){return document.getElementById(id);};
-      if(el('liteSrcCnt'))el('liteSrcCnt').innerHTML='<span style="color:var(--text3)">—</span>/13';
-      if(el('liteProbVal')){el('liteProbVal').textContent='—';}
-      if(el('liteDirLbl')){el('liteDirLbl').textContent='CALC...';}
-    }
-    return;
-  }
+  if(!sig) return;
+  var pair=LITE_PAIRS[ST.pair];
   var isCall=sig.dir==='BUY';
   var dirLabel=isCall?'CALL':'PUT';
   var col=isCall?'#00e676':'#ff1744';
   var icon=isCall?'⬆':'⬇';
   var ok=sig.thresholdOk&&sig.prob>=65;
-
-  // ── Atualiza painel de confluência ────────────────────────
-  var pair=LITE_PAIRS[ST.pair];
-  var el=function(id){return document.getElementById(id);};
-
-  // Pair + TF
-  if(el('liteConfPair'))el('liteConfPair').textContent=pair.n;
-  if(el('liteConfTF'))el('liteConfTF').textContent=LITE_TFS[ST.tf].n+' · '+(ST.regime||'—').toUpperCase();
-
-  // Círculo prob
   var prob=sig.prob||0;
-  var arc=el('liteProbArc');
-  if(arc){
-    var circ=289;
-    arc.style.strokeDashoffset=circ-(circ*prob/100);
-    arc.style.stroke=ok?col:'var(--text3)';
-  }
-  if(el('liteProbVal')){el('liteProbVal').textContent=prob;el('liteProbVal').style.color=ok?col:'var(--text2)';}
-  if(el('liteDirLbl')){el('liteDirLbl').textContent=ok?(icon+' '+dirLabel):'AGUARD.';el('liteDirLbl').style.color=ok?col:'var(--text2)';}
-
-  // Fontes bar
   var src=sig.sourcesConfirming||0;
-  if(el('liteSrcCnt'))el('liteSrcCnt').innerHTML='<span style="color:'+(src>=8?col:'var(--yellow)')+'">'+src+'</span>/13';
-  if(el('liteSrcBar')){el('liteSrcBar').style.width=(src/13*100)+'%';el('liteSrcBar').style.background=src>=8?col:src>=5?'var(--yellow)':'var(--red)';}
+  var e=function(id){return document.getElementById(id);};
 
-  // Score bar
-  if(el('liteScoreBar')){el('liteScoreBar').style.width=(sig.score/sig.totalMax*100)+'%';el('liteScoreBar').style.background=ok?col:'var(--text3)';}
-  if(el('liteScoreVal')){el('liteScoreVal').textContent=sig.score+'/'+sig.totalMax;el('liteScoreVal').style.color=ok?col:'var(--text2)';}
+  // Pair / TF
+  if(e('liteConfPair'))e('liteConfPair').textContent=pair.n;
+  if(e('liteConfTF'))e('liteConfTF').textContent=LITE_TFS[ST.tf].n;
 
-  // Filtros badges
-  var mkBadge=function(id,label,pass){
-    var b=el(id);if(!b)return;
-    var gc=pass?'rgba(0,230,118,.15)':'rgba(255,23,68,.12)';
-    var bc=pass?'rgba(0,230,118,.3)':'rgba(255,23,68,.3)';
-    var tc=pass?'var(--green)':'var(--red)';
-    var ic=pass?'✅':'❌';
-    b.textContent=ic+' '+label;
-    b.style.background=gc;b.style.borderColor=bc;b.style.color=tc;
-  };
-  mkBadge('fSess','SESSÃO',sig.sessOk);
-  mkBadge('fTrend','TREND',sig.trendOk);
-  mkBadge('fAdx','ADX',pair.vol||pair.crypto||(sig.adxNow>=25));
-  mkBadge('fConfl','CONFL',!sig.conflictBlocked);
+  // Probabilidade
+  if(e('liteProbVal')){e('liteProbVal').textContent=prob;e('liteProbVal').style.color=ok?col:'var(--text2)';}
 
-  // Card borda colorida
-  var card=el('confCard');
-  if(card){card.style.borderColor=ok?col:'var(--border)';card.style.boxShadow=ok?('0 0 20px '+col.replace('#','rgba(').replace(')',',0.2)')):'none';}
+  // Direção
+  if(e('liteDirLbl')){e('liteDirLbl').textContent=ok?(icon+' '+dirLabel):'AGUARD.';e('liteDirLbl').style.color=ok?col:'var(--text3)';}
 
-  // Razões (top 4)
-  var rDiv=el('liteReasons');
+  // Fontes
+  if(e('liteSrcCnt')){e('liteSrcCnt').innerHTML=src+'<span style="font-size:10px;color:var(--text2);">/13</span>';e('liteSrcCnt').style.color=src>=8?col:(src>=5?'var(--yellow)':'var(--red)');}
+  if(e('liteSrcBar')){e('liteSrcBar').style.width=(src/13*100)+'%';e('liteSrcBar').style.background=src>=8?col:src>=5?'var(--yellow)':'var(--red)';}
+
+  // Score
+  if(e('liteScoreVal')){e('liteScoreVal').textContent=sig.score+'/'+sig.totalMax;e('liteScoreVal').style.color=ok?col:'var(--text2)';}
+  if(e('liteScoreBar')){e('liteScoreBar').style.width=(sig.score/sig.totalMax*100)+'%';e('liteScoreBar').style.background=ok?col:'var(--text3)';}
+
+  // Filtros
+  var mkB=function(id,label,pass){var b=e(id);if(!b)return;b.textContent=(pass?'✅':'❌')+' '+label;b.style.background=pass?'rgba(0,230,118,.15)':'rgba(255,23,68,.12)';b.style.borderColor=pass?'rgba(0,230,118,.3)':'rgba(255,23,68,.3)';b.style.color=pass?'var(--green)':'var(--red)';};
+  mkB('fSess','SESSÃO',sig.sessOk);
+  mkB('fTrend','TREND',sig.trendOk);
+  mkB('fAdx','ADX',pair.vol||pair.crypto||(sig.adxNow>=25));
+  mkB('fConfl','CONFL',!sig.conflictBlocked);
+
+  // Card borda
+  var card=e('confCard');
+  if(card){card.style.borderColor=ok?col:'var(--border)';card.style.boxShadow=ok?('0 0 20px rgba('+(isCall?'0,230,118':'255,23,68')+',0.25)'):'none';}
+
+  // Razões
+  var rDiv=e('liteReasons');
   if(rDiv&&sig.reasons&&sig.reasons.length){
-    rDiv.innerHTML=(sig.reasons||[]).slice(0,4).map(function(r){
-      return '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text2);">'+r.substring(0,35)+'</span>';
+    rDiv.innerHTML=sig.reasons.slice(0,3).map(function(r){
+      return '<span style="font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text2);">'+r.substring(0,40)+'</span>';
     }).join('');
   }
 
-  // ── Status text ───────────────────────────────────────────
-  var why='';
-  if(!sig.sessOk)why='🕐 Sessão fechada';
-  else if(!sig.trendOk)why='📈 Tendência '+(isCall?sig.tBC:sig.tSC)+'/3 EMAs';
-  else if(!pair.vol&&!pair.crypto&&sig.adxNow<25)why='📊 ADX '+sig.adxNow.toFixed(0)+' < 25';
-  else if(sig.conflictBlocked)why='⚡ Conflito '+Math.round(sig.conflictRatio*100)+'%';
-  else if(src<8)why='⏳ '+src+'/13 fontes < 8';
-  else if(prob<65)why='⏳ Prob '+prob+'% < 65%';
-
+  // Status
   if(ok){
-    setSts(icon+' SINAL '+dirLabel+' · '+prob+'% · '+src+'/13 fontes'+(ST.mode==='semi'?' — CONFIRME':''));
-    if(el('stsTxt'))el('stsTxt').style.color=col;
+    setSts(icon+' SINAL '+dirLabel+' · '+prob+'% · '+src+'/13'+(ST.mode==='semi'?' — CONFIRME':''));
     document.querySelectorAll('.dir-btn').forEach(function(b){b.style.filter='none';b.style.opacity='0.35';});
     var btn=isCall?document.querySelector('.dir-up'):document.querySelector('.dir-dn');
     if(btn){btn.style.filter='brightness(1.4) drop-shadow(0 0 16px '+col+')';btn.style.opacity='1';}
     if(ST.mode==='semi'){pendingDir=dirLabel;document.getElementById('confWrap').style.display='block';}
   } else {
-    setSts((why||'🔍 Analisando...')+' ('+prob+'% · '+src+'/13)');
-    if(el('stsTxt'))el('stsTxt').style.color='var(--text2)';
+    var why='';
+    if(!sig.sessOk)why='🕐 Sessão fechada';
+    else if(!sig.trendOk)why='📈 Tendência fraca';
+    else if(!pair.vol&&!pair.crypto&&sig.adxNow<25)why='📊 ADX '+sig.adxNow.toFixed(0)+' < 25';
+    else if(sig.conflictBlocked)why='⚡ Conflito direcional';
+    else if(src<8)why='⏳ '+src+'/13 fontes';
+    else if(prob<65)why='⏳ Prob '+prob+'%';
+    setSts((why||'🔍 Analisando...')+' · '+prob+'% · '+src+'/13');
     document.querySelectorAll('.dir-btn').forEach(function(b){b.style.filter='none';b.style.opacity='1';});
-    document.getElementById('confWrap').style.display='none';
-    pendingDir=null;
+    if(e('confWrap'))e('confWrap').style.display='none';
   }
 }
 
 
-// ══ REGIME AUTO ════════════════════════════════════════════
-var RG_DESCS={
-  trend:'<span style="color:var(--green);font-weight:700;">TENDÊNCIA</span><br>▸ ADX &gt; 25 · EMA cruzamento<br>▸ BB: direção do rompimento<br>▸ RSI 40–65 CALL · 35–60 PUT<br>▸ <span style="color:var(--cyan);">Melhor: 10h–13h Brasil</span>',
-  lateral:'<span style="color:var(--yellow);font-weight:700;">LATERAL</span><br>▸ RSI extremos &lt;30 CALL / &gt;70 PUT<br>▸ BB: reversão nas bandas<br>▸ ADX &lt; 20 (sem tendência)<br>▸ Stakes menores · stops ajustados',
-  volatile:'<span style="color:var(--red);font-weight:700;">VOLÁTIL</span><br>▸ Rompimentos de BB<br>▸ ATR alto: aguardar reteste<br>▸ ADX &gt; 40: volatilidade extrema<br>▸ <span style="color:var(--red);">RISCO ALTO · reduzir stake!</span>'
-};
-function setRegime(r){
-  if(r===ST.regime)return; ST.regime=r;
-  // Atualiza card de regime — mesma lógica do PRO
-  var card=document.getElementById('regimeCard');
-  if(card){ card.className='regime-card '+r; }
-  // Badges
-  var map={trend:'rbTrend',lateral:'rbLateral',volatile:'rbVolatile'};
-  ['trend','lateral','volatile'].forEach(function(t){
-    var el=document.getElementById(map[t]);
-    if(el){ el.classList.toggle('active',t===r); }
-  });
-  // Descrição
-  var desc=document.getElementById('rgDesc');
-  if(desc){
-    var styles={
-      trend:'background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);',
-      lateral:'background:rgba(255,214,0,.06);border:1px solid rgba(255,214,0,.2);',
-      volatile:'background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.2);'
-    };
-    desc.setAttribute('style','margin-top:8px;padding:8px 10px;border-radius:8px;font-family:\'Share Tech Mono\',monospace;font-size:9px;color:var(--text2);line-height:1.8;'+styles[r]);
-    desc.innerHTML=RG_DESCS[r];
-  }
-  if(r!=='trend') setSts('🧠 AUTO-REGIME → '+(r==='lateral'?'LATERAL':'VOLÁTIL'));
-}
-function autoDetectRegime(){
-  var all=candles.concat(currentCandle?[Object.assign({},currentCandle)]:[]);
-  if(all.length<30)return;
-  var adxData=calcADXFull(all,14);
-  var adxVal=adxData.length>0?adxData[adxData.length-1].adx:0;
-  var cl=all.map(function(c){return c.c;});
-  var s20=cl.slice(-20),mean=s20.reduce(function(a,b){return a+b;})/s20.length;
-  var sd=Math.sqrt(s20.reduce(function(s,v){return s+(v-mean)*(v-mean);},0)/s20.length);
-  var bbW=(sd*4)/Math.max(mean,1e-9);
-  var n=all.length,a5=0,a20=0;
-  for(var i=Math.max(1,n-5);i<n;i++)a5+=Math.max(all[i].h-all[i].l,Math.abs(all[i].h-all[i-1].c),Math.abs(all[i].l-all[i-1].c));
-  a5/=Math.min(5,n-1)||1;
-  for(var i=Math.max(1,n-20);i<n;i++)a20+=Math.max(all[i].h-all[i].l,Math.abs(all[i].h-all[i-1].c),Math.abs(all[i].l-all[i-1].c));
-  a20/=Math.min(20,n-1)||1;
-  var atrR=a20>0?a5/a20:1;
-  var det='trend';
-  if(atrR>1.5)det='volatile';
-  else if(adxVal>=25)det='trend';
-  else if(adxVal<20)det='lateral';
-  else det=bbW<0.008?'lateral':'trend';
-  // Atualiza badges de indicadores
-  var ab=document.getElementById('adxBadge');
-  if(ab){ab.textContent=adxVal.toFixed(1);ab.style.color=adxVal>=25?'var(--green)':adxVal>=20?'var(--yellow)':'var(--red)';}
-  var bb=document.getElementById('bbwBadge');
-  if(bb){bb.textContent=bbW.toFixed(4);bb.style.color=bbW<0.004?'var(--yellow)':'var(--cyan)';}
-  var atb=document.getElementById('atrBadge');
-  if(atb){atb.textContent=atrR.toFixed(2);atb.style.color=atrR>1.5?'var(--red)':atrR<0.5?'var(--yellow)':'var(--cyan)';}
-  setRegime(det);
-}
-
-// ══ STAKE / STOPS ══════════════════════════════════════════
-function adjS(v){var i=document.getElementById('stkInp');i.value=Math.max(1,(parseFloat(i.value)||50)+v);ST.stake=parseFloat(i.value);}
-// stkInp.onchange configurado no window.load abaixo
-function adjStop(t,v){var id=t==='sl'?'slInp':'sgInp';var i=document.getElementById(id);i.value=Math.max(1,Math.min(100,(parseInt(i.value)||5)+v));updStopInfo();}
-function updStopInfo(){var sl=parseInt(document.getElementById('slInp').value)||5;var sg=parseInt(document.getElementById('sgInp').value)||10;document.getElementById('stopInfo').textContent='SL: -'+sl+'% | SG: +'+sg+'%';}
-function setSts(t){document.getElementById('stsTxt').textContent=t||'';}
 
 // ══ CONEXÃO ════════════════════════════════════════════════
+var ws=null,pendingDir=null;
+
 function doConnect(){
   var token=document.getElementById('tokInp').value.trim();
   if(!token){alert('Cole seu token API!');return;}
@@ -2232,29 +2126,19 @@ function onMsg(e){
     document.getElementById('balType').textContent=d.authorize.is_virtual?'DEMO':'REAL';
     setConn('🟢 CONECTADO','#00e676');setSts('🔍 ANALISANDO MERCADO...');
     ws.send(JSON.stringify({balance:1,subscribe:1}));subTicks();
-    // Força render da confluência assim que candles chegarem
-    [3000,6000,10000,15000].forEach(function(ms){
-      setTimeout(function(){
-        if(candles.length>=25){var sig=analyzeSignal();if(sig)renderSignal(sig);}
-      },ms);
+    [3000,6000,10000].forEach(function(ms){
+      setTimeout(function(){if(candles.length>=25){var sig=analyzeSignal();if(sig)renderSignal(sig);}},ms);
     });
   }
   if(d.msg_type==='candles'&&d.candles){
     candles=d.candles.map(function(c){return{t:c.epoch,o:parseFloat(c.open),h:parseFloat(c.high),l:parseFloat(c.low),c:parseFloat(c.close)};});
     redrawAll();
-    // Força render da confluência com retry
-    (function tryRender(attempt){
-      var sig=analyzeSignal();
-      if(sig){ renderSignal(sig); }
-      else if(attempt<5){ setTimeout(function(){tryRender(attempt+1);},1000); }
-    })(0);
+    (function tryRender(n){var sig=analyzeSignal();if(sig){renderSignal(sig);}else if(n<5){setTimeout(function(){tryRender(n+1);},800);}})(0);
   }
   if(d.msg_type==='ohlc'&&d.ohlc){
     buildCandle(parseFloat(d.ohlc.close));redrawAll();
     document.getElementById('cPrice').textContent=parseFloat(d.ohlc.close).toFixed(5);
-    var sig=analyzeSignal();
-    if(sig)renderSignal(sig);
-    else renderSignal(null); // atualiza estado visual mesmo sem sinal
+    var sig=analyzeSignal();if(sig)renderSignal(sig);
   }
   if(d.msg_type==='tick'&&d.tick){buildCandle(d.tick.quote);redrawAll();}
   if(d.msg_type==='balance'&&d.balance){ST.bal=parseFloat(d.balance.balance);document.getElementById('balVal').textContent=d.balance.currency+'$'+ST.bal.toFixed(2);}
@@ -2281,6 +2165,31 @@ function trade(dir){
   // Modo auto: só executa se bot sugere (botão manual ainda funciona como override)
   doTrade(dir);
 }
+function confirmTrade(){if(!pendingDir)return;document.getElementById('confWrap').style.display='none';doTrade(pendingDir);pendingDir=null;}
+function doTrade(dir){
+  ST.running=true; ST._runSince=Date.now();
+  var stake=parseFloat(document.getElementById('stkInp').value)||50;
+  ST.stake=stake;
+  var all=candles.concat(currentCandle?[Object.assign({},currentCandle)]:[]);
+  ST.entryPrice=all.length>0?all[all.length-1].c:0;
+  showOpStatus(dir,stake,LITE_TFS[ST.tf].g);
+  setSts('⏳ ENVIANDO '+dir+' US$'+stake.toFixed(2)+'...');
+  ws.send(JSON.stringify({buy:1,price:stake,parameters:{amount:stake,basis:'stake',contract_type:dir==='CALL'?'CALL':'PUT',currency:'USD',duration:LITE_TFS[ST.tf].d,duration_unit:LITE_TFS[ST.tf].u,symbol:LITE_PAIRS[ST.pair].s}}));
+}
+function finishTrade(prof){
+  hideOpStatus();
+  var won=prof>0;
+  ST.ops++;ST.pnl+=prof;ST.bal+=prof;
+  if(won){ST.wins++;ST.seq=Math.max(0,ST.seq)+1;}else{ST.seq=Math.min(0,ST.seq)-1;}
+  won?playWin():playLoss();
+  showRes(won,prof);updStats();chkStops();ST.running=false;ST._runSince=0;
+  setSts('🔍 ANALISANDO PRÓXIMO SINAL...');
+  if(ST.mode==='cons'||ST.mode==='soros'){
+    setTimeout(function(){var sig=analyzeSignal();if(sig)renderSignal(sig);},3000);
+  }
+}
+
+
 function confirmTrade(){if(!pendingDir)return;document.getElementById('confWrap').style.display='none';doTrade(pendingDir);pendingDir=null;}
 function doTrade(dir){
   ST.running=true; ST._runSince=Date.now();
