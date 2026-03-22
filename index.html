@@ -1863,11 +1863,6 @@ function derivConnect(){
         }
         if(msg.msg_type==='candles'){
           const reqId=msg.req_id;
-          // Intercept OMNI requests
-          if(reqId && window._omniReqs && window._omniReqs[reqId]){
-            const oc=(msg.candles||[]).map(c=>({t:c.epoch,o:parseFloat(c.open),h:parseFloat(c.high),l:parseFloat(c.low),c:parseFloat(c.close)}));
-            window._omniReqs[reqId](oc); delete window._omniReqs[reqId]; return;
-          }
           let sym=msg.echo_req&&msg.echo_req.ticks_history;
           if(!sym && reqId && window._reqSymMap) sym=window._reqSymMap[reqId];
           // req_id 70000-79999 = ticker de outros pares — só atualiza preço, NÃO o gráfico
@@ -8625,41 +8620,43 @@ const omniMode = {
     }
   },
 
-  _analyzePair(pair){
-    return new Promise((resolve)=>{
-      if(!wsReady){
-        // Sem conexão — usa candleOHLC se é o par atual
-        const curIdx=PAIRS.findIndex(p=>p.deriv===pair.deriv);
-        if(curIdx===S.pair && candleOHLC && candleOHLC.length>=25){
-          try{
-            const origPair=S.pair;
-            const sig=semiAuto.analyzeCandles([...candleOHLC]);
-            S.pair=origPair;
-            resolve(sig?{pair,sig}:null);
-          }catch(e){ resolve(null); }
-        } else { resolve(null); }
-        return;
+  async _analyzePair(pair){
+    try{
+      // Salva estado atual
+      const origOHLC=candleOHLC.slice();
+      const origBuffer=candleBuffer.slice();
+      const origPair=S.pair;
+
+      // Muda par temporariamente
+      const pairIdx=PAIRS.findIndex(p=>p.deriv===pair.deriv);
+      if(pairIdx>=0) S.pair=pairIdx;
+
+      // Usa o fetchCandlesTF que já funciona no semiAuto
+      const gran=300, cnt=80;
+      const candles = await semiAuto.fetchCandlesTF(gran, cnt);
+
+      // Restaura estado
+      S.pair=origPair;
+
+      if(!candles||candles.length<25){
+        candleOHLC=origOHLC; candleBuffer=origBuffer;
+        return null;
       }
-      const reqId=Math.floor(Date.now()/1000)*1000 + Math.floor(Math.random()*999) + 50000; // inteiro único
-      const timeout=setTimeout(()=>{ if(window._omniReqs) delete window._omniReqs[reqId]; resolve(null); },8000);
-      window._omniReqs=window._omniReqs||{};
-      window._omniReqs[reqId]=(candles)=>{
-        clearTimeout(timeout);
-        try{
-          const origOHLC=candleOHLC.slice();
-          const origBuffer=candleBuffer.slice();
-          const origPair=S.pair;
-          candleOHLC=candles;
-          candleBuffer=candles.map(c=>c.c);
-          const pairIdx=PAIRS.findIndex(p=>p.deriv===pair.deriv);
-          if(pairIdx>=0) S.pair=pairIdx;
-          const sig=analyzeSignal();
-          candleOHLC=origOHLC; candleBuffer=origBuffer; S.pair=origPair;
-          resolve(sig?{pair,sig}:null);
-        }catch(e){ resolve(null); }
-      };
-      derivSend({ticks_history:pair.deriv,adjust_start_time:1,count:80,end:'latest',granularity:300,style:'candles',req_id:reqId});
-    });
+
+      // Injeta candles e analisa
+      candleOHLC=candles;
+      candleBuffer=candles.map(c=>c.c);
+      if(pairIdx>=0) S.pair=pairIdx;
+
+      const sig=analyzeSignal();
+
+      // Restaura tudo
+      candleOHLC=origOHLC; candleBuffer=origBuffer; S.pair=origPair;
+
+      return sig?{pair,sig}:null;
+    }catch(e){
+      return null;
+    }
   }
 };
 
