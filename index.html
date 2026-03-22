@@ -5705,7 +5705,7 @@ function executeTrade(side){
     const durSecs=DURATIONS[S_dur].s;
     const contractType=side==='BUY'?'CALL':'PUT';
     const symbol=PAIRS[S.pair].deriv;
-    const reqId=Date.now();
+    const reqId=Date.now()%90000+80000; // semiAuto: 80000-89999
     notify('📡 Enviando US$'+stake+'...');
 
     // Registra handler na fila global — NUNCA executa automaticamente
@@ -8338,7 +8338,7 @@ const autoMode = {
     this.setStatus((isBuy?'⬆ EXECUTANDO':'⬇ EXECUTANDO')+' US$'+stake+' · '+sig.prob+'% · 1M ✅');
     semiAuto.playAlert(dir); semiAuto.startPulse(dir);
     if(wsReady&&userToken){
-      const contractType=isBuy?'CALL':'PUT'; const symbol=PAIRS[S.pair].deriv; const reqId=Date.now();
+      const contractType=isBuy?'CALL':'PUT'; const symbol=PAIRS[S.pair].deriv; const reqId=Date.now()%9000+91000; // autoMode: 91000-99999
       window._pendingProposals=window._pendingProposals||{};
       window._pendingProposals[reqId]={side:dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ AUTO: '+proposal.error.message); this._registerAndCountdown(dir,stake,profit,payout,durSecs,null); return; }
@@ -8617,7 +8617,7 @@ const omniMode = {
     if(wsReady&&userToken){
       const symbol=winner.pair.deriv;
       const durSecs=300;
-      const reqId=Date.now();
+      const reqId=Date.now()%9000+71000; // OMNI: 71000-79999
       window._pendingProposals=window._pendingProposals||{};
       window._pendingProposals[reqId]={side:winner.sig.dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ OMNI: '+proposal.error.message); S.pair=origPair; this._executing=false; return; }
