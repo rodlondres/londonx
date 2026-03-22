@@ -1863,6 +1863,11 @@ function derivConnect(){
         }
         if(msg.msg_type==='candles'){
           const reqId=msg.req_id;
+          // Intercept OMNI requests
+          if(reqId && window._omniReqs && window._omniReqs[reqId]){
+            const oc=(msg.candles||[]).map(c=>({t:c.epoch,o:parseFloat(c.open),h:parseFloat(c.high),l:parseFloat(c.low),c:parseFloat(c.close)}));
+            window._omniReqs[reqId](oc); delete window._omniReqs[reqId]; return;
+          }
           let sym=msg.echo_req&&msg.echo_req.ticks_history;
           if(!sym && reqId && window._reqSymMap) sym=window._reqSymMap[reqId];
           // req_id 70000-79999 = ticker de outros pares — só atualiza preço, NÃO o gráfico
@@ -8179,9 +8184,7 @@ const autoMode = {
   },
 
   ensureV75(){
-    // Usa o par atualmente selecionado — não força VOL 75
-    if(S.tf!==this.AUTO_TF) selectTF(this.AUTO_TF);
-    return true;
+    return true; // aceita qualquer par/TF selecionado
   },
 
   async scan(){
