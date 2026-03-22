@@ -8550,7 +8550,12 @@ const omniMode = {
 
     this._executing=true; this._executingStart=Date.now();
     this._scanResults=[];
-    this.setStatus('🔍 Escaneando '+this.OMNI_PAIRS.length+' pares...');
+    if(!wsReady){
+      // Sem conexão — analisa só com dados locais
+      this.setStatus('📡 Sem conexão · analisando par atual...');
+    } else {
+      this.setStatus('🔍 Escaneando '+this.OMNI_PAIRS.length+' pares...');
+    }
     notify('🌐 OMNI scan iniciado · '+this.OMNI_PAIRS.map(p=>p.sym).join(', '));
 
     for(const pair of this.OMNI_PAIRS){
@@ -8622,7 +8627,19 @@ const omniMode = {
 
   _analyzePair(pair){
     return new Promise((resolve)=>{
-      if(!wsReady){ resolve(null); return; }
+      if(!wsReady){
+        // Sem conexão — usa candleOHLC se é o par atual
+        const curIdx=PAIRS.findIndex(p=>p.deriv===pair.deriv);
+        if(curIdx===S.pair && candleOHLC && candleOHLC.length>=25){
+          try{
+            const origPair=S.pair;
+            const sig=semiAuto.analyzeCandles([...candleOHLC]);
+            S.pair=origPair;
+            resolve(sig?{pair,sig}:null);
+          }catch(e){ resolve(null); }
+        } else { resolve(null); }
+        return;
+      }
       const reqId=Date.now()+Math.random();
       const timeout=setTimeout(()=>{ if(window._omniReqs) delete window._omniReqs[reqId]; resolve(null); },8000);
       window._omniReqs=window._omniReqs||{};
