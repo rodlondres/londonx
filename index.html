@@ -1447,17 +1447,17 @@ div, span {
     <button class="mode-btn" id="modeCons" onclick="setMode('conservative')">
       <div style="font-size:14px">🔵</div>
       <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px">CONSERV.</div>
-      <div style="font-size:8px;color:var(--text3);margin-top:1px">Auto 9/13</div>
+      <div style="font-size:8px;color:var(--text3);margin-top:1px">Mix · 9/13</div>
     </button>
     <button class="mode-btn" id="modeAggr" onclick="setMode('aggressive')">
       <div style="font-size:14px">🔥</div>
       <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px">AGRESSIVO</div>
-      <div style="font-size:8px;color:var(--text3);margin-top:1px">Soros 2 níveis</div>
+      <div style="font-size:8px;color:var(--text3);margin-top:1px">Mix · Soros</div>
     </button>
     <button class="mode-btn" id="modeOmni" onclick="setMode('omni')" style="border-color:#ce93d8;background:rgba(156,39,176,.06);">
       <div style="font-size:14px">🌐</div>
       <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px;color:#ce93d8;">OMNI</div>
-      <div style="font-size:8px;color:var(--text3);margin-top:1px">Melhor par</div>
+      <div style="font-size:8px;color:var(--text3);margin-top:1px">Mix · 6 pares</div>
     </button>
   </div>
 
@@ -7203,8 +7203,11 @@ function init(){
   // ✅ Restaura modo de operação salvo (sincroniza entre dispositivos)
   setTimeout(()=>{
     try{
-      const savedMode = localStorage.getItem('londonx_mode');
-      if(savedMode && savedMode !== 'manual' && savedMode !== 'omni'){
+      // Limpa OMNI do localStorage — nunca restaura automaticamente
+      const _raw = localStorage.getItem('londonx_mode');
+      if(_raw==='omni') localStorage.removeItem('londonx_mode');
+      const savedMode = _raw!=='omni' ? _raw : null;
+      if(savedMode && savedMode !== 'manual'){
         notify('🔄 Restaurando modo: ' + (savedMode==='conservative'?'🔵 CONSERVADOR':savedMode==='aggressive'?'🔥 AGRESSIVO':'🎯 SEMI-AUTO'));
         setMode(savedMode);
       }
@@ -8451,19 +8454,25 @@ function setMode(mode){
   // Toggle: clicar de novo no modo ativo volta para manual
   if(_currentMode===mode && mode!=='manual'){ setMode('manual'); return; }
   if(_currentMode===mode) return;
-  if(_currentMode==='manual'){
+  // Para qualquer modo ativo anterior
+  if(_currentMode==='omni'){
+    omniMode.active=false;
+    if(omniMode.scanInterval){clearInterval(omniMode.scanInterval);omniMode.scanInterval=null;}
+    omniMode._executing=false;
+    window._omniReqs={};
+  } else if(_currentMode==='manual'){
     semiAuto.toggle(false);
     const p=document.getElementById('semiPanel'); if(p)p.style.display='none';
-  } else if(_currentMode==='omni'){
-    omniMode.stop();
   } else {
     autoMode.stop();
   }
   _currentMode=mode;
   // ✅ Persiste modo no localStorage para sincronizar entre dispositivos
   try{localStorage.setItem('londonx_mode', mode);}catch(e){}
+  // Reseta visual de TODOS os botões
   ['modeManual','modeSemi','modeCons','modeAggr','modeOmni'].forEach(id=>{
-    const btn=document.getElementById(id); if(btn)btn.className='mode-btn';
+    const btn=document.getElementById(id);
+    if(btn){ btn.className='mode-btn'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
   });
   if(mode==='manual'){
     document.getElementById('modeManual').className='mode-btn mode-active';
