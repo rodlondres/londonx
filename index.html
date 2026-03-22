@@ -1863,6 +1863,13 @@ function derivConnect(){
         }
         if(msg.msg_type==='candles'){
           const reqId=msg.req_id;
+          // OMNI direct fetch (range 60000-69999)
+          if(reqId>=60000 && reqId<70000 && window._omniDirectFetch && window._omniDirectFetch[reqId]){
+            const oc=(msg.candles||[]).map(c=>({t:c.epoch,o:parseFloat(c.open),h:parseFloat(c.high),l:parseFloat(c.low),c:parseFloat(c.close)}));
+            window._omniDirectFetch[reqId](oc);
+            delete window._omniDirectFetch[reqId];
+            return;
+          }
           let sym=msg.echo_req&&msg.echo_req.ticks_history;
           if(!sym && reqId && window._reqSymMap) sym=window._reqSymMap[reqId];
           // req_id 70000-79999 = ticker de outros pares — só atualiza preço, NÃO o gráfico
@@ -8563,20 +8570,19 @@ const omniMode = {
     }
     notify('🌐 OMNI scan iniciado · '+this.OMNI_PAIRS.map(p=>p.sym).join(', '));
 
-    // Analisa todos os pares em PARALELO — sem delay sequencial
-    const promises = this.OMNI_PAIRS.map(pair =>
-      this._analyzePair(pair).catch(()=>null)
-    );
-    const results = await Promise.all(promises);
+    // Analisa pares SEQUENCIALMENTE — evita race condition no estado global
+    for(const pair of this.OMNI_PAIRS){
+      if(!this.active){ this._executing=false; return; }
+      try{
+        const result = await this._analyzePair(pair);
+        if(result){
+          this._scanResults.push(result);
+          this.updateStats(result.sig, pair.sym);
+        }
+      }catch(e){}
+    }
 
     if(!this.active){ this._executing=false; return; }
-
-    results.forEach((result,i)=>{
-      if(result){
-        this._scanResults.push(result);
-        this.updateStats(result.sig, this.OMNI_PAIRS[i].sym);
-      }
-    });
 
     const valid = this._scanResults.filter(r=>r.sig&&r.sig.thresholdOk&&r.sig.prob>=65);
 
@@ -8631,42 +8637,56 @@ const omniMode = {
   },
 
   async _analyzePair(pair){
+    // Fetch candles direto pelo símbolo — sem tocar S.pair ou candleOHLC global
+    const candles = await this._fetchCandlesDirect(pair.deriv);
+    if(!candles || candles.length < 25) return null;
     try{
-      // Salva estado atual
-      const origOHLC=candleOHLC.slice();
-      const origBuffer=candleBuffer.slice();
-      const origPair=S.pair;
-
-      // Muda par temporariamente
-      const pairIdx=PAIRS.findIndex(p=>p.deriv===pair.deriv);
-      if(pairIdx>=0) S.pair=pairIdx;
-
-      // Usa o fetchCandlesTF que já funciona no semiAuto
-      const gran=300, cnt=80;
-      const candles = await semiAuto.fetchCandlesTF(gran, cnt);
-
-      // Restaura estado
-      S.pair=origPair;
-
-      if(!candles||candles.length<25){
-        candleOHLC=origOHLC; candleBuffer=origBuffer;
-        return null;
-      }
-
-      // Injeta candles e analisa
-      candleOHLC=candles;
-      candleBuffer=candles.map(c=>c.c);
-      if(pairIdx>=0) S.pair=pairIdx;
-
-      const sig=analyzeSignal();
-
-      // Restaura tudo
-      candleOHLC=origOHLC; candleBuffer=origBuffer; S.pair=origPair;
-
-      return sig?{pair,sig}:null;
+      // Salva estado global
+      const origOHLC   = candleOHLC.slice();
+      const origBuffer = candleBuffer.slice();
+      const origPair   = S.pair;
+      // Injeta candles do par analisado
+      candleOHLC  = candles;
+      candleBuffer = candles.map(c=>c.c);
+      const pairIdx = PAIRS.findIndex(p=>p.deriv===pair.deriv);
+      if(pairIdx>=0) S.pair = pairIdx;
+      // Analisa
+      const sig = analyzeSignal();
+      // Restaura IMEDIATAMENTE
+      candleOHLC  = origOHLC;
+      candleBuffer = origBuffer;
+      S.pair = origPair;
+      return sig ? {pair, sig} : null;
     }catch(e){
       return null;
     }
+  },
+
+  _fetchCandlesDirect(symbol){
+    return new Promise((resolve)=>{
+      if(!wsReady){
+        // Sem conexão: usa candles locais se for o par atual
+        const idx = PAIRS.findIndex(p=>p.deriv===symbol);
+        if(idx===S.pair && candleOHLC.length>=25) resolve([...candleOHLC]);
+        else resolve(null);
+        return;
+      }
+      // reqId exclusivo range 60000-69999 para OMNI
+      const reqId = 60000 + (Date.now() % 9000);
+      const timer = setTimeout(()=>{
+        if(window._omniDirectFetch && window._omniDirectFetch[reqId]){
+          delete window._omniDirectFetch[reqId];
+        }
+        resolve(null);
+      }, 6000);
+      window._omniDirectFetch = window._omniDirectFetch || {};
+      window._omniDirectFetch[reqId] = (rawCandles)=>{
+        clearTimeout(timer);
+        resolve(rawCandles);
+      };
+      derivSend({ticks_history:symbol, adjust_start_time:1, count:80,
+        end:'latest', granularity:300, style:'candles', req_id:reqId});
+    });
   }
 };
 
