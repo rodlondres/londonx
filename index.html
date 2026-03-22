@@ -1844,7 +1844,7 @@ function derivConnect(){
           if(!reqSym || reqSym===PAIRS[S.pair].deriv) currentSub=msg.subscription.id;
         }
         // Respostas para fetchCandlesTF do semi-auto — intercepta e retorna (req_id 91000+)
-        if(msg.msg_type==='candles' && msg.req_id && msg.req_id>=91000 && window._candleFetch && window._candleFetch[msg.req_id]){
+        if(msg.msg_type==='candles' && msg.req_id && window._candleFetch && window._candleFetch[msg.req_id]){
           const mapped=(msg.candles||[]).map(c=>({
             o:parseFloat(c.open),h:parseFloat(c.high),
             l:parseFloat(c.low),c:parseFloat(c.close),epoch:parseInt(c.epoch)
@@ -6782,7 +6782,7 @@ const semiAuto = {
         return;
       }
       // req_id único baseado em timestamp — sem colisão garantida
-      const reqId = 91000 + (Date.now() % 8000);
+      const reqId = 92000 + (Date.now() % 900); // semiAuto fetch: 92000-92999
       window._candleFetch = window._candleFetch||{};
 
       // Timeout de 10s — aumentado para forex/commodity que demoram mais
@@ -8377,7 +8377,7 @@ const autoMode = {
     this.setStatus((isBuy?'⬆ EXECUTANDO':'⬇ EXECUTANDO')+' US$'+stake+' · '+sig.prob+'% · 1M ✅');
     semiAuto.playAlert(dir); semiAuto.startPulse(dir);
     if(wsReady&&userToken){
-      const contractType=isBuy?'CALL':'PUT'; const symbol=PAIRS[S.pair].deriv; const reqId=Date.now()%9000+91000; // autoMode: 91000-99999
+      const contractType=isBuy?'CALL':'PUT'; const symbol=PAIRS[S.pair].deriv; const reqId=94000+(Date.now()%900); // autoMode proposal: 94000-94999
       window._pendingProposals=window._pendingProposals||{};
       window._pendingProposals[reqId]={side:dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ AUTO: '+proposal.error.message); this._registerAndCountdown(dir,stake,profit,payout,durSecs,null); return; }
