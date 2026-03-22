@@ -8553,21 +8553,20 @@ const omniMode = {
     }
     notify('🌐 OMNI scan iniciado · '+this.OMNI_PAIRS.map(p=>p.sym).join(', '));
 
-    for(const pair of this.OMNI_PAIRS){
-      if(!this.active) break;
-      try{
-        const result = await this._analyzePair(pair);
-        if(result){
-          this._scanResults.push(result);
-          this.updateStats(result.sig, pair.sym);
-          notify('📊 '+pair.sym+': '+result.sig.prob+'% · '+result.sig.sourcesConfirming+'/13');
-        } else {
-          notify('⚠️ '+pair.sym+': sem dados (fechado?)');
-        }
-      }catch(e){ notify('❌ '+pair.sym+': erro'); }
-    }
+    // Analisa todos os pares em PARALELO — sem delay sequencial
+    const promises = this.OMNI_PAIRS.map(pair =>
+      this._analyzePair(pair).catch(()=>null)
+    );
+    const results = await Promise.all(promises);
 
     if(!this.active){ this._executing=false; return; }
+
+    results.forEach((result,i)=>{
+      if(result){
+        this._scanResults.push(result);
+        this.updateStats(result.sig, this.OMNI_PAIRS[i].sym);
+      }
+    });
 
     const valid = this._scanResults.filter(r=>r.sig&&r.sig.thresholdOk&&r.sig.prob>=65);
 
@@ -8606,17 +8605,21 @@ const omniMode = {
       window._pendingProposals[reqId]={side:winner.sig.dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ OMNI: '+proposal.error.message); S.pair=origPair; this._executing=false; return; }
         derivSend({buy:proposal.id,price:proposal.ask_price});
+        // Manter S.pair no par negociado durante o trade inteiro
+        if(pairIdx>=0) S.pair=pairIdx;
         autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,durSecs,proposal.id);
         if(tradeHistory.length>0) tradeHistory[tradeHistory.length-1]._omni=true;
-        setTimeout(()=>{ S.pair=origPair; this._executing=false; },2000);
+        // Restaurar par original após o trade fechar (5min + buffer)
+        setTimeout(()=>{ S.pair=origPair; this._executing=false; }, durSecs*1000+3000);
       }};
       setTimeout(()=>{ if(window._pendingProposals&&window._pendingProposals[reqId]){ delete window._pendingProposals[reqId]; S.pair=origPair; this._executing=false; }},6000);
       derivSend({proposal:1,amount:stake,basis:'stake',contract_type:dir==='CALL'?'CALL':'PUT',currency:'USD',duration:durSecs,duration_unit:'s',symbol,req_id:reqId});
     } else {
       notify('📋 OMNI demo: '+winner.pair.sym+' '+dir+' US$'+stake);
+      if(pairIdx>=0) S.pair=pairIdx;
       autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,300,null);
       if(tradeHistory.length>0) tradeHistory[tradeHistory.length-1]._omni=true;
-      S.pair=origPair; this._executing=false;
+      setTimeout(()=>{ S.pair=origPair; this._executing=false; }, 303000);
     }
   },
 
