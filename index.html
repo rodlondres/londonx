@@ -8640,7 +8640,7 @@ const omniMode = {
         } else { resolve(null); }
         return;
       }
-      const reqId=Date.now()+Math.random();
+      const reqId=Math.floor(Date.now()/1000)*1000 + Math.floor(Math.random()*999) + 50000; // inteiro único
       const timeout=setTimeout(()=>{ if(window._omniReqs) delete window._omniReqs[reqId]; resolve(null); },8000);
       window._omniReqs=window._omniReqs||{};
       window._omniReqs[reqId]=(candles)=>{
