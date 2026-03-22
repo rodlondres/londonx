@@ -8420,6 +8420,8 @@ const autoMode = {
     // Reset mix strategy
     this._mixMode='cons'; this._winStreak=0; this._lossStreak=0;
     this._pauseUntil=null;
+    // Reset bloqueio do bm ao iniciar
+    if(typeof bm !== 'undefined'){ bm.blocked=false; bm.blockReason=''; }
     // P&L do dia: preserva se já operou hoje
     // Reseta P&L se mudou o dia
     const today=new Date().toDateString();
