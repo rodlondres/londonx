@@ -8496,9 +8496,12 @@ const omniMode = {
   },
 
   start(){
-    this.active=true; this._executing=false;
+    this.active=true; this._executing=false; this._executingStart=0;
     this._scanResults=[]; this._blockLog=[];
     this._totalScanned=0; this._totalExec=0; this._totalBlocked=0;
+    // Limpar trades pendentes presos de sessão anterior
+    tradeHistory.forEach(t=>{ if(t.result==='pending') t.result='loss'; });
+    try{ renderHistory(); }catch(e){}
     autoMode._mixMode='cons'; autoMode._winStreak=0;
     autoMode._lossStreak=0; autoMode._pauseUntil=null;
     const today=new Date().toDateString();
@@ -8529,10 +8532,17 @@ const omniMode = {
   async scan(){
     if(!this.active) return;
     if(this._executing){
-      if(this._executingStart && (Date.now()-this._executingStart)>120000){ this._executing=false; }
+      if(this._executingStart && (Date.now()-this._executingStart)>30000){ this._executing=false; this._executingStart=0; }
       else return;
     }
-    if(tradeHistory.some(t=>t.result==='pending'&&t.autoMode)) return;
+    // Verificar trades pendentes — com timeout de segurança
+    const pendingOmni = tradeHistory.filter(t=>t.result==='pending'&&t.autoMode);
+    if(pendingOmni.length>0){
+      const oldest = pendingOmni[0];
+      const elapsed = (Date.now()-oldest.id)/1000;
+      if(elapsed < 370){ this.setStatus('⏱ Operação em andamento...'); return; }
+      else { pendingOmni.forEach(t=>t.result='loss'); try{renderHistory();}catch(e){} }
+    }
 
     // Pausa ativa?
     if(autoMode._pauseUntil && Date.now()<autoMode._pauseUntil){
