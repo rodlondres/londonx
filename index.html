@@ -8435,7 +8435,9 @@ const autoMode = {
 let _currentMode='manual';
 
 function setMode(mode){
-  if(_currentMode===mode)return;
+  // Toggle: clicar de novo no modo ativo volta para manual
+  if(_currentMode===mode && mode!=='manual'){ setMode('manual'); return; }
+  if(_currentMode===mode) return;
   if(_currentMode==='manual'){
     semiAuto.toggle(false);
     const p=document.getElementById('semiPanel'); if(p)p.style.display='none';
@@ -8505,15 +8507,20 @@ const omniMode = {
   start(){
     this.active=true; this._executing=false;
     this._scanResults=[]; this._bestSignal=null;
+    // Inicializa Mix igual ao autoMode
+    autoMode._mixMode='cons'; autoMode._winStreak=0;
+    autoMode._lossStreak=0; autoMode._pauseUntil=null;
+    const today=new Date().toDateString();
+    if(autoMode._lastDay!==today){ autoMode._dayPnl=0; autoMode._lastDay=today; }
     const labelEl=document.getElementById('autoModeLabel');
     const badgeEl=document.getElementById('autoModeBadge');
     if(labelEl) labelEl.textContent='🌐 OMNI ATIVO';
-    if(badgeEl){ badgeEl.textContent='Buscando melhor par...'; badgeEl.style.background='rgba(156,39,176,.2)'; badgeEl.style.color='#ce93d8'; }
+    if(badgeEl){ badgeEl.textContent='🛡️ Conserv. início → 🐊 Soros c/ 2 wins'; badgeEl.style.background='rgba(156,39,176,.2)'; badgeEl.style.color='#ce93d8'; }
     document.getElementById('autoModeStatus').style.display='block';
     document.getElementById('autoStats').style.display='block';
     document.getElementById('semiPanel').style.display='none';
-    notify('🌐 OMNI: escaneando '+this.OMNI_PAIRS.length+' pares — melhor sinal entra!');
-    this.setStatus('🔍 Escaneando pares...');
+    notify('🌐 OMNI Mix: '+this.OMNI_PAIRS.length+' pares · Conserv.→Soros · Stop -5%/+10%');
+    this.setStatus('🔍 Escaneando '+this.OMNI_PAIRS.length+' pares...');
     setTimeout(()=>{ if(this.active) this.scan(); }, 2000);
     this.scanInterval = setInterval(()=>{ if(this.active) this.scan(); }, 20000);
   },
@@ -8572,7 +8579,11 @@ const omniMode = {
 
     // Executa no par vencedor
     const dir = winner.sig.dir==='BUY'?'CALL':'PUT';
-    const stake = autoMode.baseStake;
+    // Pausa ativa?
+    if(autoMode._pauseUntil && Date.now()<autoMode._pauseUntil){ const rem=Math.ceil((autoMode._pauseUntil-Date.now())/60000); this.setStatus('⏸️ Pausa '+rem+'min · retomando em breve'); this._executing=false; return; } else if(autoMode._pauseUntil && Date.now()>=autoMode._pauseUntil){ autoMode._pauseUntil=null; autoMode._mixMode='cons'; }
+    // Stop do dia
+    if(autoMode.checkDayLimits()){ this.stop(); this._executing=false; return; }
+    const stake = autoMode.getStake();
     const payout = 0.954;
     const profit = (stake*payout).toFixed(2);
 
