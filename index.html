@@ -1470,14 +1470,31 @@ div, span {
     </div>
     <div id="autoModeMsg" style="font-size:12px;color:var(--text2);margin-top:4px">V75 OTC · 5M · Aguardando sinal...</div>
     <!-- Mix strategy status bar -->
-    <div id="mixStatusBar" style="display:none;margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-      <span id="mixModeTag" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;background:rgba(33,150,243,.2);color:#2196f3;font-family:'Orbitron',monospace;">🛡️ CONSERV.</span>
-      <span style="font-size:10px;color:var(--text3);">→</span>
-      <span style="font-size:10px;color:var(--text2);">wins: <span id="mixWinStreak" style="color:var(--green);font-weight:700;">0</span>/2</span>
-      <span style="font-size:10px;color:var(--text2);">·</span>
-      <span style="font-size:10px;color:var(--text2);">P&L dia: <span id="mixDayPnl" style="font-weight:700;color:var(--cyan);">US$0</span></span>
-      <span style="font-size:10px;color:var(--text2);">·</span>
-      <span style="font-size:10px;color:var(--text2);">Stop: <span style="color:var(--red);">-$468</span> / <span style="color:var(--green);">+$936</span></span>
+    <div id="mixStatusBar" style="display:none;margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1);">
+      <!-- Modo atual — destaque grande -->
+      <div id="mixModeMain" style="padding:8px 12px;display:flex;align-items:center;justify-content:space-between;background:rgba(33,150,243,.12);">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="mixModeIcon" style="font-size:20px;">🛡️</span>
+          <div>
+            <div id="mixModeLabel" style="font-family:'Orbitron',monospace;font-size:12px;font-weight:700;color:#2196f3;letter-spacing:1px;">CONSERVADOR ATIVO</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px;">Stake fixo US$50 · aguardando 2 wins para Soros</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div id="mixDayPnl" style="font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--cyan);">US$0</div>
+          <div style="font-size:9px;color:var(--text3);">P&L DIA</div>
+        </div>
+      </div>
+      <!-- Barra de progresso wins -->
+      <div style="padding:6px 12px;background:rgba(0,0,0,.3);display:flex;align-items:center;gap:10px;">
+        <span style="font-size:10px;color:var(--text3);white-space:nowrap;">WINS SEGUIDOS:</span>
+        <div style="display:flex;gap:4px;">
+          <div id="winDot0" style="width:16px;height:16px;border-radius:50%;border:2px solid rgba(0,230,118,.3);background:transparent;transition:all .3s;"></div>
+          <div id="winDot1" style="width:16px;height:16px;border-radius:50%;border:2px solid rgba(0,230,118,.3);background:transparent;transition:all .3s;"></div>
+        </div>
+        <span style="font-size:10px;color:var(--text2);">→ <span id="mixWinStreak" style="color:var(--green);font-weight:700;">0</span>/2 para ativar Soros</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text3);">Stop: <span style="color:var(--red);">-$468</span> / <span style="color:var(--green);">+$936</span></span>
+      </div>
     </div>
     <div id="autoModeWarn" style="font-size:11px;color:var(--orange);margin-top:3px;display:none">⚠ Apenas V75 OTC 5M no modo automático</div>
   </div>
@@ -8155,15 +8172,37 @@ const autoMode = {
         this.setStatus('⏸️ Pausa 5min após 2 losses · aguarde...');
       }
     }
-    // Atualiza badge de modo
+    // Atualiza badge + Mix status bar
+    const isSoros = this._mixMode==='aggr';
     const badge = document.getElementById('autoModeBadge');
     if(badge){
-      badge.textContent = this._mixMode==='aggr' ?
+      badge.textContent = isSoros ?
         '🐊 Soros · P&L US$'+(this._dayPnl>=0?'+':'')+this._dayPnl.toFixed(0) :
         '🛡️ Conserv. · P&L US$'+(this._dayPnl>=0?'+':'')+this._dayPnl.toFixed(0);
-      badge.style.background = this._mixMode==='aggr'?'rgba(255,109,0,.2)':'rgba(33,150,243,.2)';
-      badge.style.color = this._mixMode==='aggr'?'var(--orange)':'#2196f3';
+      badge.style.background = isSoros?'rgba(255,109,0,.2)':'rgba(33,150,243,.2)';
+      badge.style.color = isSoros?'var(--orange)':'#2196f3';
     }
+    // Mix status bar visual
+    const mixBar=document.getElementById('mixStatusBar');
+    if(mixBar) mixBar.style.display='block';
+    const mixIcon=document.getElementById('mixModeIcon');
+    const mixLabel=document.getElementById('mixModeLabel');
+    const mixMain=document.getElementById('mixModeMain');
+    if(mixIcon) mixIcon.textContent=isSoros?'🐊':'🛡️';
+    if(mixLabel){ mixLabel.textContent=isSoros?'SOROS ATIVO':'CONSERVADOR ATIVO'; mixLabel.style.color=isSoros?'var(--orange)':'#2196f3'; }
+    if(mixMain) mixMain.style.background=isSoros?'rgba(255,109,0,.12)':'rgba(33,150,243,.12)';
+    const subLbl=mixMain?mixMain.querySelector('div>div>div:last-child'):null;
+    if(subLbl) subLbl.textContent=isSoros?'Reinvestindo lucro · Soros nível '+(this.sorosLevel||0)+'/2':'Stake fixo US$'+this.baseStake+' · aguardando 2 wins para Soros';
+    // Dots de wins
+    const streak=this._winStreak||0;
+    for(let d=0;d<2;d++){
+      const dot=document.getElementById('winDot'+d);
+      if(dot){ dot.style.background=d<streak?'var(--green)':'transparent'; dot.style.borderColor=d<streak?'var(--green)':'rgba(0,230,118,.3)'; dot.style.boxShadow=d<streak?'0 0 8px rgba(0,230,118,.5)':'none'; }
+    }
+    const wStreak=document.getElementById('mixWinStreak');
+    if(wStreak) wStreak.textContent=streak;
+    const pnlEl=document.getElementById('mixDayPnl');
+    if(pnlEl){ const pnl=this._dayPnl||0; pnlEl.textContent='US$'+(pnl>=0?'+':'')+pnl.toFixed(0); pnlEl.style.color=pnl>=0?'var(--green)':'var(--red)'; }
   },
 
   registerResult(won){
