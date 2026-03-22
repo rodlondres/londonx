@@ -8551,6 +8551,7 @@ const omniMode = {
     this._executing=true; this._executingStart=Date.now();
     this._scanResults=[];
     this.setStatus('🔍 Escaneando '+this.OMNI_PAIRS.length+' pares...');
+    notify('🌐 OMNI scan iniciado · '+this.OMNI_PAIRS.map(p=>p.sym).join(', '));
 
     for(const pair of this.OMNI_PAIRS){
       if(!this.active) break;
@@ -8559,8 +8560,11 @@ const omniMode = {
         if(result){
           this._scanResults.push(result);
           this.updateStats(result.sig, pair.sym);
+          notify('📊 '+pair.sym+': '+result.sig.prob+'% · '+result.sig.sourcesConfirming+'/13');
+        } else {
+          notify('⚠️ '+pair.sym+': sem dados (fechado?)');
         }
-      }catch(e){}
+      }catch(e){ notify('❌ '+pair.sym+': erro'); }
     }
 
     if(!this.active){ this._executing=false; return; }
