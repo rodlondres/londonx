@@ -8448,88 +8448,56 @@ const autoMode = {
   }
 };
 
-let _currentMode='manual';
-
-function setMode(mode){
-  // Toggle: clicar de novo no modo ativo volta para manual
-  if(_currentMode===mode && mode!=='manual'){ setMode('manual'); return; }
-  if(_currentMode===mode) return;
-  // Para qualquer modo ativo anterior
-  if(_currentMode==='omni'){
-    omniMode.active=false;
-    if(omniMode.scanInterval){clearInterval(omniMode.scanInterval);omniMode.scanInterval=null;}
-    omniMode._executing=false;
-    window._omniReqs={};
-  } else if(_currentMode==='manual'){
-    semiAuto.toggle(false);
-    const p=document.getElementById('semiPanel'); if(p)p.style.display='none';
-  } else {
-    autoMode.stop();
-  }
-  _currentMode=mode;
-  // ✅ Persiste modo no localStorage para sincronizar entre dispositivos
-  try{localStorage.setItem('londonx_mode', mode);}catch(e){}
-  // Reseta visual de TODOS os botões
-  ['modeManual','modeSemi','modeCons','modeAggr','modeOmni'].forEach(id=>{
-    const btn=document.getElementById(id);
-    if(btn){ btn.className='mode-btn'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
-  });
-  if(mode==='manual'){
-    document.getElementById('modeManual').className='mode-btn mode-active';
-    const s=document.getElementById('autoModeStatus'); if(s)s.style.display='none';
-    const st=document.getElementById('autoStats'); if(st)st.style.display='none';
-    semiAuto.toggle(true);
-    const p=document.getElementById('semiPanel'); if(p)p.style.display='block';
-  } else if(mode==='semi'){
-    document.getElementById('modeSemi').className='mode-btn mode-active-semi';
-    semiAuto.toggle(true); // ativa scanner semi-auto
-    const p=document.getElementById('semiPanel'); if(p)p.style.display='block';
-    const s=document.getElementById('autoModeStatus'); if(s)s.style.display='none';
-    const st=document.getElementById('autoStats'); if(st)st.style.display='none';
-  } else if(mode==='conservative'){
-    document.getElementById('modeCons').className='mode-btn mode-active-cons';
-    semiAuto.toggle(false);
-    S.strategy='cons';
-    autoMode.start('conservative');
-  } else if(mode==='aggressive'){
-    document.getElementById('modeAggr').className='mode-btn mode-active-aggr';
-    semiAuto.toggle(false);
-    S.strategy='soros';
-    autoMode.start('aggressive');
-  } else if(mode==='omni'){
-    document.getElementById('modeOmni').className='mode-btn mode-active-omni';
-    semiAuto.toggle(false);
-    S.strategy='soros';
-    omniMode.start();
-  }
 // ══════════════════════════════════════════════════════════════
-// OMNI MODE — Escaneia múltiplos pares, entra no melhor sinal
+// OMNI MODE ENGINE
 // ══════════════════════════════════════════════════════════════
 const omniMode = {
   active: false,
   scanInterval: null,
   _executing: false,
   _executingStart: 0,
-  _currentScanPair: null,
-  _bestSignal: null,
   _scanResults: [],
 
-  // Pares que o OMNI escaneia (VOL + Forex OTC principais)
   OMNI_PAIRS: [
-    {idx:0,  sym:'VOL 75',   deriv:'R_75',    vol:true},
-    {idx:3,  sym:'VOL 50',   deriv:'R_50',    vol:true},
-    {idx:1,  sym:'VOL 25',   deriv:'R_25',    vol:true},
-    {idx:6,  sym:'EUR/USD',  deriv:'frxEURUSD', otc:true},
-    {idx:7,  sym:'GBP/USD',  deriv:'frxGBPUSD', otc:true},
-    {idx:8,  sym:'AUD/USD',  deriv:'frxAUDUSD', otc:true},
+    {sym:'VOL 75',  deriv:'R_75',      vol:true},
+    {sym:'VOL 50',  deriv:'R_50',      vol:true},
+    {sym:'VOL 25',  deriv:'R_25',      vol:true},
+    {sym:'EUR/USD', deriv:'frxEURUSD', otc:true},
+    {sym:'GBP/USD', deriv:'frxGBPUSD', otc:true},
+    {sym:'AUD/USD', deriv:'frxAUDUSD', otc:true},
   ],
 
   setStatus(msg){ const el=document.getElementById('autoModeMsg'); if(el)el.textContent=msg; },
 
+  updateStats(sig, pairSym){
+    const s=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    this._totalScanned = (this._totalScanned||0)+1;
+    s('auto-signals', this._totalScanned);
+    if(sig && sig.thresholdOk && sig.prob>=65){
+      this._totalExec = (this._totalExec||0)+1;
+      s('auto-executed', this._totalExec);
+    } else {
+      this._totalBlocked = (this._totalBlocked||0)+1;
+      s('auto-skipped', this._totalBlocked);
+      // Log bloqueio
+      const el=document.getElementById('autoBlockLog');
+      if(el && sig){
+        if(!this._blockLog) this._blockLog=[];
+        const time=new Date().toLocaleTimeString('pt-BR',{hour12:false,hour:'2-digit',minute:'2-digit'});
+        const why = sig.prob<65 ? 'Prob '+sig.prob+'%' : sig.sourcesConfirming+'/13 fontes';
+        this._blockLog.unshift(time+' · '+pairSym+' · '+why+' ('+sig.prob+'% · '+sig.sourcesConfirming+'/13)');
+        if(this._blockLog.length>5) this._blockLog.pop();
+        el.style.display='block';
+        el.innerHTML='<span style="color:var(--orange);font-weight:700">ÚLTIMO BLOQUEIO:</span><br>'+
+          this._blockLog.map((l,i)=>'<span style="opacity:'+(1-i*0.18)+'">'+l+'</span>').join('<br>');
+      }
+    }
+  },
+
   start(){
     this.active=true; this._executing=false;
-    this._scanResults=[]; this._bestSignal=null;
-    // Inicializa Mix igual ao autoMode
+    this._scanResults=[]; this._blockLog=[];
+    this._totalScanned=0; this._totalExec=0; this._totalBlocked=0;
     autoMode._mixMode='cons'; autoMode._winStreak=0;
     autoMode._lossStreak=0; autoMode._pauseUntil=null;
     const today=new Date().toDateString();
@@ -8537,13 +8505,13 @@ const omniMode = {
     const labelEl=document.getElementById('autoModeLabel');
     const badgeEl=document.getElementById('autoModeBadge');
     if(labelEl) labelEl.textContent='🌐 OMNI ATIVO';
-    if(badgeEl){ badgeEl.textContent='🛡️ Conserv. início → 🐊 Soros c/ 2 wins'; badgeEl.style.background='rgba(156,39,176,.2)'; badgeEl.style.color='#ce93d8'; }
+    if(badgeEl){ badgeEl.textContent='🛡️ Mix · 6 pares'; badgeEl.style.background='rgba(156,39,176,.2)'; badgeEl.style.color='#ce93d8'; }
     document.getElementById('autoModeStatus').style.display='block';
     document.getElementById('autoStats').style.display='block';
     document.getElementById('semiPanel').style.display='none';
-    const _mb2=document.getElementById('mixStatusBar');if(_mb2)_mb2.style.display='flex';
-    notify('🌐 OMNI Mix: '+this.OMNI_PAIRS.length+' pares · Conserv.→Soros · Stop -5%/+10%');
-    this.setStatus('🔍 Escaneando '+this.OMNI_PAIRS.length+' pares...');
+    const mb=document.getElementById('mixStatusBar');if(mb)mb.style.display='flex';
+    notify('🌐 OMNI: escaneando '+this.OMNI_PAIRS.length+' pares · Mix ativo');
+    this.setStatus('🔍 Iniciando scan dos pares...');
     setTimeout(()=>{ if(this.active) this.scan(); }, 2000);
     this.scanInterval = setInterval(()=>{ if(this.active) this.scan(); }, 20000);
   },
@@ -8552,137 +8520,193 @@ const omniMode = {
     this.active=false;
     if(this.scanInterval){ clearInterval(this.scanInterval); this.scanInterval=null; }
     this._executing=false; this._executingStart=0;
-    window._omniReqs={}; // limpa requisições pendentes
+    window._omniReqs={};
     const s=document.getElementById('autoModeStatus'); if(s)s.style.display='none';
     const st=document.getElementById('autoStats'); if(st)st.style.display='none';
-    notify('🌐 OMNI desativado');
   },
 
   async scan(){
     if(!this.active) return;
     if(this._executing){
-      if(this._executingStart && (Date.now()-this._executingStart)>180000){ this._executing=false; }
+      if(this._executingStart && (Date.now()-this._executingStart)>120000){ this._executing=false; }
       else return;
     }
     if(tradeHistory.some(t=>t.result==='pending'&&t.autoMode)) return;
 
+    // Pausa ativa?
+    if(autoMode._pauseUntil && Date.now()<autoMode._pauseUntil){
+      const rem=Math.ceil((autoMode._pauseUntil-Date.now())/60000);
+      this.setStatus('⏸️ Pausa '+rem+'min · 2 losses seguidos'); return;
+    } else if(autoMode._pauseUntil && Date.now()>=autoMode._pauseUntil){
+      autoMode._pauseUntil=null; autoMode._mixMode='cons';
+    }
+    if(autoMode.checkDayLimits()){ this.stop(); return; }
+
     this._executing=true; this._executingStart=Date.now();
     this._scanResults=[];
-    this.setStatus('🔍 OMNI escaneando '+this.OMNI_PAIRS.length+' pares...');
+    this.setStatus('🔍 Escaneando '+this.OMNI_PAIRS.length+' pares...');
 
-    // Para cada par, busca candles via API e analisa
     for(const pair of this.OMNI_PAIRS){
       if(!this.active) break;
       try{
         const result = await this._analyzePair(pair);
-        if(result) this._scanResults.push(result);
-      } catch(e){ /* par indisponível */ }
+        if(result){
+          this._scanResults.push(result);
+          this.updateStats(result.sig, pair.sym);
+        }
+      }catch(e){}
     }
 
     if(!this.active){ this._executing=false; return; }
 
-    // Ordena por score ponderado: prob * sourcesConfirming
-    const valid = this._scanResults.filter(r => r.sig && r.sig.thresholdOk && r.sig.prob>=65);
+    const valid = this._scanResults.filter(r=>r.sig&&r.sig.thresholdOk&&r.sig.prob>=65);
 
     if(valid.length===0){
       const best = this._scanResults.sort((a,b)=>(b.sig?.prob||0)-(a.sig?.prob||0))[0];
-      const msg = best ? '⏳ Melhor: '+best.pair.sym+' '+best.sig.prob+'% · '+best.sig.sourcesConfirming+'/13' : '⏳ Nenhum par com threshold';
-      this.setStatus(msg);
+      this.setStatus(best ? '⏳ Melhor: '+best.pair.sym+' '+best.sig.prob+'% · '+best.sig.sourcesConfirming+'/13' : '⏳ Nenhum par com sinal suficiente');
       this._executing=false; return;
     }
 
-    // Melhor sinal = maior prob * fontes
-    valid.sort((a,b) => (b.sig.prob*b.sig.sourcesConfirming) - (a.sig.prob*a.sig.sourcesConfirming));
+    valid.sort((a,b)=>(b.sig.prob*b.sig.sourcesConfirming)-(a.sig.prob*a.sig.sourcesConfirming));
     const winner = valid[0];
 
-    // Filtros RSI e BB
-    const rsiV = parseFloat(winner.sig.rsi||50);
+    const rsiV=parseFloat(winner.sig.rsi||50);
     if((winner.sig.dir==='BUY'&&rsiV>78)||(winner.sig.dir==='SELL'&&rsiV<22)){
-      this.setStatus('🔴 '+winner.pair.sym+' RSI extremo ('+rsiV.toFixed(0)+')');
+      this.setStatus('🔴 '+winner.pair.sym+' RSI extremo ('+rsiV.toFixed(0)+') — bloqueado');
       this._executing=false; return;
     }
 
-    // Executa no par vencedor
-    const dir = winner.sig.dir==='BUY'?'CALL':'PUT';
-    // Pausa ativa?
-    if(autoMode._pauseUntil && Date.now()<autoMode._pauseUntil){ const rem=Math.ceil((autoMode._pauseUntil-Date.now())/60000); this.setStatus('⏸️ Pausa '+rem+'min · retomando em breve'); this._executing=false; return; } else if(autoMode._pauseUntil && Date.now()>=autoMode._pauseUntil){ autoMode._pauseUntil=null; autoMode._mixMode='cons'; }
-    // Stop do dia
-    if(autoMode.checkDayLimits()){ this.stop(); this._executing=false; return; }
-    const stake = autoMode.getStake();
-    const payout = 0.954;
-    const profit = (stake*payout).toFixed(2);
+    const dir=winner.sig.dir==='BUY'?'CALL':'PUT';
+    const stake=autoMode.getStake();
+    const payout=0.954;
+    const profit=(stake*payout).toFixed(2);
 
     notify('🌐 OMNI → '+winner.pair.sym+' '+dir+' · '+winner.sig.prob+'% · '+winner.sig.sourcesConfirming+'/13');
     this.setStatus('⚡ '+winner.pair.sym+' '+dir+' · '+winner.sig.prob+'% · Entrando...');
 
-    // Muda o par ativo temporariamente para executar
-    const origPair = S.pair;
-    const pairIdx = PAIRS.findIndex(p=>p.deriv===winner.pair.deriv);
+    const origPair=S.pair;
+    const pairIdx=PAIRS.findIndex(p=>p.deriv===winner.pair.deriv);
     if(pairIdx>=0) S.pair=pairIdx;
 
-    // Executa via WebSocket
-    if(wsReady && userToken){
-      const symbol = winner.pair.deriv;
-      const durSecs = 300;
-      const reqId = Date.now();
-      window._pendingProposals = window._pendingProposals||{};
-      window._pendingProposals[reqId] = {side:winner.sig.dir, stake, cb:(proposal)=>{
+    if(wsReady&&userToken){
+      const symbol=winner.pair.deriv;
+      const durSecs=300;
+      const reqId=Date.now();
+      window._pendingProposals=window._pendingProposals||{};
+      window._pendingProposals[reqId]={side:winner.sig.dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ OMNI: '+proposal.error.message); S.pair=origPair; this._executing=false; return; }
-        derivSend({buy:proposal.id, price:proposal.ask_price});
-        notify('✅ OMNI: ordem US$'+stake+' enviada!');
-        autoMode._registerAndCountdown(winner.sig.dir, stake, profit, payout, durSecs, proposal.id); tradeHistory[tradeHistory.length-1]._omni=true;
-        setTimeout(()=>{ S.pair=origPair; this._executing=false; }, 2000);
+        derivSend({buy:proposal.id,price:proposal.ask_price});
+        autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,durSecs,proposal.id);
+        if(tradeHistory.length>0) tradeHistory[tradeHistory.length-1]._omni=true;
+        setTimeout(()=>{ S.pair=origPair; this._executing=false; },2000);
       }};
-      setTimeout(()=>{ if(window._pendingProposals&&window._pendingProposals[reqId]){ delete window._pendingProposals[reqId]; S.pair=origPair; this._executing=false; } }, 6000);
+      setTimeout(()=>{ if(window._pendingProposals&&window._pendingProposals[reqId]){ delete window._pendingProposals[reqId]; S.pair=origPair; this._executing=false; }},6000);
       derivSend({proposal:1,amount:stake,basis:'stake',contract_type:dir==='CALL'?'CALL':'PUT',currency:'USD',duration:durSecs,duration_unit:'s',symbol,req_id:reqId});
     } else {
       notify('📋 OMNI demo: '+winner.pair.sym+' '+dir+' US$'+stake);
-      autoMode._registerAndCountdown(winner.sig.dir, stake, profit, payout, 300, null); if(tradeHistory.length>0) tradeHistory[tradeHistory.length-1]._omni=true;
+      autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,300,null);
+      if(tradeHistory.length>0) tradeHistory[tradeHistory.length-1]._omni=true;
       S.pair=origPair; this._executing=false;
     }
   },
 
-  // Busca e analisa candles de um par específico sem mudar o par ativo
   _analyzePair(pair){
     return new Promise((resolve)=>{
       if(!wsReady){ resolve(null); return; }
-      const reqId = Date.now() + Math.random();
-      const timeout = setTimeout(()=>{ delete window._omniReqs[reqId]; resolve(null); }, 8000);
-
-      window._omniReqs = window._omniReqs||{};
-      window._omniReqs[reqId] = (candles)=>{
+      const reqId=Date.now()+Math.random();
+      const timeout=setTimeout(()=>{ if(window._omniReqs) delete window._omniReqs[reqId]; resolve(null); },8000);
+      window._omniReqs=window._omniReqs||{};
+      window._omniReqs[reqId]=(candles)=>{
         clearTimeout(timeout);
         try{
-          // Salva dados atuais
-          const origOHLC = candleOHLC.slice();
-          const origBuffer = candleBuffer.slice();
-          const origPair = S.pair;
-
-          // Injeta os candles deste par temporariamente
-          candleOHLC = candles;
-          candleBuffer = candles.map(c=>c.c);
-
-          // Analisa com o motor existente
-          const pairIdx = PAIRS.findIndex(p=>p.deriv===pair.deriv);
+          const origOHLC=candleOHLC.slice();
+          const origBuffer=candleBuffer.slice();
+          const origPair=S.pair;
+          candleOHLC=candles;
+          candleBuffer=candles.map(c=>c.c);
+          const pairIdx=PAIRS.findIndex(p=>p.deriv===pair.deriv);
           if(pairIdx>=0) S.pair=pairIdx;
-          const sig = analyzeSignal();
-
-          // Restaura tudo
-          candleOHLC = origOHLC;
-          candleBuffer = origBuffer;
-          S.pair = origPair;
-
-          resolve(sig ? {pair, sig} : null);
-        } catch(e){ resolve(null); }
+          const sig=analyzeSignal();
+          candleOHLC=origOHLC; candleBuffer=origBuffer; S.pair=origPair;
+          resolve(sig?{pair,sig}:null);
+        }catch(e){ resolve(null); }
       };
-
-      derivSend({ticks_history:pair.deriv, adjust_start_time:1, count:80, end:'latest', granularity:300, style:'candles', req_id:reqId});
+      derivSend({ticks_history:pair.deriv,adjust_start_time:1,count:80,end:'latest',granularity:300,style:'candles',req_id:reqId});
     });
   }
 };
 
-// Interceptar resposta de candles para OMNI
-const _origOmniHandler = window._omniReqs;
+window._omniReqs={};
+
+let _currentMode='manual';
+
+function setMode(mode){
+  // Toggle: clica no ativo volta para manual
+  if(_currentMode===mode && mode!=='manual'){ setMode('manual'); return; }
+  if(_currentMode===mode) return;
+
+  // Para o modo anterior
+  try{
+    if(_currentMode==='omni'){
+      omniMode.active=false;
+      clearInterval(omniMode.scanInterval);
+      omniMode.scanInterval=null;
+      omniMode._executing=false;
+      window._omniReqs={};
+    } else if(_currentMode==='manual'){
+      semiAuto.toggle(false);
+      var p=document.getElementById('semiPanel');if(p)p.style.display='none';
+    } else {
+      autoMode.stop();
+    }
+  }catch(e){}
+
+  _currentMode=mode;
+  try{
+    if(mode==='omni') localStorage.removeItem('londonx_mode');
+    else localStorage.setItem('londonx_mode',mode);
+  }catch(e){}
+
+  // Reseta todos os botões
+  ['modeManual','modeSemi','modeCons','modeAggr','modeOmni'].forEach(function(id){
+    var b=document.getElementById(id);
+    if(b){b.className='mode-btn';b.style.opacity='1';b.style.pointerEvents='auto';}
+  });
+
+  if(mode==='manual'){
+    document.getElementById('modeManual').className='mode-btn mode-active';
+    var s=document.getElementById('autoModeStatus');if(s)s.style.display='none';
+    var st=document.getElementById('autoStats');if(st)st.style.display='none';
+    var mb=document.getElementById('mixStatusBar');if(mb)mb.style.display='none';
+    semiAuto.toggle(true);
+    var p=document.getElementById('semiPanel');if(p)p.style.display='block';
+
+  } else if(mode==='semi'){
+    document.getElementById('modeSemi').className='mode-btn mode-active-semi';
+    semiAuto.toggle(true);
+    var p=document.getElementById('semiPanel');if(p)p.style.display='block';
+    var s=document.getElementById('autoModeStatus');if(s)s.style.display='none';
+    var st=document.getElementById('autoStats');if(st)st.style.display='none';
+
+  } else if(mode==='conservative'){
+    document.getElementById('modeCons').className='mode-btn mode-active-cons';
+    semiAuto.toggle(false);
+    S.strategy='cons';
+    autoMode.start('conservative');
+
+  } else if(mode==='aggressive'){
+    document.getElementById('modeAggr').className='mode-btn mode-active-aggr';
+    semiAuto.toggle(false);
+    S.strategy='soros';
+    autoMode.start('aggressive');
+
+  } else if(mode==='omni'){
+    document.getElementById('modeOmni').className='mode-btn mode-active-omni';
+    semiAuto.toggle(false);
+    S.strategy='soros';
+    omniMode.start();
+  }
+}
 
 // ══ WATCHDOG — libera travas se trades ficarem presos ══════
 // Resolve trades pending cujo _endTime já passou (iOS background kill)
