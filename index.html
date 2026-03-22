@@ -730,6 +730,7 @@ canvas{width:100%;display:block;}
   border-color:#2196f3;background:rgba(33,150,243,.12);
   box-shadow:0 0 12px rgba(33,150,243,.2);
 }
+.mode-btn.mode-btn-omni{border-color:rgba(156,39,176,.4);background:rgba(156,39,176,.04);}
 .mode-btn.mode-active-omni{
   background:rgba(156,39,176,.15);border-color:#ce93d8;color:#ce93d8;
   box-shadow:0 0 14px rgba(156,39,176,.4);
@@ -1454,7 +1455,7 @@ div, span {
       <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px">AGRESSIVO</div>
       <div style="font-size:8px;color:var(--text3);margin-top:1px">Mix · Soros</div>
     </button>
-    <button class="mode-btn" id="modeOmni" onclick="setMode('omni')" style="border-color:#ce93d8;background:rgba(156,39,176,.06);">
+    <button class="mode-btn mode-btn-omni" id="modeOmni" onclick="setMode('omni')">
       <div style="font-size:14px">🌐</div>
       <div style="font-size:9px;font-weight:900;letter-spacing:1px;margin-top:2px;color:#ce93d8;">OMNI</div>
       <div style="font-size:8px;color:var(--text3);margin-top:1px">Mix · 6 pares</div>
@@ -8668,10 +8669,13 @@ function setMode(mode){
   }catch(e){}
 
   // Reseta todos os botões
-  ['modeManual','modeSemi','modeCons','modeAggr','modeOmni'].forEach(function(id){
+  ['modeManual','modeSemi','modeCons','modeAggr'].forEach(function(id){
     var b=document.getElementById(id);
     if(b){b.className='mode-btn';b.style.opacity='1';b.style.pointerEvents='auto';}
   });
+  // OMNI mantém sua classe base
+  var bo=document.getElementById('modeOmni');
+  if(bo){bo.className='mode-btn mode-btn-omni';bo.style.opacity='1';bo.style.pointerEvents='auto';}
 
   if(mode==='manual'){
     document.getElementById('modeManual').className='mode-btn mode-active';
