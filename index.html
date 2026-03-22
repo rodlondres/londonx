@@ -3104,7 +3104,7 @@ function renderConf(){
     var trendOk=S.trendOk; var tBC2=S.trendBullCount||0; var tSC2=S.trendBearCount||0;
     // RSI extremo para display
     var rsiNowDisp=S._rsiNow||50;
-    var rsiExtBlocked=(nConf>0)&&((dir==='up'&&rsiNowDisp>78)||(dir==='dn'&&rsiNowDisp<22));
+    var dir2=S.dir||'BUY'; var rsiExtBlocked=(nConf>0)&&((dir2==='BUY'&&rsiNowDisp>78)||(dir2==='SELL'&&rsiNowDisp<22));
     var waitMsg=!sessOk?'🕐 Sessão fechada':
                 !atrFilterOk?(S._atrFilterMsg||'⚡ ATR fora do range'):
                 !reversalFilterOk?(S._reversalFilterMsg||'⛔ Padrão de reversão detectado'):
