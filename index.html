@@ -8468,6 +8468,7 @@ const omniMode = {
 
   OMNI_PAIRS: [
     {sym:'VOL 75',  deriv:'R_75',      vol:true},
+    {sym:'VOL 100', deriv:'R_100',     vol:true},
     {sym:'VOL 50',  deriv:'R_50',      vol:true},
     {sym:'VOL 25',  deriv:'R_25',      vol:true},
     {sym:'EUR/USD', deriv:'frxEURUSD', otc:true},
@@ -8521,7 +8522,7 @@ const omniMode = {
     document.getElementById('autoStats').style.display='block';
     document.getElementById('semiPanel').style.display='none';
     const mb=document.getElementById('mixStatusBar');if(mb)mb.style.display='flex';
-    notify('🌐 OMNI: escaneando '+this.OMNI_PAIRS.length+' pares · Mix ativo');
+    notify('🌐 OMNI: escaneando '+this.OMNI_PAIRS.length+' pares · VOL 25/50/75/100 + Forex · Mix ativo');
     this.setStatus('🔍 Iniciando scan dos pares...');
     setTimeout(()=>{ if(this.active) this.scan(); }, 2000);
     this.scanInterval = setInterval(()=>{ if(this.active) this.scan(); }, 20000);
