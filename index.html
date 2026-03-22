@@ -8605,21 +8605,18 @@ const omniMode = {
       window._pendingProposals[reqId]={side:winner.sig.dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ OMNI: '+proposal.error.message); S.pair=origPair; this._executing=false; return; }
         derivSend({buy:proposal.id,price:proposal.ask_price});
-        // Manter S.pair no par negociado durante o trade inteiro
-        if(pairIdx>=0) S.pair=pairIdx;
+        // Salvar par negociado no trade para resolução correta
+        if(tradeHistory.length>0){ tradeHistory[tradeHistory.length-1]._omni=true; tradeHistory[tradeHistory.length-1]._tradePair=winner.pair.deriv; tradeHistory[tradeHistory.length-1]._pairIdx=pairIdx; }
         autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,durSecs,proposal.id);
-        if(tradeHistory.length>0) tradeHistory[tradeHistory.length-1]._omni=true;
-        // Restaurar par original após o trade fechar (5min + buffer)
-        setTimeout(()=>{ S.pair=origPair; this._executing=false; }, durSecs*1000+3000);
+        setTimeout(()=>{ S.pair=origPair; this._executing=false; },2000);
       }};
       setTimeout(()=>{ if(window._pendingProposals&&window._pendingProposals[reqId]){ delete window._pendingProposals[reqId]; S.pair=origPair; this._executing=false; }},6000);
       derivSend({proposal:1,amount:stake,basis:'stake',contract_type:dir==='CALL'?'CALL':'PUT',currency:'USD',duration:durSecs,duration_unit:'s',symbol,req_id:reqId});
     } else {
       notify('📋 OMNI demo: '+winner.pair.sym+' '+dir+' US$'+stake);
-      if(pairIdx>=0) S.pair=pairIdx;
       autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,300,null);
-      if(tradeHistory.length>0) tradeHistory[tradeHistory.length-1]._omni=true;
-      setTimeout(()=>{ S.pair=origPair; this._executing=false; }, 303000);
+      if(tradeHistory.length>0){ tradeHistory[tradeHistory.length-1]._omni=true; tradeHistory[tradeHistory.length-1]._tradePair=winner.pair.deriv; }
+      S.pair=origPair; this._executing=false;
     }
   },
 
