@@ -1468,6 +1468,16 @@ div, span {
       <span id="autoModeBadge" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px"></span>
     </div>
     <div id="autoModeMsg" style="font-size:12px;color:var(--text2);margin-top:4px">V75 OTC · 5M · Aguardando sinal...</div>
+    <!-- Mix strategy status bar -->
+    <div id="mixStatusBar" style="display:none;margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span id="mixModeTag" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;background:rgba(33,150,243,.2);color:#2196f3;font-family:'Orbitron',monospace;">🛡️ CONSERV.</span>
+      <span style="font-size:10px;color:var(--text3);">→</span>
+      <span style="font-size:10px;color:var(--text2);">wins: <span id="mixWinStreak" style="color:var(--green);font-weight:700;">0</span>/2</span>
+      <span style="font-size:10px;color:var(--text2);">·</span>
+      <span style="font-size:10px;color:var(--text2);">P&L dia: <span id="mixDayPnl" style="font-weight:700;color:var(--cyan);">US$0</span></span>
+      <span style="font-size:10px;color:var(--text2);">·</span>
+      <span style="font-size:10px;color:var(--text2);">Stop: <span style="color:var(--red);">-$468</span> / <span style="color:var(--green);">+$936</span></span>
+    </div>
     <div id="autoModeWarn" style="font-size:11px;color:var(--orange);margin-top:3px;display:none">⚠ Apenas V75 OTC 5M no modo automático</div>
   </div>
 
@@ -7194,8 +7204,8 @@ function init(){
   setTimeout(()=>{
     try{
       const savedMode = localStorage.getItem('londonx_mode');
-      if(savedMode && savedMode !== 'manual'){
-        notify('🔄 Restaurando modo: ' + (savedMode==='conservative'?'🔵 CONSERVADOR':'🔥 AGRESSIVO'));
+      if(savedMode && savedMode !== 'manual' && savedMode !== 'omni'){
+        notify('🔄 Restaurando modo: ' + (savedMode==='conservative'?'🔵 CONSERVADOR':savedMode==='aggressive'?'🔥 AGRESSIVO':'🎯 SEMI-AUTO'));
         setMode(savedMode);
       }
     }catch(e){}
@@ -8417,6 +8427,9 @@ const autoMode = {
     document.getElementById('autoModeStatus').style.display='block';
     document.getElementById('autoStats').style.display='block';
     document.getElementById('semiPanel').style.display='none';
+    const _mb=document.getElementById('mixStatusBar');if(_mb)_mb.style.display='flex';
+    const _wk=document.getElementById('mixWinStreak');if(_wk)_wk.textContent='0';
+    const _pd=document.getElementById('mixDayPnl');if(_pd){_pd.textContent='US$0';_pd.style.color='var(--cyan)';}
     notify('🤖 AUTO '+(mode==='conservative'?'CONSERVADOR':'AGRESSIVO')+' ATIVO · V75 5M');
     this.setStatus('🛡️ Mix ativo · Conservador → 2 wins → Soros');
     notify('⚡ MIX AUTO: Conserv. US$'+this.baseStake+' → Soros c/ '+this.MIX_WIN_TRIGGER+' wins · Stop: -'+Math.round(this._dayBankroll*this.STOP_LOSS_PCT)+'/ +'+Math.round(this._dayBankroll*this.STOP_GAIN_PCT));
@@ -8519,6 +8532,7 @@ const omniMode = {
     document.getElementById('autoModeStatus').style.display='block';
     document.getElementById('autoStats').style.display='block';
     document.getElementById('semiPanel').style.display='none';
+    const _mb2=document.getElementById('mixStatusBar');if(_mb2)_mb2.style.display='flex';
     notify('🌐 OMNI Mix: '+this.OMNI_PAIRS.length+' pares · Conserv.→Soros · Stop -5%/+10%');
     this.setStatus('🔍 Escaneando '+this.OMNI_PAIRS.length+' pares...');
     setTimeout(()=>{ if(this.active) this.scan(); }, 2000);
@@ -8526,8 +8540,10 @@ const omniMode = {
   },
 
   stop(){
-    this.active=false; clearInterval(this.scanInterval); this.scanInterval=null;
-    this._executing=false;
+    this.active=false;
+    if(this.scanInterval){ clearInterval(this.scanInterval); this.scanInterval=null; }
+    this._executing=false; this._executingStart=0;
+    window._omniReqs={}; // limpa requisições pendentes
     const s=document.getElementById('autoModeStatus'); if(s)s.style.display='none';
     const st=document.getElementById('autoStats'); if(st)st.style.display='none';
     notify('🌐 OMNI desativado');
