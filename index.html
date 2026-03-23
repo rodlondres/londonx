@@ -5146,7 +5146,106 @@ const bm = {
     } else {
       this.blocked = false;
       this.blockReason = '';
+      // ── ALERTAS PROGRESSIVOS (não bloqueia, só avisa) ─────
+      const metaVal  = this.dayStartBal * (this.metaPct/100);
+      const stopVal  = this.dayStartBal * (this.stopPct/100);
+      const metaProg = metaVal > 0 ? (this.dayPnl / metaVal) * 100 : 0;
+      const stopProg = stopVal > 0 ? (-this.dayPnl / stopVal) * 100 : 0;
+      const now = Date.now();
+      // Meta: avisa em 75% e 90%
+      if(metaProg >= 90 && (!this._notified90meta || now-this._notified90meta > 300000)){
+        this._notified90meta = now;
+        const falta = (metaVal - this.dayPnl).toFixed(2);
+        notify(`🔥 META QUASE ATINGIDA! 90% — faltam US$${falta} para +${this.metaPct}%`);
+        this._playAlert('meta');
+        this._showProgressToast('meta90', metaProg);
+      } else if(metaProg >= 75 && (!this._notified75meta || now-this._notified75meta > 300000)){
+        this._notified75meta = now;
+        const falta = (metaVal - this.dayPnl).toFixed(2);
+        notify(`🎯 75% DA META ATINGIDO — faltam US$${falta} para +${this.metaPct}%`);
+        this._showProgressToast('meta75', metaProg);
+      }
+      // Stop: avisa em 50% e 75%
+      if(stopProg >= 75 && (!this._notified75stop || now-this._notified75stop > 300000)){
+        this._notified75stop = now;
+        const falta = (stopVal - (-this.dayPnl)).toFixed(2);
+        notify(`⚠️ 75% DO STOP LOSS USADO — só faltam US$${falta} para parar`);
+        this._playAlert('stop75');
+        this._showProgressToast('stop75', stopProg);
+      } else if(stopProg >= 50 && (!this._notified50stop || now-this._notified50stop > 300000)){
+        this._notified50stop = now;
+        notify(`⚠️ 50% DO STOP LOSS USADO — cautela`);
+      }
     }
+    // Atualiza barra de progresso visual na UI
+    this._updateProgressBar();
+  },
+
+  _playAlert(type){
+    try{
+      const a=new AudioContext();
+      const o=a.createOscillator(); const g=a.createGain();
+      o.connect(g); g.connect(a.destination);
+      if(type==='meta'){
+        // Acorde ascendente (vitória próxima)
+        o.frequency.value=659; o.type='sine';
+        g.gain.setValueAtTime(0.3,a.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.8);
+        o.start(); o.stop(a.currentTime+0.8);
+      } else {
+        // Beep de alerta duplo
+        o.frequency.value=440; o.type='square';
+        g.gain.setValueAtTime(0.15,a.currentTime);
+        g.gain.setValueAtTime(0,a.currentTime+0.1);
+        g.gain.setValueAtTime(0.15,a.currentTime+0.2);
+        g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.4);
+        o.start(); o.stop(a.currentTime+0.4);
+      }
+    }catch(e){}
+  },
+
+  _showProgressToast(type, pct){
+    // Banner flutuante temporário com progresso
+    let el = document.getElementById('_bmProgressToast');
+    if(!el){
+      el = document.createElement('div');
+      el.id = '_bmProgressToast';
+      el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);'
+        +'z-index:20001;background:#0a1628;border-radius:12px;padding:12px 20px;'
+        +'box-shadow:0 8px 32px rgba(0,0,0,.8);min-width:260px;text-align:center;'
+        +'transition:opacity .4s;pointer-events:none;';
+      document.body.appendChild(el);
+    }
+    const isMeta = type.startsWith('meta');
+    const col = isMeta ? '#00e676' : '#ff6d00';
+    const brd = isMeta ? 'rgba(0,230,118,.4)' : 'rgba(255,109,0,.4)';
+    const lbl = isMeta ? `🎯 META ${pct.toFixed(0)}% ATINGIDA` : `⚠️ STOP ${pct.toFixed(0)}% USADO`;
+    el.style.border = '2px solid '+brd;
+    el.innerHTML = `<div style="font-family:'Orbitron',monospace;font-size:13px;font-weight:900;color:${col};letter-spacing:1px">${lbl}</div>`
+      +`<div style="margin-top:6px;background:#0d1f35;border-radius:4px;height:8px;overflow:hidden">`
+      +`<div style="width:${Math.min(pct,100)}%;height:100%;background:${col};border-radius:4px;transition:width .6s"></div></div>`;
+    el.style.opacity='1';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(()=>{ el.style.opacity='0'; }, 5000);
+  },
+
+  _updateProgressBar(){
+    // Atualiza barra animada de progresso stop↔meta no painel de banca
+    const el = document.getElementById('bm-day-progress');
+    if(!el || !this.dayStartBal) return;
+    const metaVal = this.dayStartBal*(this.metaPct/100);
+    const stopVal = this.dayStartBal*(this.stopPct/100);
+    const range   = metaVal + stopVal;
+    const pos     = this.dayPnl; // negativo = lado stop
+    const pct     = Math.max(0, Math.min(100, ((pos + stopVal) / range) * 100));
+    const col     = pos >= 0 ? '#00e676' : '#ff1744';
+    el.style.width      = pct+'%';
+    el.style.background = col;
+    // Labels laterais
+    const ls = document.getElementById('bm-dp-stop');
+    const lg = document.getElementById('bm-dp-meta');
+    if(ls) ls.textContent = '-US$'+stopVal.toFixed(0);
+    if(lg) lg.textContent = '+US$'+metaVal.toFixed(0);
   },
 
   _startPauseTimer(){
@@ -9275,24 +9374,93 @@ function renderDashOverview(){
   var streak = calcStreak(all);
   var avgProb = all.length ? Math.round(all.reduce(function(s,t){return s+(parseFloat(t.prob)||0);},0)/all.length) : 0;
 
-  // Equity curve data
+  // ── Trades de hoje ──────────────────────────────────────
+  var today = new Date().toLocaleDateString('pt-BR');
+  var todayTrades = all.filter(function(t){ return t.date===today; });
+  var todayWins   = todayTrades.filter(function(t){ return t.result==='win'; }).length;
+  var todayLoss   = todayTrades.length - todayWins;
+  var todayWR     = dWR(todayTrades);
+  var todayPnl    = dPnL(todayTrades);
+  var todayPnlCol = todayPnl >= 0 ? '#00e676' : '#ff1744';
+
+  // Meta e stop do dia
+  var bmStart  = (typeof bm!=='undefined' && bm.dayStartBal) ? bm.dayStartBal : 0;
+  var bmMeta   = (typeof bm!=='undefined') ? bmStart*(bm.metaPct/100) : 0;
+  var bmStop   = (typeof bm!=='undefined') ? bmStart*(bm.stopPct/100) : 0;
+  var metaProg = bmMeta > 0 ? Math.min(100, Math.round((todayPnl/bmMeta)*100)) : 0;
+  var stopProg = bmStop > 0 ? Math.min(100, Math.round((-todayPnl/bmStop)*100)) : 0;
+  var progPct  = (bmMeta+bmStop) > 0
+    ? Math.max(0,Math.min(100, ((todayPnl+bmStop)/(bmMeta+bmStop))*100))
+    : 50;
+
+  // Equity curve data — HOJE
+  var equityDay = [0];
+  todayTrades.forEach(function(t){
+    var last = equityDay[equityDay.length-1];
+    if(t.result==='win')  equityDay.push(+(last+parseFloat(t.profit||0)).toFixed(2));
+    if(t.result==='loss'){
+      var la = t._earlyClosed&&t._lossAmt ? parseFloat(t._lossAmt) : parseFloat(t.stake||0);
+      equityDay.push(+(last-la).toFixed(2));
+    }
+  });
+  // Equity curve — TOTAL (histórico)
   var equity = [0];
   all.forEach(function(t){
     var last = equity[equity.length-1];
     if(t.result==='win')  equity.push(+(last+parseFloat(t.profit||0)).toFixed(2));
-    if(t.result==='loss') equity.push(+(last-parseFloat(t.stake||0)).toFixed(2));
+    if(t.result==='loss'){
+      var la = t._earlyClosed&&t._lossAmt ? parseFloat(t._lossAmt) : parseFloat(t.stake||0);
+      equity.push(+(last-la).toFixed(2));
+    }
   });
 
-  // KPIs
-  var kpiHtml = '<div class="dash-kpi">'
+  // ── SEÇÃO HOJE ────────────────────────────────────────────
+  var dayHtml = '<div style="margin-bottom:12px">'
+    +'<div class="dash-section-lbl" style="display:flex;justify-content:space-between;align-items:center">'
+    +'<span>📅 HOJE — '+today+'</span>'
+    +'<span style="font-size:11px;color:#556">'+todayTrades.length+' operações</span>'
+    +'</div>'
+    // KPIs do dia
+    +'<div class="dash-kpi" style="margin-bottom:10px">'
+    +kpiBox((todayPnl>=0?'+':'')+' US$'+todayPnl.toFixed(2), 'P&L DIA', todayPnlCol)
+    +kpiBox(todayWR+'%', 'WIN RATE', dColor(todayWR))
+    +kpiBox(todayWins+'/'+todayLoss, 'W / L', '#ffd600')
+    +kpiBox(todayTrades.length, 'OPS HOJE', '#00e5ff')
+    +'</div>'
+    // Barra stop ←→ meta
+    +(bmStart>0 ? (
+      '<div style="margin-bottom:4px;display:flex;justify-content:space-between">'
+      +'<span style="font-size:11px;color:#ff1744;font-weight:700">STOP -US$'+bmStop.toFixed(0)+'</span>'
+      +'<span style="font-size:11px;color:#556">'+todayPnl.toFixed(2)+'</span>'
+      +'<span style="font-size:11px;color:#00e676;font-weight:700">META +US$'+bmMeta.toFixed(0)+'</span>'
+      +'</div>'
+      +'<div style="background:#0d1f35;border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px;position:relative">'
+      // linha zero (centro)
+      +'<div style="position:absolute;left:'+Math.round(bmStop/(bmStop+bmMeta)*100)+'%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.15)"></div>'
+      +'<div id="bm-day-progress" style="height:100%;border-radius:6px;transition:width .6s,background .4s;width:'+progPct+'%;background:'+(todayPnl>=0?'#00e676':'#ff1744')+'"></div>'
+      +'</div>'
+      // Progresso
+      +(metaProg>0?'<div style="font-size:11px;color:#00e676;text-align:right;margin-bottom:6px">🎯 Meta: <strong>'+metaProg+'%</strong> atingido</div>':'')
+      +(stopProg>0?'<div style="font-size:11px;color:#ff6d00;text-align:right;margin-bottom:6px">⚠️ Stop: <strong>'+stopProg+'%</strong> usado</div>':'')
+    ) : '')
+    // Equity do dia
+    +(todayTrades.length >= 2 ? (
+      '<div class="dash-section-lbl">EQUITY DO DIA</div>'
+      +'<div class="dash-equity-wrap"><canvas id="equityCanvasDay"></canvas></div>'
+    ) : '<div style="color:#556;font-size:11px;text-align:center;padding:8px">Aguardando 2+ operações hoje</div>')
+    +'</div>';
+
+  // KPIs gerais
+  var kpiHtml = '<div class="dash-section-lbl">📊 HISTÓRICO TOTAL</div>'
+    +'<div class="dash-kpi">'
     + kpiBox(wr+'%', 'WIN RATE', dColor(wr))
     + kpiBox(all.length, 'TRADES', '#00e5ff')
     + kpiBox((pnl>=0?'+':'')+' US$'+pnl.toFixed(0), 'P&L TOTAL', pnl>=0?'#00e676':'#ff1744')
     + kpiBox(wins+'/'+loss, 'W / L', '#ffd600')
     + '</div>';
 
-  // Equity mini-chart
-  var equityHtml = '<div class="dash-section-lbl">CURVA DE EQUITY</div>'
+  // Equity total
+  var equityHtml = '<div class="dash-section-lbl">CURVA DE EQUITY TOTAL</div>'
     + '<div class="dash-equity-wrap"><canvas id="equityCanvas"></canvas></div>';
 
   // Alertas inteligentes
@@ -9306,9 +9474,11 @@ function renderDashOverview(){
     + kpiBox(streak.worst, 'PIOR STREAK', '#ff6d00')
     + '</div>';
 
-  el.innerHTML = kpiHtml + equityHtml + alerts + extrasHtml;
-  // Redraw after DOM settles
-  setTimeout(function(){ drawEquityCurve('equityCanvas', equity); }, 100);
+  el.innerHTML = dayHtml + kpiHtml + equityHtml + alerts + extrasHtml;
+  setTimeout(function(){
+    drawEquityCurve('equityCanvas', equity);
+    if(todayTrades.length >= 2) drawEquityCurve('equityCanvasDay', equityDay);
+  }, 100);
 }
 
 function kpiBox(val, lbl, col){
