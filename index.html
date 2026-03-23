@@ -1065,7 +1065,7 @@ div, span {
 </div>
 
 <!-- MULTI-COUNTDOWN CONTAINER -->
-<div id="activeTradeContainer"></div>
+
 <!-- legado hidden -->
 <div id="activeTrade" style="display:none"></div>
 
@@ -1533,7 +1533,8 @@ div, span {
 
 <!-- ACTIONS -->
 <div class="action-row">
-  <button id="buyBtn" class="abtn buybtn" onclick="executeTrade('BUY')"><span class="bico">⬆</span>COMPRAR<div class="bsub" id="buyTxt">Prob. —% | US$20</div></button>
+  <button id="buyBtn" class="abtn buybtn" onclick="executeTrade('BUY')"><span class="bico">⬆</span>COMPRAR<div class="bsub" id="buyTxt">Prob. —% | US$20</div>
+<div id="activeTradeContainer"></div></button>
   <button id="sellBtn" class="abtn sellbtn" onclick="executeTrade('SELL')"><span class="bico">⬇</span>VENDER<div class="bsub" id="sellTxt">Prob. —% | US$20</div></button>
 </div>
 
@@ -1916,8 +1917,35 @@ function derivConnect(){
           }
         }
 
+        // Resultado do fechamento antecipado
+        if(msg.msg_type==='sell' && msg.sell){
+          const s = msg.sell;
+          const t = tradeHistory.find(x=>x.contractId===s.contract_id && x.result==='pending');
+          if(t){
+            const soldPrice = parseFloat(s.sold_for||0);
+            const realProfit = soldPrice - parseFloat(t.stake||0);
+            const realWon = realProfit > 0;
+            t.result = realWon ? 'win' : 'loss';
+            t._realProfit = realProfit;
+            t._earlyClosed = true;
+            if(autoMode.active || omniMode.active) autoMode.registerResult(realWon);
+            try{ hideActiveTrade(t.id); renderHistory(); updateStatsBar(); }catch(e){}
+            notify('⚡ FECHADO ANTECIPADO: '+(realWon?'WIN +':'LOSS ')+'$'+Math.abs(realProfit).toFixed(2)+
+                   ' (stake $'+t.stake+' → recebeu $'+soldPrice.toFixed(2)+')');
+            if(window._cdMap && window._cdMap.has(t.id)){
+              clearInterval(window._cdMap.get(t.id));
+              window._cdMap.delete(t.id);
+            }
+          }
+        }
+
         if(msg.msg_type==='proposal_open_contract' && msg.proposal_open_contract){
           const poc = msg.proposal_open_contract;
+          // Atualizar preço atual no botão de fechar antecipado
+          if(poc.bid_price && poc.contract_id){
+            const _tc = tradeHistory.find(x=>x.contractId===poc.contract_id);
+            if(_tc) updateEarlyClosePrice(_tc.id, parseFloat(poc.bid_price));
+          }
           if(poc.is_sold===1 || poc.status==='won' || poc.status==='lost'){
             const t = tradeHistory.find(x=>x.contractId===poc.contract_id);
             if(t && t.result==='pending'){
@@ -2280,6 +2308,16 @@ function handleTick(tick){
   // Atualiza _lastPrice no objeto do par para ticker mesmo sem tick ativo
   const _tp=PAIRS.find(p=>p.deriv===tick.symbol);
   if(_tp) _tp._lastPrice=tick.quote;
+  // Atualizar _currentTick nos trades pendentes do par correto
+  const _tickPairIdx = PAIRS.findIndex(p=>p.deriv===tick.symbol);
+  if(_tickPairIdx>=0){
+    tradeHistory.forEach(t=>{
+      if(t.result==='pending' && t._pairIdx===_tickPairIdx){
+        t._currentTick = tick.quote;
+      }
+    });
+  }
+
   if(tick.symbol===PAIRS[S.pair].deriv){
     const price=tick.quote;
     S.chartTick=price;
@@ -5507,7 +5545,7 @@ function openModal(side, ev, proposal){
       score:S.totalScore+"/"+S.totalMax,time:time,date:tradeDate,prob:S.prob,
       result:"pending",remaining:durSecs,entryPrice:entryPrice,isBuy:isBuy,
       contractId:null,strat:S.strategy,martLevel:bankroll.martLevel,hour:tradeHour,
-      tf:S.tf||"3",sources:JSON.parse(JSON.stringify(S.srcScores||{}))});
+      tf:S.tf||"3",_pairIdx:S.pair,sources:JSON.parse(JSON.stringify(S.srcScores||{}))});
     if(tradeHistory.length>50)tradeHistory.shift();
     try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
     renderHistory();
@@ -5560,7 +5598,24 @@ function showActiveTrade(isBuy, pairName, tf, stake, profit, durSecs, tradeId){
         </div>
       </div>
       <div class="at-bar-wrap"><div class="at-bar-fill winning" id="atBar_${tradeId}" style="width:100%"></div></div>
-      <div class="at-label" id="atLbl_${tradeId}">⏳ OPERAÇÃO EM ABERTO...</div>`;
+      <div class="at-label" id="atLbl_${tradeId}">⏳ OPERAÇÃO EM ABERTO...</div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button id="closeBtn_${tradeId}" onclick="earlyClose(${tradeId})"
+          style="flex:1;padding:7px;border-radius:6px;border:2px solid #ffd600;background:rgba(255,214,0,.1);
+                 color:#ffd600;font-family:'Orbitron',monospace;font-size:10px;font-weight:900;
+                 letter-spacing:1px;cursor:pointer;transition:all .2s;"
+          onmouseover="this.style.background='rgba(255,214,0,.25)'"
+          onmouseout="this.style.background='rgba(255,214,0,.1)'">
+          ⚡ FECHAR AGORA
+        </button>
+        <div id="closePrice_${tradeId}" style="font-family:'Orbitron',monospace;font-size:10px;
+             color:#556;text-align:right;padding:7px 6px;white-space:nowrap;">aguardando...</div>
+      </div>
+      <div style="margin-top:4px;font-size:10px;color:#556;text-align:right;font-family:'Orbitron',monospace;">
+        🤖 AUTO CLOSE: <span id="autoCloseStatus_${tradeId}" style="color:#00e676;cursor:pointer;"
+          onclick="toggleAutoClose(${tradeId})">ATIVO</span>
+        <span style="color:#334;"> · 75% lucro / RSI extremo / reversão</span>
+      </div>`;
     c.appendChild(card);
     setTimeout(_updateBodyPad, 50);
   }
@@ -5589,6 +5644,46 @@ function updateActiveTradeCD(remaining, total, tradeId, isBuy, priceDir){
     else if(winning===false) bar.className='at-bar-fill losing';
   }
   if(lbl) lbl.textContent=remaining>0?'⏳ '+remaining+'s restantes...':'🔍 Calculando resultado...';
+}
+
+// ── FECHAR OPERAÇÃO ANTECIPADA ──────────────────────────────
+function toggleAutoClose(tradeId){
+  const t=tradeHistory.find(x=>x.id===tradeId);
+  if(!t) return;
+  t._autoClose = t._autoClose===false ? undefined : false;
+  const el=document.getElementById('autoCloseStatus_'+tradeId);
+  if(el){
+    const on = t._autoClose!==false;
+    el.textContent = on?'ATIVO':'PAUSADO';
+    el.style.color = on?'#00e676':'#ff1744';
+  }
+  notify('🤖 Auto close '+(t._autoClose!==false?'ATIVADO':'PAUSADO'));
+}
+
+function earlyClose(tradeId){
+  const t = tradeHistory.find(x=>x.id===tradeId);
+  if(!t || t.result!=='pending'){ notify('⚠ Operação não encontrada ou já finalizada'); return; }
+  if(!t.contractId){ notify('⚠ Contract ID não disponível — aguarde conexão com a Deriv'); return; }
+  if(!wsReady||!userToken){ notify('⚠ Sem conexão com a Deriv'); return; }
+
+  const btn = document.getElementById('closeBtn_'+tradeId);
+  if(btn){ btn.textContent='⏳ FECHANDO...'; btn.disabled=true; btn.style.opacity='.6'; }
+
+  notify('⚡ Solicitando fechamento antecipado...');
+  // Buscar o preço atual do contrato antes de fechar
+  derivSend({sell:t.contractId, price:0}); // price:0 = aceita qualquer preço (market order)
+}
+
+// Atualizar preço atual do contrato no card
+function updateEarlyClosePrice(tradeId, currentValue){
+  const el = document.getElementById('closePrice_'+tradeId);
+  if(!el) return;
+  const t = tradeHistory.find(x=>x.id===tradeId);
+  if(!t) return;
+  const profit = currentValue - parseFloat(t.stake||0);
+  const color = profit >= 0 ? '#00e676' : '#ff1744';
+  el.style.color = color;
+  el.textContent = (profit>=0?'+':'')+'$'+profit.toFixed(2);
 }
 
 function hideActiveTrade(tradeId){
@@ -5652,17 +5747,65 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
 
   function tick(){
     const remaining = Math.max(0, Math.round((endTime - Date.now())/1000));
-    // Calcula direção do preço — só usa S.chartTick se for o mesmo par do trade
+    // Usa _currentTick do par correto — nunca S.chartTick de outro par
     const _tradeObj = tradeHistory.find(x=>x.id===tradeId);
-    const _tradePairIdx = _tradeObj ? _tradeObj._pairIdx : undefined;
-    const _samepar = (_tradePairIdx === undefined) || (_tradePairIdx === S.pair);
-    const curPrice = _samepar ? (S.chartTick || entryPrice) : entryPrice;
-    const priceDir = _samepar ? (curPrice > entryPrice ? 1 : curPrice < entryPrice ? -1 : 0) : 0;
+    const curPrice = (_tradeObj && _tradeObj._currentTick) 
+                     ? _tradeObj._currentTick 
+                     : ((_tradeObj && _tradeObj._pairIdx===S.pair) ? S.chartTick : entryPrice)
+                     || entryPrice;
+    const priceDir = curPrice > entryPrice ? 1 : curPrice < entryPrice ? -1 : 0;
     updateActiveTradeCD(remaining, durSecs, tradeId, isBuy, priceDir);
     const cdEl=document.getElementById('cdSecs');
     if(cdEl) cdEl.textContent=remaining;
     const t=tradeHistory.find(x=>x.id===tradeId);
     if(t&&t.result==='pending') t.remaining=remaining;
+
+    // ── FECHAMENTO AUTOMÁTICO INTELIGENTE ─────────────────────
+    if(t && t.result==='pending' && t.contractId && t._autoClose!==false &&
+       wsReady && userToken && remaining>60 && remaining<240){
+      const _bidEl=document.getElementById('closePrice_'+tradeId);
+      const _bidTxt=_bidEl?_bidEl.textContent:'';
+      const _bidProfit=parseFloat(_bidTxt.replace(/[^0-9.-]/g,''))||0;
+      const _maxProfit=parseFloat(t.profit||0);
+      const _profitPct=_maxProfit>0?(_bidProfit/_maxProfit)*100:0;
+
+      // Condição 1: já tem 75%+ do lucro — protege
+      if(_profitPct>=75 && _bidProfit>0){
+        t._autoClose=false; // não fechar 2x
+        notify('🤖 AUTO CLOSE: '+_profitPct.toFixed(0)+'% do lucro garantido → fechando!');
+        earlyClose(tradeId);
+        return;
+      }
+
+      // Condição 2: RSI extremo contrário (reversão iminente)
+      if(candleOHLC.length>=14){
+        const closes=candleOHLC.map(c=>c.c);
+        const rsi=calcChartRSI(closes,14);
+        const rsiNow=rsi[rsi.length-1]||50;
+        const rsiExtremo=(isBuy&&rsiNow>78)||((!isBuy)&&rsiNow<22);
+        if(rsiExtremo && _bidProfit>0 && _profitPct>=40){
+          t._autoClose=false;
+          notify('🤖 AUTO CLOSE: RSI extremo '+rsiNow.toFixed(0)+' contrário → fechando com +$'+_bidProfit.toFixed(2));
+          earlyClose(tradeId);
+          return;
+        }
+      }
+
+      // Condição 3: candle de reversão forte + lucro positivo
+      if(candleOHLC.length>=3 && _bidProfit>0 && _profitPct>=30){
+        const last=candleOHLC[candleOHLC.length-1];
+        const body=Math.abs(last.c-last.o);
+        const range=last.h-last.l||0.0001;
+        const bodyPct=body/range;
+        const candleContrario=isBuy?(last.c<last.o):(last.c>last.o);
+        if(candleContrario && bodyPct>0.65){
+          t._autoClose=false;
+          notify('🤖 AUTO CLOSE: candle reversão forte → fechando com +$'+_bidProfit.toFixed(2));
+          earlyClose(tradeId);
+          return;
+        }
+      }
+    }
     if(remaining<=0){
       const iid=window._cdMap.get(tradeId);
       if(iid){clearInterval(iid);window._cdMap.delete(tradeId);}
