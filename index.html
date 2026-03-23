@@ -5663,7 +5663,11 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
     if(remaining<=0){
       const iid=window._cdMap.get(tradeId);
       if(iid){clearInterval(iid);window._cdMap.delete(tradeId);}
-      resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct);
+      // Só resolve localmente se a Deriv ainda não resolveu via proposal_open_contract
+      const _t=tradeHistory.find(x=>x.id===tradeId);
+      if(!_t || _t.result==='pending'){
+        resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct);
+      }
       hideActiveTrade(tradeId); // remove só o card deste trade
       if(!tradeHistory.some(x=>x.result==='pending')){
         document.getElementById('modalCountdown').style.display='none';
@@ -8722,8 +8726,15 @@ const omniMode = {
         if(proposal.error){ notify('❌ OMNI: '+proposal.error.message); S.pair=origPair; this._executing=false; return; }
         derivSend({buy:proposal.id,price:proposal.ask_price});
         // Salvar par negociado no trade para resolução correta
-        if(tradeHistory.length>0){ const _lt=tradeHistory[tradeHistory.length-1]; _lt._omni=true; _lt._tradePair=winner.pair.deriv; _lt._pairIdx=pairIdx; _lt.pair=winner.pair.sym; }
+        // Manter S.pair no par correto durante o registro
+        if(pairIdx>=0) S.pair=pairIdx;
         autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,durSecs,proposal.id);
+        // Corrigir par no trade após registro
+        if(tradeHistory.length>0){ 
+          const _lt=tradeHistory[tradeHistory.length-1]; 
+          _lt._omni=true; _lt._tradePair=winner.pair.deriv; 
+          _lt._pairIdx=pairIdx; _lt.pair=winner.pair.sym; 
+        }
         setTimeout(()=>{ S.pair=origPair; this._executing=false; },2000);
       }};
       setTimeout(()=>{ if(window._pendingProposals&&window._pendingProposals[reqId]){ delete window._pendingProposals[reqId]; S.pair=origPair; this._executing=false; }},6000);
