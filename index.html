@@ -786,6 +786,7 @@ canvas{width:100%;display:block;}
   min-width:60px;text-align:center;line-height:1;transition:color .4s;}
 .at-cd.winning{color:#00e676;text-shadow:0 0 16px rgba(0,230,118,.6);}
 .at-cd.losing{color:#ff1744;text-shadow:0 0 16px rgba(255,23,68,.5);}
+.at-cd.neutral{color:#ffd600;text-shadow:0 0 16px rgba(255,214,0,.5);}
 .at-cd.urgent{animation:blink .5s infinite;}
 .at-info{font-family:'Rajdhani',monospace;font-size:13px;color:#a0c4e8;font-weight:600;line-height:1.5;}
 .at-stake{font-family:'Orbitron',monospace;font-size:13px;color:#ffd600;font-weight:900;}
@@ -793,6 +794,7 @@ canvas{width:100%;display:block;}
 .at-bar-fill{height:100%;border-radius:4px;transition:width .5s linear,background .4s;}
 .at-bar-fill.winning{background:#00e676;}
 .at-bar-fill.losing{background:#ff1744;}
+.at-bar-fill.neutral{background:#ffd600;}
 .at-label{font-family:'Rajdhani',monospace;font-size:12px;color:#556;font-weight:700;letter-spacing:1px;margin-top:2px;text-align:right;}
 /* legado — mantido para não quebrar refs */
 #activeTrade{display:none;}
@@ -2351,6 +2353,11 @@ function handleTick(tick){
     tradeHistory.forEach(t=>{
       if(t.result==='pending' && t._pairIdx===_tickPairIdx){
         t._currentTick = tick.quote;
+        // ✅ FIX COUNTDOWN: primeiro tick real = referência provisória de entrada
+        // Elimina uso de BASE_PRICES (R_75=500 ≠ real ~487) que causava cor errada
+        if(!t._entryFixed && !t._provisionalEntry){
+          t._provisionalEntry = tick.quote;
+        }
       }
     });
   }
@@ -2359,8 +2366,11 @@ function handleTick(tick){
     Object.keys(window._tradeTickSub).forEach(tid=>{
       if(window._tradeTickSub[tid]===tick.symbol){
         const _t=tradeHistory.find(x=>x.id===parseInt(tid));
-        if(_t && _t.result==='pending') _t._currentTick=tick.quote;
-        else if(_t && _t.result!=='pending'){
+        if(_t && _t.result==='pending'){
+          _t._currentTick=tick.quote;
+          // ✅ mesmo padrão: primeiro tick real via _tradeTickSub
+          if(!_t._entryFixed && !_t._provisionalEntry) _t._provisionalEntry=tick.quote;
+        } else if(_t && _t.result!=='pending'){
           // Trade fechou — limpar do mapa
           delete window._tradeTickSub[tid];
         }
@@ -4955,12 +4965,14 @@ function renderHistory(){
   el.innerHTML=statsHtml+tradeHistory.slice().reverse().map(t=>{
     let resHtml='';
     if(t.result==='pending'){
-      // ✅ FIX: usa _currentTick (atualizado pelo par real) em vez de S.chartTick (par do gráfico)
-      const cur = t._currentTick || (t._pairIdx===S.pair ? S.chartTick : 0) || t.entryPrice;
-      const diff=cur-(t.entryPrice||cur);
-      const winning=t.isBuy?(diff>0):(diff<0);
-      const pnlColor=winning?'#00e676':'#ff1744';
-      resHtml=`<span class="hresult pend" style="color:${pnlColor}">${winning?'📈':'📉'} ⏳${t.remaining||0}s</span>`;
+      // Prioridade: entry_tick real (Deriv) > primeiro tick real > neutro (amarelo)
+      const _entry  = t._entryFixed ? t.entryPrice : (t._provisionalEntry || 0);
+      const _cur    = t._currentTick || (t._pairIdx===S.pair ? S.chartTick : 0) || 0;
+      const _diff   = (_entry>0 && _cur>0) ? _cur - _entry : 0;
+      const winning = (_diff===0) ? null : (t.isBuy ? _diff>0 : _diff<0);
+      const pnlColor = winning===null ? '#ffd600' : (winning ? '#00e676' : '#ff1744');
+      const icon = winning===null ? '⏳' : (winning ? '📈' : '📉');
+      resHtml=`<span class="hresult pend" style="color:${pnlColor}">${icon} ⏳${t.remaining||0}s</span>`;
     } else if(t.result==='win'){
       const profitDisplay = t._earlyClosed ? t.profit+'⚡' : t.profit;
       resHtml=`<span class="hresult win">✅ +US$${profitDisplay}</span>`;
@@ -5678,7 +5690,7 @@ function showActiveTrade(isBuy, pairName, tf, stake, profit, durSecs, tradeId){
           <div class="at-info">${pairName} — ${tf} — US$${stake}</div>
         </div>
         <div style="text-align:center">
-          <div class="at-cd winning" id="atCd_${tradeId}">${durSecs}</div>
+          <div class="at-cd neutral" id="atCd_${tradeId}">${durSecs}</div>
           <div style="font-family:'Rajdhani',monospace;font-size:12px;color:#556;font-weight:700;letter-spacing:1px">SEGUNDOS</div>
         </div>
         <div style="text-align:right">
@@ -5686,7 +5698,7 @@ function showActiveTrade(isBuy, pairName, tf, stake, profit, durSecs, tradeId){
           <div class="at-info">se ganhar</div>
         </div>
       </div>
-      <div class="at-bar-wrap"><div class="at-bar-fill winning" id="atBar_${tradeId}" style="width:100%"></div></div>
+      <div class="at-bar-wrap"><div class="at-bar-fill neutral" id="atBar_${tradeId}" style="width:100%"></div></div>
       <div class="at-label" id="atLbl_${tradeId}">⏳ OPERAÇÃO EM ABERTO...</div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <button id="closeBtn_${tradeId}" onclick="earlyClose(${tradeId})"
@@ -5719,19 +5731,20 @@ function updateActiveTradeCD(remaining, total, tradeId, isBuy, priceDir){
   const lbl=document.getElementById('atLbl_'+(tradeId||''));
   if(!cd) return;
 
-  // Cor do número: verde = operação no lucro, vermelho = no prejuízo
+  // Cor do número: verde = lucro, vermelho = prejuízo, amarelo = sem dados ainda
   const winning = (priceDir===undefined||priceDir===0) ? null :
                   (isBuy ? priceDir>0 : priceDir<0);
   cd.textContent = remaining;
   const urgentCls = remaining<=5 ? ' urgent' : '';
   if(winning===true)        cd.className='at-cd winning'+urgentCls;
   else if(winning===false)  cd.className='at-cd losing'+urgentCls;
-  else                      cd.className='at-cd winning'+urgentCls; // neutro: verde
+  else                      cd.className='at-cd neutral'+urgentCls; // ✅ amarelo = aguardando preço real
 
   if(bar){
     bar.style.width=Math.round(remaining/total*100)+'%';
     if(winning===true)       bar.className='at-bar-fill winning';
     else if(winning===false) bar.className='at-bar-fill losing';
+    else                     bar.className='at-bar-fill neutral';
   }
   if(lbl) lbl.textContent=remaining>0?'⏳ '+remaining+'s restantes...':'🔍 Calculando resultado...';
 }
@@ -5863,13 +5876,16 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
         curPrice = PAIRS[_pIdx]._lastPrice;
       }
     }
-    // Muda cor baseado na direção do preço vs entrada
-    // ✅ FIX PRINCIPAL: usa entryPrice ao vivo do tradeObj (atualizado pela Deriv via buy/poc)
-    // Evita countdown sempre verde em VOL50/AUD-USD onde BASE_PRICE ≠ preço real
-    const _liveEntry = (_tradeObj && _tradeObj.entryPrice && _tradeObj._entryFixed)
-      ? _tradeObj.entryPrice : entryPrice;
-    const _diff = curPrice > 0 ? (curPrice - _liveEntry) / _liveEntry : 0;
-    const priceDir = Math.abs(_diff) > 0.0001 ? (_diff > 0 ? 1 : -1) : 0;
+    // ── COR DO COUNTDOWN — prioridade de referência de entrada ──────────
+    // 1. entry_tick confirmado pela Deriv (mais preciso, _entryFixed=true)
+    // 2. _provisionalEntry: primeiro tick real recebido após a entrada
+    // 3. NEUTRO (amarelo): ainda sem referência real — BASE_PRICE ignorado
+    const _confirmedEntry  = (_tradeObj && _tradeObj._entryFixed)  ? _tradeObj.entryPrice       : 0;
+    const _provisionalEnt  = (_tradeObj && !_tradeObj._entryFixed) ? (_tradeObj._provisionalEntry||0) : 0;
+    const _liveEntry = _confirmedEntry || _provisionalEnt || 0;
+    const _diff = (curPrice > 0 && _liveEntry > 0) ? (curPrice - _liveEntry) / _liveEntry : 0;
+    const priceDir = (curPrice > 0 && _liveEntry > 0 && Math.abs(_diff) > 0.00005)
+      ? (_diff > 0 ? 1 : -1) : 0;
     updateActiveTradeCD(remaining, durSecs, tradeId, isBuy, priceDir);
     const cdEl=document.getElementById('cdSecs');
     if(cdEl) cdEl.textContent=remaining;
@@ -5963,7 +5979,11 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
             parseFloat(t.profit||0.85),t.payout||t.payoutPct||0.85);
           hideActiveTrade(t.id);
         } else {
-          const priceDir = (S.chartTick||0) > (t.entry||0) ? 1 : -1;
+          // ✅ mesmo padrão: usa entrada real confirmada ou provisional
+          const _vEntry = t._entryFixed ? t.entryPrice : (t._provisionalEntry||0);
+          const _vCur   = t._currentTick || S.chartTick || 0;
+          const _vDiff  = (_vEntry>0&&_vCur>0) ? (_vCur-_vEntry)/_vEntry : 0;
+          const priceDir = (_vEntry>0&&_vCur>0&&Math.abs(_vDiff)>0.00005) ? (_vDiff>0?1:-1) : 0;
           updateActiveTradeCD(Math.round((t._endTime-Date.now())/1000), durSecs, t.id, t.isBuy, priceDir);
         }
       });
@@ -8740,6 +8760,8 @@ const autoMode = {
       isBuy,contractId:contractId||null,
       strat:this._mixMode==='aggr'?'soros':'cons',
       martLevel:0,hour:new Date().getHours(),
+      // ✅ _pairIdx obrigatório — handleTick usa para atualizar _currentTick e _provisionalEntry
+      _pairIdx:S.pair,
       // ✅ _entryFixed=false → será sobrescrito com preço real quando Deriv confirmar
       _entryFixed:false,
       sources:JSON.parse(JSON.stringify(S.srcScores||{})),autoMode:this.mode});
