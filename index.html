@@ -1901,6 +1901,53 @@ function derivConnect(){
           }
         }
         if(msg.msg_type==='ohlc') handleOHLC(msg.ohlc);
+
+        // ── RESULTADO REAL DO CONTRATO DA DERIV ──────────────
+        if(msg.msg_type==='buy' && msg.buy){
+          const b = msg.buy;
+          // Encontrar trade pendente com este contractId
+          const t = tradeHistory.find(x=>x.result==='pending'&&(x.contractId===b.contract_id||!x.contractId));
+          if(t){
+            t.contractId = b.contract_id;
+            t._buyPrice = parseFloat(b.buy_price||0);
+            t._startTime = b.start_time;
+            // Subscrever resultado final do contrato
+            derivSend({proposal_open_contract:1, contract_id:b.contract_id, subscribe:1});
+          }
+        }
+
+        if(msg.msg_type==='proposal_open_contract' && msg.proposal_open_contract){
+          const poc = msg.proposal_open_contract;
+          if(poc.is_sold===1 || poc.status==='won' || poc.status==='lost'){
+            const t = tradeHistory.find(x=>x.contractId===poc.contract_id);
+            if(t && t.result==='pending'){
+              const realWon = poc.status==='won' || parseFloat(poc.profit||0) > 0;
+              const realProfit = parseFloat(poc.profit||0);
+              // Usar resultado REAL da Deriv — não calcular localmente
+              t.result = realWon ? 'win' : 'loss';
+              t._exitPrice = parseFloat(poc.exit_tick||poc.current_spot||0);
+              t._realProfit = realProfit;
+              // Atualizar banca com resultado real
+              if(typeof bankroll !== 'undefined'){
+                bankroll.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit));
+              }
+              // Registrar no Mix
+              if(autoMode.active || omniMode.active){
+                autoMode.registerResult(realWon);
+              }
+              // Esconder overlay e atualizar UI
+              try{ hideActiveTrade(t.id); }catch(e){}
+              try{ renderHistory(); }catch(e){}
+              try{ updateStatsBar(); }catch(e){}
+              notify((realWon?'✅ WIN':'❌ LOSS')+' '+t.pair+' · '+(realWon?'+':'')+realProfit.toFixed(2)+' USD (Deriv confirmado)');
+              // Parar interval do countdown se ainda rodando
+              if(window._cdMap && window._cdMap.has(t.id)){
+                clearInterval(window._cdMap.get(t.id));
+                window._cdMap.delete(t.id);
+              }
+            }
+          }
+        }
       }catch(err){}
     };
 
@@ -5654,9 +5701,19 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
 }
 
 function resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct=0.85){
-  // Pega preço de saída — tenta chartTick primeiro, depois último candle disponível
-  const exitPrice = S.chartTick ||
-    (candleOHLC&&candleOHLC.length>0 ? candleOHLC[candleOHLC.length-1].c : entryPrice);
+  // Busca o trade para verificar se foi OMNI (par diferente do atual)
+  const _t = tradeHistory.find(x=>x.id===tradeId);
+  let exitPrice;
+  if(_t && _t._pairIdx !== undefined && _t._pairIdx !== S.pair && PAIRS[_t._pairIdx]){
+    // Trade foi em par diferente — usar entryPrice + comparar com candle do par correto
+    // Como não temos o tick do par antigo, usamos lógica de tempo:
+    // O resultado correto já está no resultado da Deriv via contractId
+    // Por ora: usar o resultado do contrato se disponível
+    exitPrice = _t._exitPrice || S.chartTick || candleOHLC?.[candleOHLC.length-1]?.c || entryPrice;
+  } else {
+    exitPrice = S.chartTick ||
+      (candleOHLC&&candleOHLC.length>0 ? candleOHLC[candleOHLC.length-1].c : entryPrice);
+  }
   const priceWent=exitPrice>entryPrice;
   const won=isBuy?priceWent:!priceWent;
   const t=tradeHistory.find(x=>x.id===tradeId);
@@ -8665,7 +8722,7 @@ const omniMode = {
         if(proposal.error){ notify('❌ OMNI: '+proposal.error.message); S.pair=origPair; this._executing=false; return; }
         derivSend({buy:proposal.id,price:proposal.ask_price});
         // Salvar par negociado no trade para resolução correta
-        if(tradeHistory.length>0){ tradeHistory[tradeHistory.length-1]._omni=true; tradeHistory[tradeHistory.length-1]._tradePair=winner.pair.deriv; tradeHistory[tradeHistory.length-1]._pairIdx=pairIdx; }
+        if(tradeHistory.length>0){ const _lt=tradeHistory[tradeHistory.length-1]; _lt._omni=true; _lt._tradePair=winner.pair.deriv; _lt._pairIdx=pairIdx; _lt.pair=winner.pair.sym; }
         autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,durSecs,proposal.id);
         setTimeout(()=>{ S.pair=origPair; this._executing=false; },2000);
       }};
