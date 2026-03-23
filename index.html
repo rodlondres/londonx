@@ -771,7 +771,7 @@ canvas{width:100%;display:block;}
 
 /* ── PAINEL TRADE ATIVO ── */
 /* ── MULTI-COUNTDOWN CONTAINER ── */
-#activeTradeContainer{position:fixed;top:0;left:0;right:0;z-index:15000;display:flex;flex-direction:column;}
+#activeTradeContainer{width:100%;z-index:100;margin:8px 0;}
 .at-card{background:linear-gradient(135deg,#0a1628,#0d1f35);
   border-bottom:3px solid #ffd600;padding:10px 14px;
   box-shadow:0 4px 24px rgba(0,0,0,.8);
@@ -1533,10 +1533,10 @@ div, span {
 
 <!-- ACTIONS -->
 <div class="action-row">
-  <button id="buyBtn" class="abtn buybtn" onclick="executeTrade('BUY')"><span class="bico">⬆</span>COMPRAR<div class="bsub" id="buyTxt">Prob. —% | US$20</div>
-<div id="activeTradeContainer"></div></button>
+  <button id="buyBtn" class="abtn buybtn" onclick="executeTrade('BUY')"><span class="bico">⬆</span>COMPRAR<div class="bsub" id="buyTxt">Prob. —% | US$20</div></button>
   <button id="sellBtn" class="abtn sellbtn" onclick="executeTrade('SELL')"><span class="bico">⬇</span>VENDER<div class="bsub" id="sellTxt">Prob. —% | US$20</div></button>
 </div>
+<div id="activeTradeContainer"></div>
 
 <!-- HISTÓRICO DE OPERAÇÕES -->
 <div class="slabel">📋 HISTÓRICO DE OPERAÇÕES</div>
