@@ -5611,10 +5611,11 @@ function showActiveTrade(isBuy, pairName, tf, stake, profit, durSecs, tradeId){
         <div id="closePrice_${tradeId}" style="font-family:'Orbitron',monospace;font-size:10px;
              color:#556;text-align:right;padding:7px 6px;white-space:nowrap;">aguardando...</div>
       </div>
-      <div style="margin-top:4px;font-size:10px;color:#556;text-align:right;font-family:'Orbitron',monospace;">
-        🤖 AUTO CLOSE: <span id="autoCloseStatus_${tradeId}" style="color:#00e676;cursor:pointer;"
+      <div style="margin-top:6px;font-size:11px;font-weight:900;text-align:right;font-family:'Orbitron',monospace;letter-spacing:1px;">
+        <span style="color:#fff;">🤖 AUTO CLOSE:</span>
+        <span id="autoCloseStatus_${tradeId}" style="color:#00FF41;cursor:pointer;font-weight:900;"
           onclick="toggleAutoClose(${tradeId})">ATIVO</span>
-        <span style="color:#334;"> · 75% lucro / RSI extremo / reversão</span>
+        <span style="color:#FFD600;font-weight:900;"> · 75% lucro / RSI extremo / reversão</span>
       </div>`;
     c.appendChild(card);
     setTimeout(_updateBodyPad, 50);
