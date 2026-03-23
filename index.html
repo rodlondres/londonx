@@ -2324,6 +2324,19 @@ function handleTick(tick){
       }
     });
   }
+  // Também atualizar via _tradeTickSub (pares não ativos no gráfico)
+  if(window._tradeTickSub){
+    Object.keys(window._tradeTickSub).forEach(tid=>{
+      if(window._tradeTickSub[tid]===tick.symbol){
+        const _t=tradeHistory.find(x=>x.id===parseInt(tid));
+        if(_t && _t.result==='pending') _t._currentTick=tick.quote;
+        else if(_t && _t.result!=='pending'){
+          // Trade fechou — limpar do mapa
+          delete window._tradeTickSub[tid];
+        }
+      }
+    });
+  }
 
   if(tick.symbol===PAIRS[S.pair].deriv){
     const price=tick.quote;
@@ -5765,13 +5778,25 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
 
   function tick(){
     const remaining = Math.max(0, Math.round((endTime - Date.now())/1000));
-    // Usa _currentTick do par correto — nunca S.chartTick de outro par
+    // Usa preço correto do par do trade
     const _tradeObj = tradeHistory.find(x=>x.id===tradeId);
-    const curPrice = (_tradeObj && _tradeObj._currentTick) 
-                     ? _tradeObj._currentTick 
-                     : ((_tradeObj && _tradeObj._pairIdx===S.pair) ? S.chartTick : entryPrice)
-                     || entryPrice;
-    const priceDir = curPrice > entryPrice ? 1 : curPrice < entryPrice ? -1 : 0;
+    let curPrice = entryPrice; // default: sem cor
+    if(_tradeObj){
+      if(_tradeObj._currentTick){
+        // Tem tick atualizado do par correto
+        curPrice = _tradeObj._currentTick;
+      } else if(_tradeObj._pairIdx===S.pair && S.chartTick){
+        // Mesmo par ativo no gráfico
+        curPrice = S.chartTick;
+      } else if(_tradeObj._pairIdx!==undefined && PAIRS[_tradeObj._pairIdx]){
+        // Par diferente — usar _lastPrice do PAIRS (atualizado pelo ticker a cada 30s)
+        const _lp = PAIRS[_tradeObj._pairIdx]._lastPrice;
+        if(_lp) curPrice = _lp;
+        // Também atualizar _currentTick para próxima iteração
+        if(_lp) _tradeObj._currentTick = _lp;
+      }
+    }
+    const priceDir = curPrice !== entryPrice ? (curPrice > entryPrice ? 1 : -1) : 0;
     updateActiveTradeCD(remaining, durSecs, tradeId, isBuy, priceDir);
     const cdEl=document.getElementById('cdSecs');
     if(cdEl) cdEl.textContent=remaining;
@@ -8640,6 +8665,17 @@ const autoMode = {
     startTradeCountdown(tradeId,S.chartTick||1,isBuy,stake,profit,payout,durSecs);
     semiAuto.stopPulse();
     this._executing = false; // 🔓 libera trava após registrar o trade
+
+    // Inicializar _currentTick com o preço atual do par
+    const _tradePairObj = PAIRS[S.pair];
+    if(_tradePairObj){
+      // Usar preço já disponível (S.chartTick se mesmo par, ou _lastPrice do par)
+      const _initPrice = (_tradePairObj._lastPrice||0) || S.chartTick || 0;
+      if(_initPrice>0){
+        const _t2=tradeHistory[tradeHistory.length-1];
+        if(_t2) _t2._currentTick=_initPrice;
+      }
+    }
     const checkResult=setInterval(()=>{
       const t=tradeHistory.find(x=>x.id===tradeId);
       if(!t){ clearInterval(checkResult); setTimeout(()=>{ if(this.active) this.scan(); }, 5000); return; }
