@@ -771,7 +771,7 @@ canvas{width:100%;display:block;}
 
 /* ── PAINEL TRADE ATIVO ── */
 /* ── MULTI-COUNTDOWN CONTAINER ── */
-#activeTradeContainer{width:100%;z-index:100;margin:8px 0;}
+#activeTradeContainer{width:100%;z-index:100;margin:8px 0 0 0;}
 .at-card{background:linear-gradient(135deg,#0a1628,#0d1f35);
   border-bottom:3px solid #ffd600;padding:10px 14px;
   box-shadow:0 4px 24px rgba(0,0,0,.8);
@@ -1157,7 +1157,8 @@ div, span {
     </div>
   </div>
   <!-- Zoom controls -->
-  <div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:3px">
+  <div id="activeTradeContainer"></div>
+<div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:3px">
     <button onclick="chartZoom(1.4)" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:5px;width:26px;height:22px;font-size:13px;cursor:pointer;font-weight:900;display:flex;align-items:center;justify-content:center;transition:background .15s" title="Zoom In">+</button>
     <button onclick="chartZoom(0.7)" style="background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);color:#00e5ff;border-radius:5px;width:26px;height:22px;font-size:13px;cursor:pointer;font-weight:900;display:flex;align-items:center;justify-content:center;transition:background .15s" title="Zoom Out">−</button>
     <button onclick="chartReset()" style="background:rgba(255,214,0,.12);border:1px solid rgba(255,214,0,.3);color:#ffd600;border-radius:5px;padding:0 7px;height:22px;font-size:12px;cursor:pointer;font-weight:900;letter-spacing:1px;transition:background .15s" title="Reset">⊡ FIT</button>
@@ -1165,6 +1166,7 @@ div, span {
   </div>
   <!-- Main candle chart — scroll to zoom, drag to pan, double-tap to reset -->
   <canvas id="miniChart" width="440" height="200" style="cursor:crosshair;display:block;border-radius:4px;"></canvas>
+  <div id="activeTradeContainer"></div>
   <!-- RSI subgraph -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding:0 2px">
     <span style="font-size:12px;color:#a0c4e8;font-weight:700">RSI</span>
@@ -1536,7 +1538,6 @@ div, span {
   <button id="buyBtn" class="abtn buybtn" onclick="executeTrade('BUY')"><span class="bico">⬆</span>COMPRAR<div class="bsub" id="buyTxt">Prob. —% | US$20</div></button>
   <button id="sellBtn" class="abtn sellbtn" onclick="executeTrade('SELL')"><span class="bico">⬇</span>VENDER<div class="bsub" id="sellTxt">Prob. —% | US$20</div></button>
 </div>
-<div id="activeTradeContainer"></div>
 
 <!-- HISTÓRICO DE OPERAÇÕES -->
 <div class="slabel">📋 HISTÓRICO DE OPERAÇÕES</div>
@@ -2311,6 +2312,16 @@ function handleBalance(bal){
 }
 
 function handleTick(tick){
+  // ── FILTRO ANTI-SPIKE ─────────────────────────────────────
+  const _prevPrice = tickerPrices[tick.symbol];
+  if(_prevPrice && _prevPrice > 0){
+    const _change = Math.abs(tick.quote - _prevPrice) / _prevPrice;
+    if(_change > 0.05){ // rejeita variação > 5% num único tick
+      console.warn('[spike] Tick rejeitado:', tick.symbol, _prevPrice, '→', tick.quote, '('+(_change*100).toFixed(1)+'%)');
+      return;
+    }
+  }
+  // ─────────────────────────────────────────────────────────
   tickerPrices[tick.symbol]=tick.quote;
   // Atualiza _lastPrice no objeto do par para ticker mesmo sem tick ativo
   const _tp=PAIRS.find(p=>p.deriv===tick.symbol);
@@ -2368,6 +2379,20 @@ function handleTick(tick){
 function handleCandles(candles, symbol){
   // Rejeita dados de par antigo (evita gráfico sumir em crypto/commodity)
   if(symbol && symbol !== PAIRS[S.pair].deriv) return;
+  // ── FILTRO ANTI-SPIKE nos candles históricos ───────────────
+  if(candles && candles.length > 1){
+    candles = candles.filter((c,i)=>{
+      if(i===0) return true;
+      const prev = parseFloat(candles[i-1].close||candles[i-1].c||0);
+      const curr = parseFloat(c.close||c.c||0);
+      if(prev>0 && curr>0){
+        const chg = Math.abs(curr-prev)/prev;
+        if(chg>0.10){ console.warn('[spike] Candle rejeitado:', symbol, prev,'→',curr); return false; }
+      }
+      return true;
+    });
+  }
+  // ─────────────────────────────────────────────────────────
   if(window._candleWatchdog){ clearTimeout(window._candleWatchdog); window._candleWatchdog=null; }
   if(!candles||!candles.length) return;
   // Se tem symbol e é de outro par → só atualiza ticker, não mexe no gráfico (já filtrado acima)
@@ -2446,6 +2471,16 @@ function handleOHLC(ohlc){
   // SEMPRE verificar symbol — descartar qualquer OHLC que não seja do par ativo
   if(!ohlc||!ohlc.symbol) return;
   if(ohlc.symbol!==PAIRS[S.pair].deriv) return;
+  // ── FILTRO ANTI-SPIKE ─────────────────────────────────────
+  const _lastOHLC = candleOHLC.length>0?candleOHLC[candleOHLC.length-1]:null;
+  if(_lastOHLC && _lastOHLC.c > 0){
+    const _chg = Math.abs(parseFloat(ohlc.close) - _lastOHLC.c) / _lastOHLC.c;
+    if(_chg > 0.05){
+      console.warn('[spike] OHLC rejeitado:', ohlc.symbol, _lastOHLC.c, '→', ohlc.close);
+      return;
+    }
+  }
+  // ─────────────────────────────────────────────────────────
   // Atualiza timestamp para watchdog
   window._lastOhlcTime = Date.now();
 
@@ -5852,9 +5887,18 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
     if(remaining<=0){
       const iid=window._cdMap.get(tradeId);
       if(iid){clearInterval(iid);window._cdMap.delete(tradeId);}
-      // Só resolve localmente se a Deriv ainda não resolveu via proposal_open_contract
+      // Só resolve localmente se não for trade automático/OMNI
       const _t=tradeHistory.find(x=>x.id===tradeId);
-      if(!_t || _t.result==='pending'){
+      if(_t && (_t.autoMode || _t._omni)){
+        // Trade auto/OMNI — aguarda resultado real da Deriv
+        if(_t.result==='pending'){
+          _t._waitingDeriv=true;
+          const _cd=document.getElementById('atCd_'+tradeId);
+          if(_cd){ _cd.textContent='...'; _cd.className='at-cd'; }
+          const _lbl=document.getElementById('atLbl_'+tradeId);
+          if(_lbl) _lbl.textContent='⏳ Aguardando resultado da Deriv...';
+        }
+      } else if(!_t || _t.result==='pending'){
         resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct);
       }
       hideActiveTrade(tradeId); // remove só o card deste trade
@@ -8666,15 +8710,12 @@ const autoMode = {
     semiAuto.stopPulse();
     this._executing = false; // 🔓 libera trava após registrar o trade
 
-    // Inicializar _currentTick com o preço atual do par
-    const _tradePairObj = PAIRS[S.pair];
-    if(_tradePairObj){
-      // Usar preço já disponível (S.chartTick se mesmo par, ou _lastPrice do par)
-      const _initPrice = (_tradePairObj._lastPrice||0) || S.chartTick || 0;
-      if(_initPrice>0){
-        const _t2=tradeHistory[tradeHistory.length-1];
-        if(_t2) _t2._currentTick=_initPrice;
-      }
+    // Inicializar _currentTick = entryPrice → countdown começa NEUTRO (sem cor)
+    const _t2=tradeHistory[tradeHistory.length-1];
+    if(_t2){
+      _t2._currentTick = _t2.entryPrice || S.chartTick || 0;
+      // Salvar também entryPrice para referência
+      if(!_t2.entryPrice) _t2.entryPrice = S.chartTick||0;
     }
     const checkResult=setInterval(()=>{
       const t=tradeHistory.find(x=>x.id===tradeId);
