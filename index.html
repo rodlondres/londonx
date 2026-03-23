@@ -5611,11 +5611,11 @@ function showActiveTrade(isBuy, pairName, tf, stake, profit, durSecs, tradeId){
         <div id="closePrice_${tradeId}" style="font-family:'Orbitron',monospace;font-size:10px;
              color:#556;text-align:right;padding:7px 6px;white-space:nowrap;">aguardando...</div>
       </div>
-      <div style="margin-top:6px;font-size:11px;font-weight:900;text-align:right;font-family:'Orbitron',monospace;letter-spacing:1px;">
-        <span style="color:#fff;">🤖 AUTO CLOSE:</span>
-        <span id="autoCloseStatus_${tradeId}" style="color:#00FF41;cursor:pointer;font-weight:900;"
-          onclick="toggleAutoClose(${tradeId})">ATIVO</span>
-        <span style="color:#FFD600;font-weight:900;"> · 75% lucro / RSI extremo / reversão</span>
+      <div style="margin-top:6px;padding:4px 6px;background:rgba(0,0,0,.4);border-radius:4px;display:flex;align-items:center;justify-content:flex-end;gap:6px;">
+        <span style="color:#ffffff;font-family:'Orbitron',monospace;font-size:12px;font-weight:900;letter-spacing:1px;">🤖 AUTO CLOSE:</span>
+        <span id="autoCloseStatus_${tradeId}" onclick="toggleAutoClose(${tradeId})"
+          style="color:#00FF41;font-family:'Orbitron',monospace;font-size:12px;font-weight:900;letter-spacing:1px;cursor:pointer;text-shadow:0 0 8px #00FF41;">ATIVO</span>
+        <span style="color:#FFD600;font-family:'Orbitron',monospace;font-size:11px;font-weight:900;letter-spacing:1px;">· 75% lucro / RSI extremo / reversão</span>
       </div>`;
     c.appendChild(card);
     setTimeout(_updateBodyPad, 50);
