@@ -1921,6 +1921,10 @@ function derivConnect(){
             t.contractId = b.contract_id;
             t._buyPrice = parseFloat(b.buy_price||0);
             t._startTime = b.start_time;
+            // ✅ FIX COUNTDOWN: corrige entryPrice com preço real da Deriv
+            // (BASE_PRICE simulado causa countdown sempre verde/vermelho errado em OMNI)
+            const _realEntry = parseFloat(b.entry_spot || b.start_spot || 0);
+            if(_realEntry > 0){ t.entryPrice = _realEntry; t._entryFixed = true; }
             // Subscrever resultado final do contrato
             derivSend({proposal_open_contract:1, contract_id:b.contract_id, subscribe:1});
           }
@@ -1937,9 +1941,16 @@ function derivConnect(){
             t.result = realWon ? 'win' : 'loss';
             t._realProfit = realProfit;
             t._earlyClosed = true;
+            // ✅ FIX HISTÓRICO: salva lucro/prejuízo real para exibição correta
+            if(realWon) t.profit = realProfit.toFixed(2);
+            else t._lossAmt = Math.abs(realProfit).toFixed(2); // prejuízo real (pode ser < stake em close parcial)
             if(autoMode.active || omniMode.active) autoMode.registerResult(realWon);
+            // ✅ FIX: registra na banca com valor real (não stake original)
+            try{ bankroll.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit)); }catch(e){}
+            try{ bm.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit)); }catch(e){}
+            if(typeof ML !== 'undefined') setTimeout(()=>ML.update(), 300);
             try{ hideActiveTrade(t.id); renderHistory(); updateStatsBar(); }catch(e){}
-            notify('⚡ FECHADO ANTECIPADO: '+(realWon?'WIN +':'LOSS ')+'$'+Math.abs(realProfit).toFixed(2)+
+            notify('⚡ FECHADO ANTECIPADO: '+(realWon?'WIN +':'LOSS -')+'$'+Math.abs(realProfit).toFixed(2)+
                    ' (stake $'+t.stake+' → recebeu $'+soldPrice.toFixed(2)+')');
             if(window._cdMap && window._cdMap.has(t.id)){
               clearInterval(window._cdMap.get(t.id));
@@ -1953,8 +1964,14 @@ function derivConnect(){
           // Atualizar preço atual no botão de fechar antecipado
           if(poc.bid_price && poc.contract_id){
             const _tc = tradeHistory.find(x=>x.contractId===poc.contract_id);
-            if(_tc) updateEarlyClosePrice(_tc.id, parseFloat(poc.bid_price));
-
+            if(_tc){
+              updateEarlyClosePrice(_tc.id, parseFloat(poc.bid_price));
+              // ✅ FIX COUNTDOWN: entry_tick real do primeiro POC (mais preciso que buy.entry_spot)
+              if(!_tc._entryFixed && poc.entry_tick){
+                const _realEntry = parseFloat(poc.entry_tick);
+                if(_realEntry > 0){ _tc.entryPrice = _realEntry; _tc._entryFixed = true; }
+              }
+            }
           }
           if(poc.is_sold===1 || poc.status==='won' || poc.status==='lost'){
             const t = tradeHistory.find(x=>x.contractId===poc.contract_id);
@@ -4917,7 +4934,15 @@ function renderHistory(){
   const losses=tradeHistory.filter(t=>t.result==='loss').length;
   const total=wins+losses;
   const wr=total>0?Math.round(wins/total*100):0;
-  const pnl=tradeHistory.reduce((s,t)=>t.result==='win'?s+parseFloat(t.profit||0):t.result==='loss'?s-parseFloat(t.stake||0):s,0);
+  const pnl=tradeHistory.reduce((s,t)=>{
+    if(t.result==='win') return s + parseFloat(t.profit||0);
+    if(t.result==='loss'){
+      // ✅ FIX: early close pode ter perda menor que stake (fechou com parte do stake de volta)
+      const lossAmt = t._earlyClosed && t._lossAmt ? parseFloat(t._lossAmt) : parseFloat(t.stake||0);
+      return s - lossAmt;
+    }
+    return s;
+  },0);
   const pnlCol=pnl>=0?'#00e676':'#ff1744';
   let statsHtml=`<div style="display:flex;gap:10px;padding:8px 4px;margin-bottom:8px;border-bottom:1px solid var(--border)">
     <div style="flex:1;text-align:center"><div style="font-size:14px;font-weight:900;color:${wr>=60?'#00e676':wr>=50?'#ffd600':'#ff1744'};font-family:'Orbitron',monospace">${wr}%</div><div style="font-size:12px;color:#a0c4e8;letter-spacing:1px">WIN RATE</div></div>
@@ -4930,15 +4955,19 @@ function renderHistory(){
   el.innerHTML=statsHtml+tradeHistory.slice().reverse().map(t=>{
     let resHtml='';
     if(t.result==='pending'){
-      const cur=S.chartTick||t.entryPrice;
+      // ✅ FIX: usa _currentTick (atualizado pelo par real) em vez de S.chartTick (par do gráfico)
+      const cur = t._currentTick || (t._pairIdx===S.pair ? S.chartTick : 0) || t.entryPrice;
       const diff=cur-(t.entryPrice||cur);
       const winning=t.isBuy?(diff>0):(diff<0);
       const pnlColor=winning?'#00e676':'#ff1744';
       resHtml=`<span class="hresult pend" style="color:${pnlColor}">${winning?'📈':'📉'} ⏳${t.remaining||0}s</span>`;
     } else if(t.result==='win'){
-      resHtml=`<span class="hresult win">✅ +US$${t.profit}</span>`;
+      const profitDisplay = t._earlyClosed ? t.profit+'⚡' : t.profit;
+      resHtml=`<span class="hresult win">✅ +US$${profitDisplay}</span>`;
     } else if(t.result==='loss'){
-      resHtml=`<span class="hresult loss">❌ -US$${t.stake}</span>`;
+      // ✅ FIX: fechamento antecipado mostra perda real (pode ser < stake)
+      const lossAmt = t._earlyClosed && t._lossAmt ? t._lossAmt+'⚡' : t.stake;
+      resHtml=`<span class="hresult loss">❌ -US$${lossAmt}</span>`;
     } else {
       resHtml=`<span class="hresult" style="color:var(--text3)">⚪ —</span>`;
     }
@@ -5603,6 +5632,8 @@ function openModal(side, ev, proposal){
       score:S.totalScore+"/"+S.totalMax,time:time,date:tradeDate,prob:S.prob,
       result:"pending",remaining:durSecs,entryPrice:entryPrice,isBuy:isBuy,
       contractId:null,strat:S.strategy,martLevel:bankroll.martLevel,hour:tradeHour,
+      // ✅ _entryFixed=false → será sobrescrito com preço real quando Deriv confirmar
+      _entryFixed:false,
       tf:S.tf||"3",_pairIdx:S.pair,sources:JSON.parse(JSON.stringify(S.srcScores||{}))});
     if(tradeHistory.length>50)tradeHistory.shift();
     try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
@@ -5833,7 +5864,11 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
       }
     }
     // Muda cor baseado na direção do preço vs entrada
-    const _diff = curPrice > 0 ? (curPrice - entryPrice) / entryPrice : 0;
+    // ✅ FIX PRINCIPAL: usa entryPrice ao vivo do tradeObj (atualizado pela Deriv via buy/poc)
+    // Evita countdown sempre verde em VOL50/AUD-USD onde BASE_PRICE ≠ preço real
+    const _liveEntry = (_tradeObj && _tradeObj.entryPrice && _tradeObj._entryFixed)
+      ? _tradeObj.entryPrice : entryPrice;
+    const _diff = curPrice > 0 ? (curPrice - _liveEntry) / _liveEntry : 0;
     const priceDir = Math.abs(_diff) > 0.0001 ? (_diff > 0 ? 1 : -1) : 0;
     updateActiveTradeCD(remaining, durSecs, tradeId, isBuy, priceDir);
     const cdEl=document.getElementById('cdSecs');
@@ -8705,6 +8740,8 @@ const autoMode = {
       isBuy,contractId:contractId||null,
       strat:this._mixMode==='aggr'?'soros':'cons',
       martLevel:0,hour:new Date().getHours(),
+      // ✅ _entryFixed=false → será sobrescrito com preço real quando Deriv confirmar
+      _entryFixed:false,
       sources:JSON.parse(JSON.stringify(S.srcScores||{})),autoMode:this.mode});
     if(tradeHistory.length>50)tradeHistory.shift();
     try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
