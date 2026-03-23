@@ -8401,7 +8401,8 @@ const autoMode = {
     tradeMarkers.push({idx:candleOHLC.length-1,side:dir,result:null,id:tradeId});
     if(tradeMarkers.length>10)tradeMarkers.shift();
     drawChart();
-    tradeHistory.push({id:tradeId,side:dir,pair:'V75 OTC',val:'US$'+stake,stake,profit,
+    const _pairName=PAIRS[S.pair]?PAIRS[S.pair].sym:'V75 OTC';
+    tradeHistory.push({id:tradeId,side:dir,pair:_pairName,val:'US$'+stake,stake,profit,
       score:S.totalScore+'/'+S.totalMax,time,date,prob:S.prob,
       result:'pending',remaining:durSecs,entryPrice:S.chartTick||1,
       isBuy,contractId:contractId||null,
@@ -8658,7 +8659,7 @@ const omniMode = {
     if(wsReady&&userToken){
       const symbol=winner.pair.deriv;
       const durSecs=300;
-      const reqId=Date.now()%9000+71000; // OMNI: 71000-79999
+      const reqId=Date.now()%900+95000; // OMNI proposal: 95000-95999
       window._pendingProposals=window._pendingProposals||{};
       window._pendingProposals[reqId]={side:winner.sig.dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ OMNI: '+proposal.error.message); S.pair=origPair; this._executing=false; return; }
