@@ -1945,6 +1945,13 @@ function derivConnect(){
           if(poc.bid_price && poc.contract_id){
             const _tc = tradeHistory.find(x=>x.contractId===poc.contract_id);
             if(_tc) updateEarlyClosePrice(_tc.id, parseFloat(poc.bid_price));
+            // Se é um early close pendente, executar o sell com o preço correto
+            if(window._pendingEarlyClose && window._pendingEarlyClose[poc.contract_id]){
+              delete window._pendingEarlyClose[poc.contract_id];
+              const bidPrice = parseFloat(poc.bid_price);
+              derivSend({sell:poc.contract_id, price:bidPrice});
+              notify('⚡ Fechando a US$'+bidPrice.toFixed(2)+'...');
+            }
           }
           if(poc.is_sold===1 || poc.status==='won' || poc.status==='lost'){
             const t = tradeHistory.find(x=>x.contractId===poc.contract_id);
@@ -5671,8 +5678,18 @@ function earlyClose(tradeId){
   if(btn){ btn.textContent='⏳ FECHANDO...'; btn.disabled=true; btn.style.opacity='.6'; }
 
   notify('⚡ Solicitando fechamento antecipado...');
-  // Buscar o preço atual do contrato antes de fechar
-  derivSend({sell:t.contractId, price:0}); // price:0 = aceita qualquer preço (market order)
+  // Buscar bid_price atual e fechar
+  window._pendingEarlyClose = window._pendingEarlyClose || {};
+  window._pendingEarlyClose[t.contractId] = tradeId;
+  // Solicita preço atual do contrato
+  derivSend({proposal_open_contract:1, contract_id:t.contractId, subscribe:0});
+  // Timeout de segurança: se não receber bid em 3s, tenta sell direto
+  setTimeout(()=>{
+    if(window._pendingEarlyClose && window._pendingEarlyClose[t.contractId]){
+      delete window._pendingEarlyClose[t.contractId];
+      derivSend({sell:t.contractId, price:0});
+    }
+  }, 3000);
 }
 
 // Atualizar preço atual do contrato no card
