@@ -381,43 +381,90 @@ canvas{width:100%;display:block;}
 /* ACTION BUTTONS — Nível Bloomberg Terminal */
 .action-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;}
 .abtn{
-  padding:20px;border-radius:13px;border:2px solid;cursor:pointer;
+  padding:20px;border-radius:14px;border:2px solid;cursor:pointer;
   font-family:'Orbitron',monospace;font-size:15px;font-weight:900;letter-spacing:2px;
-  transition:all .2s cubic-bezier(.4,0,.2,1);text-align:center;color:#fff !important;
+  transition:all .18s cubic-bezier(.4,0,.2,1);text-align:center;color:#fff !important;
   position:relative;overflow:hidden;
 }
+/* Shimmer de luz deslizando no hover */
 .abtn::before{
   content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);
-  transition:left .4s;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.18) 50%,transparent 100%);
+  transition:left .35s ease;pointer-events:none;
 }
 .abtn:hover::before{left:100%;}
+/* Brilho interno topo (reflexo de vidro) */
+.abtn::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:45%;
+  background:linear-gradient(180deg,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 100%);
+  border-radius:12px 12px 0 0;pointer-events:none;
+}
+
+/* ── COMPRAR — Verde Neon Elétrico ── */
 .buybtn{
-  background:linear-gradient(160deg,#006b2e,#00a844,#00c853);
-  border-color:#00e676;color:#fff !important;
-  text-shadow:0 2px 8px rgba(0,0,0,.8);
-  box-shadow:0 0 28px rgba(0,200,80,.6),0 0 56px rgba(0,200,80,.2),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -2px 0 rgba(0,0,0,.2);
+  background:linear-gradient(160deg,#009a38 0%,#00c853 45%,#00e676 100%);
+  border-color:#00ff88;color:#fff !important;
+  text-shadow:0 0 12px rgba(0,255,120,.9),0 2px 6px rgba(0,0,0,.6);
+  box-shadow:
+    0 0 0 1px rgba(0,255,120,.3),
+    0 0 20px rgba(0,230,118,.8),
+    0 0 45px rgba(0,230,118,.45),
+    0 0 80px rgba(0,230,118,.2),
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 -2px 0 rgba(0,0,0,.25);
+  filter:brightness(1.05);
 }
 .buybtn:hover{
-  background:linear-gradient(160deg,#007f38,#00c853,#00e676);
-  box-shadow:0 0 40px rgba(0,230,118,.8),0 0 80px rgba(0,230,118,.3),inset 0 1px 0 rgba(255,255,255,.25);
-  transform:translateY(-3px);
+  background:linear-gradient(160deg,#00b842 0%,#00e060 40%,#39ff90 100%);
+  border-color:#39ff90;
+  text-shadow:0 0 20px rgba(57,255,144,1),0 2px 6px rgba(0,0,0,.5);
+  box-shadow:
+    0 0 0 2px rgba(57,255,144,.5),
+    0 0 30px rgba(57,255,144,1),
+    0 0 60px rgba(0,230,118,.7),
+    0 0 100px rgba(0,230,118,.35),
+    inset 0 1px 0 rgba(255,255,255,.4),
+    inset 0 -2px 0 rgba(0,0,0,.2);
+  transform:translateY(-3px) scale(1.01);
+  filter:brightness(1.12);
 }
-.buybtn:active{transform:translateY(-1px);}
+.buybtn:active{transform:translateY(-1px) scale(1.0);filter:brightness(1.0);}
+
+/* ── VENDER — Vermelho Neon Magma ── */
 .sellbtn{
-  background:linear-gradient(160deg,#7a0010,#b80018,#d4001e);
-  border-color:#ff1744;color:#fff !important;
-  text-shadow:0 2px 8px rgba(0,0,0,.8);
-  box-shadow:0 0 28px rgba(220,0,40,.6),0 0 56px rgba(220,0,40,.2),inset 0 1px 0 rgba(255,255,255,.2),inset 0 -2px 0 rgba(0,0,0,.2);
+  background:linear-gradient(160deg,#c0001a 0%,#e8001f 45%,#ff2040 100%);
+  border-color:#ff3355;color:#fff !important;
+  text-shadow:0 0 12px rgba(255,60,80,.9),0 2px 6px rgba(0,0,0,.6);
+  box-shadow:
+    0 0 0 1px rgba(255,50,70,.35),
+    0 0 20px rgba(255,23,68,.85),
+    0 0 45px rgba(255,23,68,.45),
+    0 0 80px rgba(255,23,68,.2),
+    inset 0 1px 0 rgba(255,255,255,.3),
+    inset 0 -2px 0 rgba(0,0,0,.25);
+  filter:brightness(1.05);
 }
 .sellbtn:hover{
-  background:linear-gradient(160deg,#900014,#d4001e,#ff1744);
-  box-shadow:0 0 40px rgba(255,23,68,.8),0 0 80px rgba(255,23,68,.3),inset 0 1px 0 rgba(255,255,255,.25);
-  transform:translateY(-3px);
+  background:linear-gradient(160deg,#d8001e 0%,#ff1535 40%,#ff5060 100%);
+  border-color:#ff5060;
+  text-shadow:0 0 20px rgba(255,90,100,1),0 2px 6px rgba(0,0,0,.5);
+  box-shadow:
+    0 0 0 2px rgba(255,80,90,.5),
+    0 0 30px rgba(255,60,80,1),
+    0 0 60px rgba(255,23,68,.7),
+    0 0 100px rgba(255,23,68,.35),
+    inset 0 1px 0 rgba(255,255,255,.38),
+    inset 0 -2px 0 rgba(0,0,0,.2);
+  transform:translateY(-3px) scale(1.01);
+  filter:brightness(1.12);
 }
-.sellbtn:active{transform:translateY(-1px);}
-.bico{font-size:30px;display:block;margin-bottom:4px;color:#fff !important;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));}
-.bsub{font-size:12px;color:rgba(255,255,255,.9) !important;font-weight:800;margin-top:5px;letter-spacing:.5px;font-family:'Rajdhani';line-height:1.6;}
+.sellbtn:active{transform:translateY(-1px) scale(1.0);filter:brightness(1.0);}
+
+.bico{
+  font-size:32px;display:block;margin-bottom:4px;color:#fff !important;
+  filter:drop-shadow(0 0 8px rgba(255,255,255,.7)) drop-shadow(0 2px 4px rgba(0,0,0,.4));
+}
+.bsub{font-size:12px;color:rgba(255,255,255,.95) !important;font-weight:800;margin-top:5px;letter-spacing:.5px;font-family:'Rajdhani';line-height:1.6;text-shadow:0 1px 4px rgba(0,0,0,.5);}
 
 /* ALERT */
 .alert-b{
@@ -705,16 +752,38 @@ canvas{width:100%;display:block;}
 .si-l{font-size:11px;letter-spacing:1px;color:#a0c4e8;font-weight:700;text-transform:uppercase;margin-top:1px;}
 
 /* ACTION */
-.action-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
-.abtn{padding:18px;border-radius:10px;border:3px solid;cursor:pointer;font-family:'Orbitron',monospace;font-size:16px;font-weight:900;letter-spacing:2px;transition:all .25s ease;text-align:center;color:#fff !important;}
-.buybtn{background:#00a844;border-color:#00e676;color:#fff !important;text-shadow:0 2px 6px rgba(0,0,0,.7);box-shadow:0 0 24px rgba(0,200,80,.7),inset 0 1px 0 rgba(255,255,255,.25);}
-.buybtn:hover{background:#00c853;box-shadow:0 0 40px rgba(0,230,118,.9);transform:translateY(-2px);}
-.buybtn:active{transform:translateY(0);}
-.sellbtn{background:#b80018;border-color:#ff1744;color:#fff !important;text-shadow:0 2px 6px rgba(0,0,0,.7);box-shadow:0 0 24px rgba(220,0,40,.7),inset 0 1px 0 rgba(255,255,255,.25);}
-.sellbtn:hover{background:#d4001e;box-shadow:0 0 40px rgba(255,23,68,.9);transform:translateY(-2px);}
-.sellbtn:active{transform:translateY(0);}
-.bico{font-size:28px;display:block;margin-bottom:4px;color:#fff !important;}
-.bsub{font-size:12px;color:#fff !important;font-weight:800;margin-top:5px;letter-spacing:.5px;font-family:'Rajdhani';line-height:1.6;}
+.action-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;}
+.abtn{padding:20px;border-radius:14px;border:2px solid;cursor:pointer;font-family:'Orbitron',monospace;font-size:15px;font-weight:900;letter-spacing:2px;transition:all .18s cubic-bezier(.4,0,.2,1);text-align:center;color:#fff !important;}
+.buybtn{
+  background:linear-gradient(160deg,#009a38 0%,#00c853 45%,#00e676 100%);
+  border-color:#00ff88;color:#fff !important;
+  text-shadow:0 0 12px rgba(0,255,120,.9),0 2px 6px rgba(0,0,0,.6);
+  box-shadow:0 0 0 1px rgba(0,255,120,.3),0 0 20px rgba(0,230,118,.8),0 0 45px rgba(0,230,118,.45),0 0 80px rgba(0,230,118,.2),inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.25);
+  filter:brightness(1.05);
+}
+.buybtn:hover{
+  background:linear-gradient(160deg,#00b842 0%,#00e060 40%,#39ff90 100%);
+  border-color:#39ff90;
+  box-shadow:0 0 0 2px rgba(57,255,144,.5),0 0 30px rgba(57,255,144,1),0 0 60px rgba(0,230,118,.7),0 0 100px rgba(0,230,118,.35),inset 0 1px 0 rgba(255,255,255,.4);
+  transform:translateY(-3px) scale(1.01);filter:brightness(1.12);
+}
+.buybtn:active{transform:translateY(-1px) scale(1.0);filter:brightness(1.0);}
+.sellbtn{
+  background:linear-gradient(160deg,#c0001a 0%,#e8001f 45%,#ff2040 100%);
+  border-color:#ff3355;color:#fff !important;
+  text-shadow:0 0 12px rgba(255,60,80,.9),0 2px 6px rgba(0,0,0,.6);
+  box-shadow:0 0 0 1px rgba(255,50,70,.35),0 0 20px rgba(255,23,68,.85),0 0 45px rgba(255,23,68,.45),0 0 80px rgba(255,23,68,.2),inset 0 1px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25);
+  filter:brightness(1.05);
+}
+.sellbtn:hover{
+  background:linear-gradient(160deg,#d8001e 0%,#ff1535 40%,#ff5060 100%);
+  border-color:#ff5060;
+  box-shadow:0 0 0 2px rgba(255,80,90,.5),0 0 30px rgba(255,60,80,1),0 0 60px rgba(255,23,68,.7),0 0 100px rgba(255,23,68,.35),inset 0 1px 0 rgba(255,255,255,.38);
+  transform:translateY(-3px) scale(1.01);filter:brightness(1.12);
+}
+.sellbtn:active{transform:translateY(-1px) scale(1.0);filter:brightness(1.0);}
+.bico{font-size:32px;display:block;margin-bottom:4px;color:#fff !important;filter:drop-shadow(0 0 8px rgba(255,255,255,.7)) drop-shadow(0 2px 4px rgba(0,0,0,.4));}
+.bsub{font-size:12px;color:rgba(255,255,255,.95) !important;font-weight:800;margin-top:5px;letter-spacing:.5px;font-family:'Rajdhani';line-height:1.6;text-shadow:0 1px 4px rgba(0,0,0,.5);}
 
 .footer{text-align:center;padding:12px;color:#a0c4e8;font-size:12px;font-weight:700;letter-spacing:2px;margin-bottom:20px;}
 /* DASHBOARD */
@@ -2331,11 +2400,37 @@ function derivConnect(){
         }
 
         // Resultado do fechamento antecipado
-        if(msg.msg_type==='sell' && msg.sell){
+        if(msg.msg_type==='sell' && (msg.sell || msg.error)){
+          // ── Erro da Deriv no sell ──────────────────────────────
+          if(msg.error){
+            const errMsg = msg.error.message || 'Erro desconhecido';
+            // Identifica qual trade estava tentando fechar
+            const _errTrade = tradeHistory.find(x=>x.result==='pending'&&x._closingAttempt);
+            if(_errTrade){
+              _errTrade._closingAttempt = false;
+              const _btn = document.getElementById('closeBtn_'+_errTrade.id);
+              if(_btn){ _btn.textContent='⚡ FECHAR AGORA'; _btn.disabled=false; _btn.style.opacity='1'; }
+            }
+            notify('❌ Deriv recusou fechamento: '+errMsg);
+            // Mesmo com erro, verifica se a operação pode ter fechado via POC
+            dlog('SELL ERROR: '+errMsg, 'err');
+            return;
+          }
           const s = msg.sell;
+          // Limpa flag de tentativa de fechamento
+          const _anyPending = tradeHistory.find(x=>x.result==='pending'&&x._closingAttempt);
+          if(_anyPending) _anyPending._closingAttempt = false;
+
           const t = tradeHistory.find(x=>x.contractId===s.contract_id && x.result==='pending');
           if(t){
             const soldPrice = parseFloat(s.sold_for||0);
+            // ✅ FIX: sold_for=0 é inválido — não fecha, reabilita botão
+            if(soldPrice <= 0){
+              const _btn = document.getElementById('closeBtn_'+t.id);
+              if(_btn){ _btn.textContent='⚡ FECHAR AGORA'; _btn.disabled=false; _btn.style.opacity='1'; }
+              notify('⚠ Fechamento recebido mas sold_for=0 — aguardando resultado final');
+              return;
+            }
             const realProfit = soldPrice - parseFloat(t.stake||0);
             const realWon = realProfit > 0;
             t.result = realWon ? 'win' : 'loss';
@@ -2343,14 +2438,14 @@ function derivConnect(){
             t._earlyClosed = true;
             // ✅ FIX HISTÓRICO: salva lucro/prejuízo real para exibição correta
             if(realWon) t.profit = realProfit.toFixed(2);
-            else t._lossAmt = Math.abs(realProfit).toFixed(2); // prejuízo real (pode ser < stake em close parcial)
+            else t._lossAmt = Math.abs(realProfit).toFixed(2);
             if(autoMode.active || omniMode.active) autoMode.registerResult(realWon);
             // ✅ FIX: registra na banca com valor real (não stake original)
             try{ bankroll.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit)); }catch(e){}
             try{ bm.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit)); }catch(e){}
             if(typeof ML !== 'undefined') setTimeout(()=>ML.update(), 300);
             try{ hideActiveTrade(t.id); renderHistory(); updateStatsBar(); }catch(e){}
-            notify('⚡ FECHADO ANTECIPADO: '+(realWon?'WIN +':'LOSS -')+'$'+Math.abs(realProfit).toFixed(2)+
+            notify('⚡ FECHADO: '+(realWon?'✅ WIN +':'❌ LOSS -')+'$'+Math.abs(realProfit).toFixed(2)+
                    ' (stake $'+t.stake+' → recebeu $'+soldPrice.toFixed(2)+')');
             if(window._cdMap && window._cdMap.has(t.id)){
               clearInterval(window._cdMap.get(t.id));
@@ -5450,11 +5545,26 @@ function renderHistory(){
   el.innerHTML=statsHtml+tradeHistory.slice().reverse().map(t=>{
     let resHtml='';
     if(t.result==='pending'){
-      // Prioridade: entry_tick real (Deriv) > primeiro tick real > neutro (amarelo)
+      // Prioridade: entry_tick real > provisional > _lastPriceDir (evita amarelo no meio)
       const _entry  = t._entryFixed ? t.entryPrice : (t._provisionalEntry || 0);
       const _cur    = t._currentTick || (t._pairIdx===S.pair ? S.chartTick : 0) || 0;
-      const _diff   = (_entry>0 && _cur>0) ? _cur - _entry : 0;
-      const winning = (_diff===0) ? null : (t.isBuy ? _diff>0 : _diff<0);
+      let winning;
+      if(_entry > 0 && _cur > 0){
+        const _diff = _cur - _entry;
+        if(Math.abs(_diff / _entry) > 0.000005){
+          winning = t.isBuy ? _diff > 0 : _diff < 0;
+          // não atualiza _lastPriceDir aqui (só o tick() faz isso)
+        } else {
+          // diff quase zero — usa última direção conhecida
+          winning = t._lastPriceDir !== undefined
+            ? (t.isBuy ? t._lastPriceDir > 0 : t._lastPriceDir < 0)
+            : null;
+        }
+      } else {
+        winning = t._lastPriceDir !== undefined
+          ? (t.isBuy ? t._lastPriceDir > 0 : t._lastPriceDir < 0)
+          : null; // null = amarelo (só no início)
+      }
       const pnlColor = winning===null ? '#ffd600' : (winning ? '#00e676' : '#ff1744');
       const icon = winning===null ? '⏳' : (winning ? '📈' : '📉');
       resHtml=`<span class="hresult pend" style="color:${pnlColor}">${icon} ⏳${t.remaining||0}s</span>`;
@@ -6352,24 +6462,34 @@ function toggleAutoClose(tradeId){
 function earlyClose(tradeId){
   const t = tradeHistory.find(x=>x.id===tradeId);
   if(!t || t.result!=='pending'){ notify('⚠ Operação não encontrada ou já finalizada'); return; }
-  if(!t.contractId){ notify('⚠ Contract ID não disponível — aguarde conexão com a Deriv'); return; }
+  if(!t.contractId){ notify('⚠ Contract ID ainda não disponível — aguarde 2-3 segundos e tente de novo'); return; }
   if(!wsReady||!userToken){ notify('⚠ Sem conexão com a Deriv'); return; }
 
   const btn = document.getElementById('closeBtn_'+tradeId);
   if(btn){ btn.textContent='⏳ FECHANDO...'; btn.disabled=true; btn.style.opacity='.6'; }
 
-  notify('⚡ Fechando operação antecipadamente...');
-  // Sell direto ao preço de mercado
+  // Marca tentativa para erro handler identificar o trade
+  t._closingAttempt = true;
+  notify('⚡ Enviando ordem de fechamento...');
+
+  // Sell ao preço de mercado (price: 0 = aceita qualquer preço)
   derivSend({sell: t.contractId, price: 0});
-  // Timeout: se não receber confirmação em 8s, reabilita o botão
+
+  // ── Timeout inteligente: verifica se POC já resolveu antes de reportar falha ──
   setTimeout(()=>{
     const _t2 = tradeHistory.find(x=>x.id===tradeId);
-    if(_t2 && _t2.result==='pending'){
+    if(!_t2) return; // trade sumiu = foi fechado e removido, OK
+    _t2._closingAttempt = false;
+    if(_t2.result==='pending'){
+      // Ainda pendente = Deriv não confirmou
       const _btn = document.getElementById('closeBtn_'+tradeId);
       if(_btn){ _btn.textContent='⚡ FECHAR AGORA'; _btn.disabled=false; _btn.style.opacity='1'; }
-      notify('⚠ Deriv não confirmou fechamento — tente novamente');
+      notify('⚠ Deriv não confirmou em 10s — verifique sua conta na plataforma Deriv');
+    } else {
+      // Já foi resolvido (pelo POC handler ou sell handler) — não faz nada
+      dlog('earlyClose timeout: trade '+tradeId+' já resolvido como '+_t2.result,'info');
     }
-  }, 8000);
+  }, 10000);
 }
 
 // Atualizar preço atual do contrato no card
@@ -6462,16 +6582,29 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
         curPrice = PAIRS[_pIdx]._lastPrice;
       }
     }
-    // ── COR DO COUNTDOWN — prioridade de referência de entrada ──────────
-    // 1. entry_tick confirmado pela Deriv (mais preciso, _entryFixed=true)
-    // 2. _provisionalEntry: primeiro tick real recebido após a entrada
-    // 3. NEUTRO (amarelo): ainda sem referência real — BASE_PRICE ignorado
-    const _confirmedEntry  = (_tradeObj && _tradeObj._entryFixed)  ? _tradeObj.entryPrice       : 0;
-    const _provisionalEnt  = (_tradeObj && !_tradeObj._entryFixed) ? (_tradeObj._provisionalEntry||0) : 0;
+    // ── COR DO COUNTDOWN ─────────────────────────────────────────
+    // Prioridade: entry_tick Deriv > primeiro tick real > última cor conhecida > neutro
+    const _confirmedEntry = (_tradeObj && _tradeObj._entryFixed)   ? _tradeObj.entryPrice        : 0;
+    const _provisionalEnt = (_tradeObj && !_tradeObj._entryFixed)  ? (_tradeObj._provisionalEntry||0) : 0;
     const _liveEntry = _confirmedEntry || _provisionalEnt || 0;
-    const _diff = (curPrice > 0 && _liveEntry > 0) ? (curPrice - _liveEntry) / _liveEntry : 0;
-    const priceDir = (curPrice > 0 && _liveEntry > 0 && Math.abs(_diff) > 0.00005)
-      ? (_diff > 0 ? 1 : -1) : 0;
+    let priceDir;
+    if(curPrice > 0 && _liveEntry > 0){
+      const _diff = (curPrice - _liveEntry) / _liveEntry;
+      if(Math.abs(_diff) > 0.000005){
+        // Tem diferença detectável → verde ou vermelho
+        priceDir = _diff > 0 ? 1 : -1;
+        // Salva última direção conhecida (evita piscar amarelo no meio da op)
+        if(_tradeObj) _tradeObj._lastPriceDir = priceDir;
+      } else {
+        // Diff quase zero (preço igual à entrada) → mantém última cor conhecida
+        // NUNCA mostra amarelo aqui — já temos referência de entrada
+        priceDir = (_tradeObj && _tradeObj._lastPriceDir) ? _tradeObj._lastPriceDir : 0;
+      }
+    } else {
+      // Sem curPrice ou sem referência de entrada:
+      // Se já tivemos cor antes → mantém; se nunca tivemos → amarelo (estado inicial)
+      priceDir = (_tradeObj && _tradeObj._lastPriceDir !== undefined) ? _tradeObj._lastPriceDir : 0;
+    }
     updateActiveTradeCD(remaining, durSecs, tradeId, isBuy, priceDir);
     const cdEl=document.getElementById('cdSecs');
     if(cdEl) cdEl.textContent=remaining;
@@ -6565,11 +6698,19 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
             parseFloat(t.profit||0.85),t.payout||t.payoutPct||0.85);
           hideActiveTrade(t.id);
         } else {
-          // ✅ mesmo padrão: usa entrada real confirmada ou provisional
+          // ✅ mesmo padrão: usa entrada real confirmada ou provisional + _lastPriceDir
           const _vEntry = t._entryFixed ? t.entryPrice : (t._provisionalEntry||0);
           const _vCur   = t._currentTick || S.chartTick || 0;
-          const _vDiff  = (_vEntry>0&&_vCur>0) ? (_vCur-_vEntry)/_vEntry : 0;
-          const priceDir = (_vEntry>0&&_vCur>0&&Math.abs(_vDiff)>0.00005) ? (_vDiff>0?1:-1) : 0;
+          let priceDir;
+          if(_vCur > 0 && _vEntry > 0){
+            const _vDiff = (_vCur - _vEntry) / _vEntry;
+            priceDir = Math.abs(_vDiff) > 0.000005
+              ? (_vDiff > 0 ? 1 : -1)
+              : (t._lastPriceDir || 0);
+            if(Math.abs(_vDiff) > 0.000005) t._lastPriceDir = priceDir;
+          } else {
+            priceDir = t._lastPriceDir !== undefined ? t._lastPriceDir : 0;
+          }
           updateActiveTradeCD(Math.round((t._endTime-Date.now())/1000), durSecs, t.id, t.isBuy, priceDir);
         }
       });
