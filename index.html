@@ -5652,9 +5652,12 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
 
   function tick(){
     const remaining = Math.max(0, Math.round((endTime - Date.now())/1000));
-    // Calcula direção do preço em relação à entrada
-    const curPrice = S.chartTick || entryPrice;
-    const priceDir = curPrice > entryPrice ? 1 : curPrice < entryPrice ? -1 : 0;
+    // Calcula direção do preço — só usa S.chartTick se for o mesmo par do trade
+    const _tradeObj = tradeHistory.find(x=>x.id===tradeId);
+    const _tradePairIdx = _tradeObj ? _tradeObj._pairIdx : undefined;
+    const _samepar = (_tradePairIdx === undefined) || (_tradePairIdx === S.pair);
+    const curPrice = _samepar ? (S.chartTick || entryPrice) : entryPrice;
+    const priceDir = _samepar ? (curPrice > entryPrice ? 1 : curPrice < entryPrice ? -1 : 0) : 0;
     updateActiveTradeCD(remaining, durSecs, tradeId, isBuy, priceDir);
     const cdEl=document.getElementById('cdSecs');
     if(cdEl) cdEl.textContent=remaining;
