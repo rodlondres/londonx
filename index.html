@@ -1946,13 +1946,7 @@ function derivConnect(){
           if(poc.bid_price && poc.contract_id){
             const _tc = tradeHistory.find(x=>x.contractId===poc.contract_id);
             if(_tc) updateEarlyClosePrice(_tc.id, parseFloat(poc.bid_price));
-            // Se é um early close pendente, executar o sell com o preço correto
-            if(window._pendingEarlyClose && window._pendingEarlyClose[poc.contract_id]){
-              delete window._pendingEarlyClose[poc.contract_id];
-              const bidPrice = parseFloat(poc.bid_price);
-              derivSend({sell:poc.contract_id, price:bidPrice});
-              notify('⚡ Fechando a US$'+bidPrice.toFixed(2)+'...');
-            }
+
           }
           if(poc.is_sold===1 || poc.status==='won' || poc.status==='lost'){
             const t = tradeHistory.find(x=>x.contractId===poc.contract_id);
@@ -5726,19 +5720,18 @@ function earlyClose(tradeId){
   const btn = document.getElementById('closeBtn_'+tradeId);
   if(btn){ btn.textContent='⏳ FECHANDO...'; btn.disabled=true; btn.style.opacity='.6'; }
 
-  notify('⚡ Solicitando fechamento antecipado...');
-  // Buscar bid_price atual e fechar
-  window._pendingEarlyClose = window._pendingEarlyClose || {};
-  window._pendingEarlyClose[t.contractId] = tradeId;
-  // Solicita preço atual do contrato
-  derivSend({proposal_open_contract:1, contract_id:t.contractId, subscribe:0});
-  // Timeout de segurança: se não receber bid em 3s, tenta sell direto
+  notify('⚡ Fechando operação antecipadamente...');
+  // Sell direto ao preço de mercado
+  derivSend({sell: t.contractId, price: 0});
+  // Timeout: se não receber confirmação em 8s, reabilita o botão
   setTimeout(()=>{
-    if(window._pendingEarlyClose && window._pendingEarlyClose[t.contractId]){
-      delete window._pendingEarlyClose[t.contractId];
-      derivSend({sell:t.contractId, price:0});
+    const _t2 = tradeHistory.find(x=>x.id===tradeId);
+    if(_t2 && _t2.result==='pending'){
+      const _btn = document.getElementById('closeBtn_'+tradeId);
+      if(_btn){ _btn.textContent='⚡ FECHAR AGORA'; _btn.disabled=false; _btn.style.opacity='1'; }
+      notify('⚠ Deriv não confirmou fechamento — tente novamente');
     }
-  }, 3000);
+  }, 8000);
 }
 
 // Atualizar preço atual do contrato no card
@@ -5816,23 +5809,21 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
     const remaining = Math.max(0, Math.round((endTime - Date.now())/1000));
     // Usa preço correto do par do trade
     const _tradeObj = tradeHistory.find(x=>x.id===tradeId);
-    let curPrice = entryPrice; // default: sem cor
+    let curPrice = 0;
     if(_tradeObj){
-      if(_tradeObj._currentTick){
-        // Tem tick atualizado do par correto
+      // Prioridade: 1) tick atualizado, 2) gráfico se mesmo par, 3) lastPrice
+      if(_tradeObj._currentTick && _tradeObj._currentTick !== entryPrice){
         curPrice = _tradeObj._currentTick;
-      } else if(_tradeObj._pairIdx===S.pair && S.chartTick){
-        // Mesmo par ativo no gráfico
+      } else if(_tradeObj._pairIdx===S.pair && S.chartTick && S.chartTick !== entryPrice){
         curPrice = S.chartTick;
-      } else if(_tradeObj._pairIdx!==undefined && PAIRS[_tradeObj._pairIdx]){
-        // Par diferente — usar _lastPrice do PAIRS (atualizado pelo ticker a cada 30s)
-        const _lp = PAIRS[_tradeObj._pairIdx]._lastPrice;
-        if(_lp) curPrice = _lp;
-        // Também atualizar _currentTick para próxima iteração
-        if(_lp) _tradeObj._currentTick = _lp;
+        _tradeObj._currentTick = S.chartTick;
+      } else if(_tradeObj._pairIdx!==undefined && PAIRS[_tradeObj._pairIdx] && PAIRS[_tradeObj._pairIdx]._lastPrice){
+        curPrice = PAIRS[_tradeObj._pairIdx]._lastPrice;
       }
     }
-    const priceDir = curPrice !== entryPrice ? (curPrice > entryPrice ? 1 : -1) : 0;
+    // Só muda cor se tem preço real diferente da entrada
+    const priceDir = curPrice > 0 && Math.abs(curPrice-entryPrice)/entryPrice > 0.0001
+      ? (curPrice > entryPrice ? 1 : -1) : 0;
     updateActiveTradeCD(remaining, durSecs, tradeId, isBuy, priceDir);
     const cdEl=document.getElementById('cdSecs');
     if(cdEl) cdEl.textContent=remaining;
