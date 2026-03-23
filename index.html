@@ -2329,6 +2329,32 @@ function derivConnect(){
         if(msg.msg_type==='active_symbols') handleActiveSymbols(msg.active_symbols);
         if(msg.msg_type==='tick') handleTick(msg.tick);
         // Tratar erros de mercado fechado ou símbolo inválido
+        // ── ERRO DE SELL — Deriv retorna msg_type='error' com echo_req.sell ──
+        // Este é o caminho real quando o sell falha (não msg_type='sell')
+        if(msg.error && msg.echo_req && msg.echo_req.sell){
+          const errMsg = msg.error.message || 'Erro desconhecido';
+          const errCode = msg.error.code || '';
+          const _sellRid = msg.req_id;
+          // Encontra o trade: primeiro por req_id, depois por _closingAttempt
+          const _errT = tradeHistory.find(x=>x.result==='pending'&&(x._sellReqId===_sellRid||x._closingAttempt));
+          if(_errT){
+            _errT._closingAttempt = false;
+            _errT._sellReqId = null;
+            const _btn = document.getElementById('closeBtn_'+_errT.id);
+            if(_btn){ _btn.textContent='⚡ FECHAR AGORA'; _btn.disabled=false; _btn.style.opacity='1'; }
+          }
+          // Mensagens específicas por código de erro da Deriv
+          if(errCode==='ContractSellNotAllowed' || errMsg.includes('not allowed')){
+            notify('⚠ Fechamento não permitido agora — aguarde alguns segundos');
+          } else if(errMsg.includes('minimum') || errMsg.includes('before expiry')){
+            notify('⚠ Muito cedo para fechar — aguarde mais alguns segundos');
+          } else {
+            notify('❌ Deriv recusou: '+errMsg);
+          }
+          dlog('SELL ERROR code='+errCode+' msg='+errMsg,'err');
+        }
+
+        // Tratar erros de mercado fechado ou símbolo inválido
         if(msg.error && msg.req_id===80000){
           const errMsg = msg.error.message||'';
           if(errMsg.includes('presently closed')){
@@ -6472,8 +6498,10 @@ function earlyClose(tradeId){
   t._closingAttempt = true;
   notify('⚡ Enviando ordem de fechamento...');
 
-  // Sell ao preço de mercado (price: 0 = aceita qualquer preço)
-  derivSend({sell: t.contractId, price: 0});
+  // Sell ao preço de mercado com req_id rastreável
+  const _sellReqId = 89000 + (Date.now() % 1000);
+  t._sellReqId = _sellReqId;
+  derivSend({sell: t.contractId, price: 0, req_id: _sellReqId});
 
   // ── Timeout inteligente: verifica se POC já resolveu antes de reportar falha ──
   setTimeout(()=>{
