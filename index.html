@@ -10832,6 +10832,109 @@ var ML = (function(){
 
 })();
 </script>
+<script>
+// ===== LONDONX SMART FILTER (VERSÃO FINAL PROFISSIONAL) =====
 
+const LONDONX_SMART = {
+    lossSeq: 0,
+    MIN_SCORE: 2
+};
+
+// cálculo de score baseado na sua estratégia real
+function lxScore(a){
+    let s = 0;
+
+    if ((a.probabilidade || 0) >= 65) s++;       // sua probabilidade
+    if ((a.confirmacoes || 0) >= 8) s++;         // força do sinal (Didi / confluência)
+    if ((a.tendencia || '') === 'forte') s++;    // tendência forte
+    if ((a.volatilidade || 0) > 0.0001 && (a.volatilidade || 0) < 0.002) s++; // mercado saudável
+
+    return s;
+}
+
+// decisão final
+function lxPodeOperar(){
+    try{
+
+        if (typeof window.analisarMercado !== "function") {
+            console.log("⚠️ analisarMercado não encontrado → liberando");
+            return true;
+        }
+
+        const a = window.analisarMercado();
+        const score = lxScore(a);
+
+        console.log("📊 SCORE:", score, a);
+
+        // proteção contra sequência ruim
+        if (LONDONX_SMART.lossSeq >= 2){
+            console.log("🛑 BLOQUEADO POR LOSS SEQUENCIAL");
+            return false;
+        }
+
+        // filtro principal
+        if (score < LONDONX_SMART.MIN_SCORE){
+            console.log("🚫 BLOQUEADO POR SCORE BAIXO:", score);
+            return false;
+        }
+
+        console.log("✅ TRADE LIBERADO");
+        return true;
+
+    } catch(e){
+        console.log("❌ erro no filtro:", e);
+        return true;
+    }
+}
+
+// ===== INTERCEPTAÇÃO REAL DAS ORDENS =====
+(function(){
+
+    const originalSend = WebSocket.prototype.send;
+
+    WebSocket.prototype.send = function(data){
+
+        try{
+
+            if (typeof data === "string" && data.includes('"buy"')){
+
+                if (!lxPodeOperar()){
+                    console.log("🚫 TRADE BLOQUEADO PELO SMART FILTER");
+                    return;
+                }
+
+                console.log("🚀 TRADE EXECUTADO COM FILTRO");
+            }
+
+        }catch(e){
+            console.log("erro ws:", e);
+        }
+
+        return originalSend.apply(this, arguments);
+    };
+
+})();
+
+// ===== CONTROLE DE RESULTADO =====
+const originalOnTradeResult = window.onTradeResult;
+
+window.onTradeResult = function(result){
+
+    if (result === 'loss'){
+        LONDONX_SMART.lossSeq++;
+    }
+
+    if (result === 'win'){
+        LONDONX_SMART.lossSeq = 0;
+    }
+
+    console.log("📉 LOSS SEQ:", LONDONX_SMART.lossSeq);
+
+    if (originalOnTradeResult){
+        originalOnTradeResult(result);
+    }
+};
+
+</script>
 </body>
 </html>
