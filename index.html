@@ -10734,5 +10734,68 @@ var ML = (function(){
 
 })();
 </script>
+
+<script>
+(function(){
+  const ctx = { MIN_VOL:0.0001, MAX_VOL:0.002, lossSeq:0 };
+
+  function calcularScore(prob, sinais, tendencia){
+    let s=0;
+    if(prob>=70) s++;
+    if(sinais>=9) s++;
+    if(tendencia==='forte') s++;
+    return s;
+  }
+
+  function validarVol(vol){
+    return vol>=ctx.MIN_VOL && vol<=ctx.MAX_VOL;
+  }
+
+  function podeOperar(d){
+    if(ctx.lossSeq>=2) return false;
+    return calcularScore(d.prob,d.sinais,d.tendencia)>=2 && validarVol(d.vol);
+  }
+
+  const omniOriginal = window.omni;
+
+  window.omni = function(){
+    try{
+      if(!window.analisarMercado){
+        return omniOriginal && omniOriginal();
+      }
+
+      const a = window.analisarMercado();
+
+      const autorizado = podeOperar({
+        prob: a.probabilidade || 0,
+        sinais: a.confirmacoes || 0,
+        tendencia: a.tendencia || 'fraca',
+        vol: a.volatilidade || 0
+      });
+
+      if(!autorizado){
+        console.log("🚫 BLOQUEADO PELO FILTRO");
+        return;
+      }
+
+      omniOriginal && omniOriginal();
+
+    }catch(e){
+      console.log("Erro fallback omni:", e);
+      omniOriginal && omniOriginal();
+    }
+  }
+
+  const originalResult = window.onTradeResult;
+  window.onTradeResult = function(res){
+    if(res==='loss') ctx.lossSeq++;
+    else if(res==='win') ctx.lossSeq=0;
+
+    originalResult && originalResult(res);
+  }
+
+})();
+</script>
+
 </body>
 </html>
