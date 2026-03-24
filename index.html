@@ -1132,7 +1132,7 @@ canvas{width:100%;display:block;}
 #guiaBtn{position:fixed;bottom:6px;left:136px;background:linear-gradient(135deg,#00897b,#004d40);
   color:#fff;border:none;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;opacity:.85;z-index:9999;letter-spacing:.5px;transition:opacity .2s;}
 #guiaBtn:hover{opacity:1;}
-#bolsoBtn{position:fixed;bottom:6px;left:220px;background:linear-gradient(135deg,#f57c00,#bf360c);
+#bolsoBtn{position:fixed;bottom:6px;left:160px;background:linear-gradient(135deg,#f57c00,#bf360c);
   color:#fff;border:none;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;opacity:.85;z-index:9999;letter-spacing:.5px;transition:opacity .2s;}
 #bolsoBtn:hover{opacity:1;}
 #helpBtn{position:fixed;bottom:6px;left:258px;background:linear-gradient(135deg,#00e5ff,#0066cc);
@@ -8579,157 +8579,146 @@ window.addEventListener('resize', function(){
 </div>
 <!-- ── BOTÃO AJUDA ── -->
 <div id="resetMLBtn" onclick="resetML()" title="Resetar pesos ML para calibrados">🔄 ML</div>
-<div id="manualBtn" onclick="openManualModal('manual')">📘 MANUAL</div>
-<div id="guiaBtn" onclick="openManualModal('guia')">📗 GUIA</div>
+<div id="manualBtn" onclick="openManualModal('manual')">📘 MANUAL & GUIA</div>
+<div id="guiaBtn" style="display:none"></div>
 <div id="bolsoBtn" onclick="openManualModal('bolso')">📙 BOLSO</div>
 
-<!-- ══ MODAL MANUAL COMPLETO ══ -->
-<div id="manualModal" style="display:none;position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:96vw;max-width:680px;height:90vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
+<!-- ══ MODAL MANUAL & GUIA UNIFICADO ══ -->
+<div id="manualModal" style="display:none;position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:96vw;max-width:700px;height:90vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
 <div style="max-width:700px;margin:20px auto;padding:24px;background:#0a1628;border-radius:16px;border:1px solid #1e4080;color:#c8d8e8;font-family:'Rajdhani',sans-serif;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:900;color:#00e5ff;letter-spacing:2px">📘 MANUAL COMPLETO v9.0</div>
+    <div style="font-family:'Orbitron',monospace;font-size:15px;font-weight:900;color:#00e5ff;letter-spacing:2px">📘 MANUAL & GUIA v9.0</div>
     <button onclick="closeManualModal()" style="background:#ff1744;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:12px;">✕ FECHAR</button>
   </div>
   <div style="font-size:13px;line-height:1.7;">
 
   <div style="background:#0d1f35;border-left:3px solid #00e5ff;padding:12px 16px;border-radius:6px;margin-bottom:16px;">
-    <b style="color:#00e5ff">London Trade AI Bot</b> · OMNI 7 Pares · 5M · Mix Automático · Soros + Conservador · 13 Fontes + ML Adaptativo<br>
+    <b style="color:#00e5ff">London Trade AI Bot</b> · OMNI 7 Pares · 5M · Mix Automático · 13 Fontes + ML Adaptativo<br>
     <span style="color:#ffd600;font-size:11px">Resultados reais: 72–87% WR · +$600–$750/dia · Melhor horário: 17h–19h30 (Brasília)</span>
   </div>
 
-  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">1. MODOS DE OPERAÇÃO</h3>
+  <!-- ── PARTE 1: COMO FUNCIONA ── -->
+  <div style="background:#111d30;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+    <span style="font-family:'Orbitron',monospace;font-size:11px;color:#00e5ff;letter-spacing:2px">⚙ COMO FUNCIONA</span>
+  </div>
+
+  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:12px;margin:12px 0 8px">1. OS 5 MODOS DE OPERAÇÃO</h3>
   <table style="width:100%;border-collapse:collapse;font-size:12px;">
     <tr style="background:#1a3a5c"><th style="padding:6px 10px;text-align:left">Modo</th><th style="padding:6px 10px;text-align:left">Descrição</th></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">⚪ Manual</td><td style="padding:6px 10px">Você decide — bot exibe sinais mas não executa</td></tr>
-    <tr><td style="padding:6px 10px">🔵 Semi-Auto</td><td style="padding:6px 10px">Bot analisa, você confirma cada entrada · ≥65% prob</td></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">🔥 Conservador</td><td style="padding:6px 10px">Auto · ≥65% prob · Mix: US$50 fixo → 2 wins → Soros</td></tr>
-    <tr><td style="padding:6px 10px">🌐 OMNI</td><td style="padding:6px 10px">Escaneia 7 pares em paralelo · entra no melhor sinal · ≥65% prob</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">⚪ Manual</td><td style="padding:6px 10px">Você opera livremente — sem sinais · bot só registra histórico</td></tr>
+    <tr><td style="padding:6px 10px">🎯 Semi-Auto</td><td style="padding:6px 10px">Bot analisa e exibe sinais · você confirma cada entrada · ≥65% prob</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">🔵 Conservador</td><td style="padding:6px 10px">Automático · stake fixo · 1 par (V75) · ≥68% prob · 9/13 fontes</td></tr>
+    <tr><td style="padding:6px 10px">🔥 Agressivo</td><td style="padding:6px 10px">Automático · Soros direto · 1 par (V75) · ≥65% prob · 8/13 fontes</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">🌐 OMNI</td><td style="padding:6px 10px">Automático · 7 pares · melhor sinal · ≥65% prob · Mix: US$50 → 2 wins → Soros</td></tr>
   </table>
 
-  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">2. OMNI — 7 PARES ESCANEADOS</h3>
+  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:12px;margin:14px 0 8px">2. OMNI — 7 PARES ESCANEADOS</h3>
   <table style="width:100%;border-collapse:collapse;font-size:12px;">
     <tr style="background:#1a3a5c"><th style="padding:6px 10px;text-align:left">Par</th><th style="padding:6px 10px;text-align:left">Tipo</th><th style="padding:6px 10px;text-align:left">Payout</th></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px">VOL 25 · VOL 50 · VOL 75 · VOL 100</td><td style="padding:6px 10px">Volatility Index</td><td style="padding:6px 10px;color:#00e676">~95%</td></tr>
     <tr><td style="padding:6px 10px">EUR/USD · GBP/USD · AUD/USD</td><td style="padding:6px 10px">Forex OTC</td><td style="padding:6px 10px;color:#ffd600">~85%</td></tr>
   </table>
-  <div style="background:#0d1f35;border-radius:6px;padding:10px 12px;font-size:12px;margin-top:8px;">
-    O OMNI escolhe o par com maior <b style="color:#ffd600">prob × sourcesConfirming</b> — só entra quando tudo está muito alinhado. Cada trade alimenta o ML.
+  <div style="background:#0d1f35;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:6px;">
+    O OMNI escolhe o par com maior <b style="color:#ffd600">prob × fontes confirmando</b>. Todos os trades alimentam o ML.
   </div>
 
-  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">3. FILTROS PARA EXECUTAR (OMNI e Auto)</h3>
+  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:12px;margin:14px 0 8px">3. FILTROS PARA EXECUTAR</h3>
   <table style="width:100%;border-collapse:collapse;font-size:12px;">
     <tr style="background:#1a3a5c"><th style="padding:6px 10px">#</th><th style="padding:6px 10px;text-align:left">Filtro</th><th style="padding:6px 10px;text-align:left">Critério</th></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">1</td><td style="padding:6px 10px">Probabilidade</td><td style="padding:6px 10px">≥ 65%</td></tr>
-    <tr><td style="padding:6px 10px;text-align:center">2</td><td style="padding:6px 10px">Fontes ponderadas ML</td><td style="padding:6px 10px">Equivalente a ~8–9 fontes normais alinhadas</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">1</td><td style="padding:6px 10px">Probabilidade</td><td style="padding:6px 10px">≥ 65% (conservador: ≥68%)</td></tr>
+    <tr><td style="padding:6px 10px;text-align:center">2</td><td style="padding:6px 10px">Fontes ponderadas ML</td><td style="padding:6px 10px">~8–9 fontes alinhadas (com peso ML)</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">3</td><td style="padding:6px 10px">Sessão + ADX + Tendência</td><td style="padding:6px 10px">Mercado aberto · ADX válido · EMAs alinhadas</td></tr>
     <tr><td style="padding:6px 10px;text-align:center">4</td><td style="padding:6px 10px">Sem conflito direcional</td><td style="padding:6px 10px">Lado oposto &lt; 65% do score principal</td></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">5</td><td style="padding:6px 10px">RSI não extremo</td><td style="padding:6px 10px">RSI &lt; 78 em compra · RSI &gt; 22 em venda</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">5</td><td style="padding:6px 10px">RSI não extremo</td><td style="padding:6px 10px">RSI &lt;78 em compra · RSI &gt;22 em venda</td></tr>
     <tr><td style="padding:6px 10px;text-align:center">6</td><td style="padding:6px 10px">Banca ok</td><td style="padding:6px 10px">Stop/meta diários não atingidos</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">7</td><td style="padding:6px 10px">Sem trade aberto</td><td style="padding:6px 10px">Trava de simultâneas</td></tr>
   </table>
 
-  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">4. ESTRATÉGIA MIX (Conservador)</h3>
+  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:12px;margin:14px 0 8px">4. ESTRATÉGIA MIX (OMNI)</h3>
   <table style="width:100%;border-collapse:collapse;font-size:12px;">
     <tr style="background:#1a3a5c"><th style="padding:6px 10px">Fase</th><th style="padding:6px 10px;text-align:left">Stake</th><th style="padding:6px 10px;text-align:left">Condição</th></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">Cons.</td><td style="padding:6px 10px">US$50 fixo</td><td style="padding:6px 10px">Até 2 wins seguidos</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">Conservador</td><td style="padding:6px 10px">US$50 fixo</td><td style="padding:6px 10px">Até 2 wins seguidos</td></tr>
     <tr><td style="padding:6px 10px;text-align:center">Soros N0</td><td style="padding:6px 10px">US$50</td><td style="padding:6px 10px;color:#00e676">Win → +US$47 → sobe N1</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px;text-align:center">Soros N1</td><td style="padding:6px 10px">US$97</td><td style="padding:6px 10px;color:#00e676">Win → +US$92 → 🏆 RESET</td></tr>
     <tr><td style="padding:6px 10px;text-align:center;color:#ff6090">Perda</td><td style="padding:6px 10px">Qualquer</td><td style="padding:6px 10px">Volta para Conservador US$50</td></tr>
   </table>
 
-  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">5. FECHAR ANTECIPADO (AUTO CLOSE)</h3>
+  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:12px;margin:14px 0 8px">5. AUTO CLOSE — FECHAR ANTECIPADO</h3>
   <div style="background:#0d1f35;border-radius:6px;padding:12px 16px;font-size:12px;line-height:2;">
-    O bot fecha automaticamente entre 60s e 240s antes do vencimento se:<br>
-    <span style="color:#00e676">💰 Condição 1:</span> Já atingiu ≥ 75% do lucro máximo previsto<br>
-    <span style="color:#ffd600">📊 Condição 2:</span> RSI extremo contrário (&gt;78 em compra / &lt;22 em venda) + ≥40% lucro<br>
-    <span style="color:#ff9800">🕯 Condição 3:</span> Candle de reversão forte (corpo &gt;65% do range) + ≥30% lucro<br>
-    Também pode fechar manualmente com ⚡ FECHAR AGORA
+    Dispara entre 60s e 240s antes do vencimento:<br>
+    <span style="color:#00e676">💰 Condição 1:</span> ≥ 75% do lucro máximo atingido<br>
+    <span style="color:#ffd600">📊 Condição 2:</span> RSI extremo contrário + ≥40% lucro<br>
+    <span style="color:#ff9800">🕯 Condição 3:</span> Candle de reversão forte + ≥30% lucro<br>
+    Pode fechar manualmente com ⚡ FECHAR AGORA
   </div>
 
-  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">6. ML ADAPTATIVO — 13 FONTES</h3>
+  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:12px;margin:14px 0 8px">6. ML ADAPTATIVO</h3>
   <div style="background:#0d1f35;border-radius:6px;padding:12px 16px;font-size:12px;line-height:1.9;">
-    O ML aprende com <b>todos</b> os trades (OMNI, automático, manual) e ajusta o peso de cada fonte:<br>
-    <span style="color:#00e676">≥ 1.0 = IMPULSO</span> · fonte performando acima da média<br>
-    <span style="color:#ff6090">&lt; 1.0 = PENALIDADE</span> · fonte puxando resultados para baixo<br><br>
-    <b style="color:#ffd600">Melhores fontes (dados reais):</b> VOLATILIDADE x1.07 (57% WR · 160op) · SESSÃO x1.05 (56% WR · 198op)<br>
-    <b style="color:#ff6090">Penalizadas:</b> SENTIMENTO x0.92 (49% WR · 141op) · FIBONACCI x0.94
+    Aprende com <b>todos</b> os trades (OMNI, automático, manual, todos os pares).<br>
+    <span style="color:#00e676">≥ x1.0 = IMPULSO</span> · fonte performando bem<br>
+    <span style="color:#ff6090">&lt; x1.0 = PENALIDADE</span> · fonte com mau histórico<br><br>
+    <b style="color:#ffd600">Melhores (dados reais):</b> VOLATILIDADE x1.07 · SESSÃO x1.05<br>
+    <b style="color:#ff6090">Penalizadas:</b> SENTIMENTO x0.92 · FIBONACCI x0.94
   </div>
 
-  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">7. GESTÃO DE RISCO</h3>
+  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:12px;margin:14px 0 8px">7. GESTÃO DE RISCO</h3>
   <div style="background:#0d1f35;border-radius:6px;padding:12px 16px;font-size:12px;line-height:2;">
     🛑 Stop Loss diário: <b style="color:#ff6090">5% da banca</b><br>
     ✅ Stop Gain diário: <b style="color:#00e676">10% da banca</b><br>
-    ⚠ Pausa automática: após 2 losses seguidos<br>
-    🕐 Melhor horário: <b style="color:#ffd600">17h–19h30 (Brasília)</b> — confirmado com 72–87% WR<br>
-    🔒 Após stop: bot pausa automaticamente
+    ⏸ Pausa automática: após 2 losses seguidos<br>
+    🕐 Melhor horário: <b style="color:#ffd600">17h–19h30 (Brasília)</b>
   </div>
 
-  <h3 style="color:#00e5ff;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">8. RESULTADOS REAIS CONFIRMADOS</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:12px;">
-    <tr style="background:#1a3a5c"><th style="padding:6px 10px;text-align:left">Sessão</th><th style="padding:6px 10px">Win Rate</th><th style="padding:6px 10px">P&amp;L</th></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">17h–19h30 (sessão típica)</td><td style="padding:6px 10px;text-align:center;color:#00e676">72–87%</td><td style="padding:6px 10px;text-align:center;color:#00e676">+$600–$750</td></tr>
-    <tr><td style="padding:6px 10px">Melhor dia registrado</td><td style="padding:6px 10px;text-align:center;color:#00e676">87%</td><td style="padding:6px 10px;text-align:center;color:#00e676">+$747</td></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">Meta diária</td><td style="padding:6px 10px;text-align:center;color:#ffd600">≥ 70%</td><td style="padding:6px 10px;text-align:center;color:#ffd600">Crescente com ML</td></tr>
-  </table>
-
+  <!-- ── PARTE 2: COMO INTERPRETAR ── -->
+  <div style="background:#111d30;border-radius:8px;padding:8px 12px;margin:20px 0 12px;">
+    <span style="font-family:'Orbitron',monospace;font-size:11px;color:#00e676;letter-spacing:2px">🔍 COMO INTERPRETAR</span>
   </div>
-</div>
-</div>
 
-<!-- ══ MODAL GUIA DE INTERPRETAÇÃO ══ -->
-<div id="guiaModal" style="display:none;position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:96vw;max-width:680px;height:90vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
-<div style="max-width:700px;margin:20px auto;padding:24px;background:#0a1628;border-radius:16px;border:1px solid #00897b;color:#c8d8e8;font-family:'Rajdhani',sans-serif;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:900;color:#00e676;letter-spacing:2px">📗 GUIA DE INTERPRETAÇÃO v9.0</div>
-    <button onclick="closeManualModal()" style="background:#ff1744;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:12px;">✕ FECHAR</button>
-  </div>
-  <div style="font-size:13px;line-height:1.7;">
-
-  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:13px;margin:0 0 8px">1. LENDO O PAINEL PRINCIPAL</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;">
+  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:12px;margin:12px 0 8px">8. LENDO O PAINEL</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
     <tr style="background:#1a4a3c"><th style="padding:6px 10px;text-align:left">Indicador</th><th style="padding:6px 10px;text-align:left">Significado</th><th style="padding:6px 10px;text-align:left">Referência</th></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px">Probabilidade %</td><td style="padding:6px 10px">Score ponderado das 13 fontes com ML</td><td style="padding:6px 10px;color:#00e676">≥ 65% válido</td></tr>
     <tr><td style="padding:6px 10px">Fontes X/13</td><td style="padding:6px 10px">Quantas fontes confirmam a direção</td><td style="padding:6px 10px">Quanto maior, melhor</td></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">ADX valor</td><td style="padding:6px 10px">Força da tendência atual</td><td style="padding:6px 10px;color:#00e676">≥ 25 = sólida</td></tr>
-    <tr><td style="padding:6px 10px">RSI valor</td><td style="padding:6px 10px">Nível de sobrecompra/sobrevenda</td><td style="padding:6px 10px;color:#ffd600">30–70 = zona segura</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">ADX valor</td><td style="padding:6px 10px">Força da tendência</td><td style="padding:6px 10px;color:#00e676">≥ 25 = sólida</td></tr>
+    <tr><td style="padding:6px 10px">RSI valor</td><td style="padding:6px 10px">Sobrecompra / sobrevenda</td><td style="padding:6px 10px;color:#ffd600">30–70 = zona segura</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px">Mini Painel (topo)</td><td style="padding:6px 10px">Win Rate · Ops · P&amp;L do dia</td><td style="padding:6px 10px">Atualiza em tempo real</td></tr>
   </table>
 
-  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">2. COUNTDOWN DO TRADE</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;">
+  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:12px;margin:12px 0 8px">9. COUNTDOWN — CORES DO CARD</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
     <tr style="background:#1a4a3c"><th style="padding:6px 10px;text-align:left">Cor</th><th style="padding:6px 10px;text-align:left">Significado</th></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px;color:#00e676">🟢 VERDE</td><td style="padding:6px 10px">Preço acima da entrada — operação ganhando</td></tr>
-    <tr><td style="padding:6px 10px;color:#ff1744">🔴 VERMELHO</td><td style="padding:6px 10px">Preço abaixo da entrada — operação perdendo</td></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px;color:#ffd600">🟡 AMARELO</td><td style="padding:6px 10px">Preço real ainda não confirmado pela Deriv</td></tr>
-    <tr><td style="padding:6px 10px">⚡ FECHAR AGORA</td><td style="padding:6px 10px">Fecha antecipado — recebe valor parcial da Deriv</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px;color:#00e676">🟢 Verde</td><td style="padding:6px 10px">Preço acima da entrada — operação ganhando</td></tr>
+    <tr><td style="padding:6px 10px;color:#ff1744">🔴 Vermelho</td><td style="padding:6px 10px">Preço abaixo da entrada — operação perdendo</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px;color:#ffd600">🟡 Amarelo</td><td style="padding:6px 10px">Aguardando preço real da Deriv confirmar</td></tr>
+    <tr><td style="padding:6px 10px">⚡ FECHAR AGORA</td><td style="padding:6px 10px">Fecha antecipado — recebe valor parcial</td></tr>
   </table>
 
-  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">3. PAINEL ML — COMO INTERPRETAR</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;">
-    <tr style="background:#1a4a3c"><th style="padding:6px 10px;text-align:left">Coluna</th><th style="padding:6px 10px;text-align:left">Significado</th></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">WR %</td><td style="padding:6px 10px">Win rate histórico desta fonte nos seus trades</td></tr>
-    <tr><td style="padding:6px 10px">Ops</td><td style="padding:6px 10px">Quantas operações alimentaram este dado</td></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">Peso x1.07 🟢</td><td style="padding:6px 10px">Fonte com bom histórico — sinal recebe impulso</td></tr>
-    <tr><td style="padding:6px 10px">Peso x0.92 🔴</td><td style="padding:6px 10px">Fonte fraca — sinal recebe penalidade</td></tr>
-    <tr style="background:#0d1f35"><td style="padding:6px 10px">RARA (badge)</td><td style="padding:6px 10px">Poucos dados — ML usa limiar menor (30%) para aprender</td></tr>
-  </table>
-
-  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">4. OMNI — MENSAGENS DO SCAN</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;">
+  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:12px;margin:12px 0 8px">10. MENSAGENS DO OMNI</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
     <tr style="background:#1a4a3c"><th style="padding:6px 10px;text-align:left">Mensagem</th><th style="padding:6px 10px;text-align:left">Significado</th></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px;color:#00e676">🌐 OMNI → VOL75 CALL · 78% · 11/13</td><td style="padding:6px 10px">Ordem executada no melhor par</td></tr>
     <tr><td style="padding:6px 10px">🔍 Escaneando 7 pares...</td><td style="padding:6px 10px">Analisando todos os pares em paralelo</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px">⏳ Melhor: VOL75 · 63% · 8/13</td><td style="padding:6px 10px">Nenhum par atingiu threshold — aguardando</td></tr>
-    <tr><td style="padding:6px 10px">🔴 VOL75 RSI extremo (79) — bloqueado</td><td style="padding:6px 10px">RSI muito alto — risco de reversão</td></tr>
+    <tr><td style="padding:6px 10px">🔴 RSI extremo (79) — bloqueado</td><td style="padding:6px 10px">RSI alto demais · risco de reversão</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px">⏸️ Pausa Xmin · 2 losses seguidos</td><td style="padding:6px 10px">Pausa automática de proteção</td></tr>
     <tr><td style="padding:6px 10px">🤖 AUTO CLOSE: 75% lucro garantido</td><td style="padding:6px 10px">Fechou antecipado protegendo lucro</td></tr>
   </table>
 
-  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">5. QUANDO CONFIAR E QUANDO PARAR</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:12px;margin:12px 0 8px">11. PAINEL ML — COMO LER</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
+    <tr style="background:#1a4a3c"><th style="padding:6px 10px;text-align:left">Coluna</th><th style="padding:6px 10px;text-align:left">Significado</th></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">WR %</td><td style="padding:6px 10px">Win rate histórico desta fonte nos seus trades</td></tr>
+    <tr><td style="padding:6px 10px">Ops</td><td style="padding:6px 10px">Quantas operações alimentaram este dado</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px;color:#00e676">Peso x1.07 ↑</td><td style="padding:6px 10px">Fonte forte — sinal recebe impulso</td></tr>
+    <tr><td style="padding:6px 10px;color:#ff6090">Peso x0.92 ↓</td><td style="padding:6px 10px">Fonte fraca — sinal recebe penalidade</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">RARA (badge)</td><td style="padding:6px 10px">Poucos dados — ML usa limiar menor para aprender</td></tr>
+  </table>
+
+  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:12px;margin:12px 0 8px">12. QUANDO CONFIAR E QUANDO PARAR</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
     <div style="background:#0d2a1a;border:1px solid #00e676;border-radius:6px;padding:12px;font-size:12px;">
       <b style="color:#00e676">✅ ALTA CONFIABILIDADE</b><br><br>
-      · Prob acima de 75%<br>
+      · Prob &gt; 75%<br>
       · 10+ fontes de 13<br>
       · ADX &gt; 30<br>
       · RSI na zona 30–70<br>
@@ -8745,18 +8734,29 @@ window.addEventListener('resize', function(){
     </div>
   </div>
 
-  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:13px;margin:16px 0 8px">6. HORÁRIOS RECOMENDADOS</h3>
+  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:12px;margin:12px 0 8px">13. HORÁRIOS RECOMENDADOS</h3>
   <table style="width:100%;border-collapse:collapse;font-size:12px;">
     <tr style="background:#1a4a3c"><th style="padding:6px 10px;text-align:left">Horário (Brasília)</th><th style="padding:6px 10px;text-align:left">Qualidade</th><th style="padding:6px 10px;text-align:left">Motivo</th></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px;color:#ffd600">17h – 19h30 🏆</td><td style="padding:6px 10px;color:#00e676">Ótimo · confirmado</td><td style="padding:6px 10px">NY fechamento + Europa · 72–87% WR real</td></tr>
     <tr><td style="padding:6px 10px">09h – 12h</td><td style="padding:6px 10px;color:#00e676">Bom</td><td style="padding:6px 10px">Abertura Londres</td></tr>
     <tr style="background:#0d1f35"><td style="padding:6px 10px">14h – 16h30</td><td style="padding:6px 10px;color:#ffd600">Razoável</td><td style="padding:6px 10px">Abertura NY · mais volátil</td></tr>
-    <tr><td style="padding:6px 10px">00h – 06h · 12h–14h</td><td style="padding:6px 10px;color:#ff6090">Evitar</td><td style="padding:6px 10px">Baixo volume · sem direção</td></tr>
+    <tr><td style="padding:6px 10px">00h–06h · 12h–14h</td><td style="padding:6px 10px;color:#ff6090">Evitar</td><td style="padding:6px 10px">Baixo volume · sem direção</td></tr>
+  </table>
+
+  <h3 style="color:#00e676;font-family:'Orbitron',monospace;font-size:12px;margin:14px 0 8px">14. RESULTADOS REAIS</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <tr style="background:#1a4a3c"><th style="padding:6px 10px;text-align:left">Sessão</th><th style="padding:6px 10px">Win Rate</th><th style="padding:6px 10px">P&amp;L</th></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">17h–19h30 (típica)</td><td style="padding:6px 10px;text-align:center;color:#00e676">72–87%</td><td style="padding:6px 10px;text-align:center;color:#00e676">+$600–$750</td></tr>
+    <tr><td style="padding:6px 10px">Melhor dia registrado</td><td style="padding:6px 10px;text-align:center;color:#00e676">87%</td><td style="padding:6px 10px;text-align:center;color:#00e676">+$747 · 15 ops</td></tr>
+    <tr style="background:#0d1f35"><td style="padding:6px 10px">Meta diária</td><td style="padding:6px 10px;text-align:center;color:#ffd600">≥ 70%</td><td style="padding:6px 10px;text-align:center;color:#ffd600">Crescente com ML</td></tr>
   </table>
 
   </div>
 </div>
 </div>
+
+<!-- guiaModal mantido como alias para não quebrar código -->
+<div id="guiaModal" style="display:none"></div>
 
 <!-- ══ MODAL MANUAL DE BOLSO ══ -->
 <div id="bolsoModal" style="display:none;position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:96vw;max-width:680px;height:90vh;z-index:30000;background:rgba(5,12,28,.98);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(0,229,255,.2);box-shadow:0 0 40px rgba(0,0,0,.8);" onclick="if(event.target===this)closeManualModal()">
@@ -8768,8 +8768,14 @@ window.addEventListener('resize', function(){
   <div style="font-size:13px;line-height:1.8;display:grid;gap:14px;">
 
   <div style="background:#0d1f35;border-left:3px solid #ff9800;padding:12px 16px;border-radius:6px;">
-    <b style="color:#ff9800;font-family:'Orbitron',monospace;font-size:12px">⚡ COMO LIGAR O OMNI</b><br><br>
-    <span style="font-size:12px;">1. Abra o arquivo no browser<br>2. Cole seu token Deriv e clique CONECTAR<br>3. Clique em 🌐 OMNI<br>4. Aguarde: "Escaneando 7 pares..."<br>5. Bot opera sozinho — não clique em nada<br><span style="color:#ffd600">⏰ Melhor: 17h–19h30 (Brasília)</span></span>
+    <b style="color:#ff9800;font-family:'Orbitron',monospace;font-size:12px">⚡ MODOS — RESUMO RÁPIDO</b><br><br>
+    <span style="font-size:12px;">
+    ⚪ <b>Manual</b> — você opera, bot registra<br>
+    🎯 <b>Semi-Auto</b> — bot sugere, você confirma<br>
+    🔵 <b>Conservador</b> — auto · stake fixo · V75 · ≥68%<br>
+    🔥 <b>Agressivo</b> — auto · Soros direto · V75 · ≥65%<br>
+    🌐 <b>OMNI</b> — auto · 7 pares · Mix US$50→Soros · ≥65%<br>
+    <br><span style="color:#ffd600">⏰ Melhor horário: 17h–19h30 (Brasília)</span></span>
   </div>
 
   <div style="background:#0d1f35;border-left:3px solid #ffd600;padding:12px 16px;border-radius:6px;">
