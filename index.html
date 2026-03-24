@@ -10797,5 +10797,41 @@ var ML = (function(){
 })();
 </script>
 
+
+<script>
+(function(){
+  const ctx = { MIN_VOL:0.0001, MAX_VOL:0.002, lossSeq:0 };
+
+  function fakeMarketCheck(){
+    // fallback simple protection (since real data is inside bot)
+    return Math.random() > 0.3 && ctx.lossSeq < 2;
+  }
+
+  // INTERCEPT WEBSOCKET SEND (REAL TRADE POINT)
+  const originalSend = WebSocket.prototype.send;
+
+  WebSocket.prototype.send = function(data){
+    try{
+      if(typeof data === "string" && data.includes("buy")){
+
+        const autorizado = fakeMarketCheck();
+
+        if(!autorizado){
+          console.log("🚫 BLOQUEADO PELO FILTRO (WS)");
+          return; // BLOCK TRADE HERE
+        }
+
+        console.log("✅ TRADE LIBERADO (WS)");
+      }
+    }catch(e){
+      console.log("erro filtro ws", e);
+    }
+
+    return originalSend.apply(this, arguments);
+  };
+
+})();
+</script>
+
 </body>
 </html>
