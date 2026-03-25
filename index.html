@@ -315,5 +315,150 @@ function renderSig(){let h=state.signals.map(s=>`<div class="signal-item"><span 
 upd();setInterval(upd,1e3);setTimeout(()=>$('.loading-overlay').remove(),2e3);
 })();
 </script>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>LONDONX FINAL</title>
+</head>
+
+<body>
+
+<!-- ================== SEU BOT ORIGINAL AQUI ================== -->
+<!-- COLE TODO SEU HTML ORIGINAL EXATAMENTE AQUI -->
+<!-- (NÃO APAGUE NADA DO SEU BOT, SÓ COLE) -->
+
+
+<!-- ================== PATCH CORRETIVO FINAL ================== -->
+<script>
+
+// ================= NORMALIZAÇÃO DIREÇÃO =================
+function normalizeDirection(input){
+  if(!input) return null;
+  const map={
+    BUY:'CALL',CALL:'CALL',UP:'CALL',
+    SELL:'PUT',PUT:'PUT',DOWN:'PUT'
+  };
+  return map[input.toUpperCase()]||null;
+}
+
+// ================= PREÇO GLOBAL =================
+window.__LX_PRICE={last:0,source:'',ts:0};
+
+function updateGlobalPrice(price,source){
+  if(!price) return;
+  const p={deriv:3,ohlc:2,feed:1};
+
+  if(!window.__LX_PRICE.source || p[source]>=p[window.__LX_PRICE.source]){
+    window.__LX_PRICE={
+      last:price,
+      source:source,
+      ts:Date.now()
+    };
+  }
+}
+
+// ================= FILTRO REAL =================
+function lxPodeOperar(ctx){
+  try{
+    if(!ctx) return false;
+    if(ctx.prob < 65) return false;
+    if(ctx.sourcesConfirming < 5) return false;
+    if(ctx.adxNow && ctx.adxNow < 18) return false;
+    if(ctx.trendOk === false) return false;
+    return true;
+  }catch(e){
+    console.warn('Filtro erro:',e);
+    return false;
+  }
+}
+
+// ================= PATCH EXECUTE =================
+setTimeout(()=>{
+  if(window.executeTrade){
+    const old=window.executeTrade;
+
+    window.executeTrade=function(...args){
+      args[0]=normalizeDirection(args[0]);
+      console.log('DIR FIX:',args[0]);
+      return old.apply(this,args);
+    }
+  }
+},1000);
+
+// ================= PATCH OMNI =================
+setTimeout(()=>{
+  if(window.omniMode && omniMode.scan){
+    const old=omniMode.scan;
+
+    omniMode.scan=async function(){
+      const r=await old.apply(this,arguments);
+
+      if(r && r.sig && !lxPodeOperar(r.sig)){
+        console.log('⛔ BLOQUEADO PELO FILTRO');
+        return;
+      }
+
+      return r;
+    }
+  }
+},1500);
+
+// ================= PATCH COUNTDOWN =================
+setTimeout(()=>{
+  if(window.startTradeCountdown){
+    const old=window.startTradeCountdown;
+
+    window.startTradeCountdown=function(id,e,isBuy,stake,profit,payout,dur){
+      const t=window.tradeHistory?.find(x=>x.id===id);
+
+      if(t){
+        t._startTime=Date.now();
+        t._endTime=Date.now()+dur*1000;
+      }
+
+      return old.apply(this,arguments);
+    }
+  }
+},2000);
+
+// ================= PATCH EARLY CLOSE =================
+setTimeout(()=>{
+  if(window.earlyClose){
+    const old=window.earlyClose;
+
+    window.earlyClose=function(id){
+      const t=window.tradeHistory?.find(x=>x.id===id);
+
+      if(t && t.contractId){
+        console.log('💥 EARLY CLOSE REAL:',t.contractId);
+
+        try{
+          derivSend({
+            sell:t.contractId,
+            price:0
+          });
+        }catch(e){
+          console.error(e);
+        }
+      }
+
+      return old.apply(this,arguments);
+    }
+  }
+},2500);
+
+// ================= LOG =================
+setInterval(()=>{
+  if(window.__LX_PRICE.last){
+    console.log('PRICE GLOBAL:',window.__LX_PRICE);
+  }
+},5000);
+
+</script>
+
+</body>
+</html>
+
 </body>
 </html>
