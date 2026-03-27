@@ -9772,9 +9772,11 @@ const autoMode = {
     if(tradeMarkers.length>10)tradeMarkers.shift();
     drawChart();
     const _pairName=PAIRS[S.pair]?PAIRS[S.pair].sym:'V75 OTC';
+    // Preço de entrada: _lastPrice do par do trade (S.chartTick pode ser de outro par em OMNI)
+    const _correctEntryPrice = (PAIRS[S.pair]&&PAIRS[S.pair]._lastPrice) || S.chartTick || 1;
     tradeHistory.push({id:tradeId,side:dir,pair:_pairName,val:'US$'+stake,stake,profit,
       score:S.totalScore+'/'+S.totalMax,time,date,prob:S.prob,
-      result:'pending',remaining:durSecs,entryPrice:S.chartTick||1,
+      result:'pending',remaining:durSecs,entryPrice:_correctEntryPrice,
       isBuy,contractId:contractId||null,_buyReqId:buyReqId||null,
       strat:this._mixMode==='aggr'?'soros':'cons',
       martLevel:0,hour:new Date().getHours(),
@@ -9786,18 +9788,22 @@ const autoMode = {
     if(tradeHistory.length>50)tradeHistory.shift();
     try{localStorage.setItem('londonx_history',JSON.stringify(tradeHistory));}catch(e){}
     renderHistory();
-    startTradeCountdown(tradeId,S.chartTick||1,isBuy,stake,profit,payout,durSecs);
+    startTradeCountdown(tradeId,_correctEntryPrice,isBuy,stake,profit,payout,durSecs);
     semiAuto.stopPulse();
     this._executing = false; // 🔓 libera trava após registrar o trade
 
-    // Inicializar _currentTick = entryPrice → countdown começa NEUTRO (sem cor)
+    // ── INICIALIZAR preço de entrada com o par CORRETO do trade ──
+    // CAUSA BUG CORES INVERTIDAS: S.chartTick ainda é do par anterior quando OMNI muda de par
+    // Fix: usa _lastPrice do par real do trade como referência de entrada
     const _t2=tradeHistory[tradeHistory.length-1];
     if(_t2){
-      // FIX 3b: inicializar com melhor preço disponível
-      const _initPrice = S.chartTick || (PAIRS[_t2._pairIdx]&&PAIRS[_t2._pairIdx]._lastPrice) || 0;
+      const _tpIdx = _t2._pairIdx;
+      // Prioridade: _lastPrice do par do trade > S.chartTick (pode ser de outro par) > fallback 1
+      const _pairLastPrice = (PAIRS[_tpIdx] && PAIRS[_tpIdx]._lastPrice) || 0;
+      const _initPrice = _pairLastPrice || S.chartTick || 1;
       _t2._currentTick = _initPrice;
       _t2._provisionalEntry = _initPrice;
-      if(!_t2.entryPrice && _initPrice > 0) _t2.entryPrice = _initPrice;
+      _t2.entryPrice = _initPrice; // sobrescrito com real quando Deriv confirmar
       _t2._cdInterval = true; // marca que tem countdown ativo
 
       // ── FIX FOREX COUNTDOWN AMARELO ──────────────────────────
