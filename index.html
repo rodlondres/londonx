@@ -2408,8 +2408,16 @@ function derivConnect(){
         // ── RESULTADO REAL DO CONTRATO DA DERIV ──────────────
         if(msg.msg_type==='buy' && msg.buy){
           const b = msg.buy;
-          // Encontrar trade pendente com este contractId
-          const t = tradeHistory.find(x=>x.result==='pending'&&(x.contractId===b.contract_id||!x.contractId));
+          const _buyRid = msg.echo_req && msg.echo_req.req_id;
+          // FIX CRÍTICO: matching por req_id primeiro (evita roubo de contractId entre trades simultâneos)
+          // Fallback !x.contractId só se houver exatamente 1 trade pendente sem contractId
+          let t = _buyRid
+            ? tradeHistory.find(x=>x.result==='pending'&&x._buyReqId===_buyRid)
+            : null;
+          if(!t){
+            const _allPending = tradeHistory.filter(x=>x.result==='pending'&&!x.contractId);
+            if(_allPending.length===1) t = _allPending[0]; // seguro — só 1 candidato
+          }
           if(t){
             t.contractId = b.contract_id;
             t._buyPrice = parseFloat(b.buy_price||0);
@@ -6346,11 +6354,13 @@ function openModal(side, ev, proposal){
   btn.textContent=isBuy?'✅ SIM — COMPRAR AGORA':'✅ SIM — VENDER AGORA';
   btn.onclick=()=>{
     // Executa a ordem real na Deriv
+    // FIX CRÍTICO: req_id único por buy → matching correto no handler (evita roubo de contractId)
+    const _buyReqId = 97000 + (Date.now() % 1000);
     if(proposal && proposal.id){
-      derivSend({buy:proposal.id, price:proposal.ask_price});
+      derivSend({buy:proposal.id, price:proposal.ask_price, req_id:_buyReqId});
       notify('✅ Ordem US$'+stake+' enviada para Deriv!');
     } else if(window._lastProposal && window._lastProposal.side===side){
-      derivSend({buy:window._lastProposal.id, price:window._lastProposal.price});
+      derivSend({buy:window._lastProposal.id, price:window._lastProposal.price, req_id:_buyReqId});
       notify('✅ Ordem US$'+stake+' enviada para Deriv!');
       window._lastProposal=null;
     } else {
@@ -6366,7 +6376,8 @@ function openModal(side, ev, proposal){
     tradeHistory.push({id:tradeId,side:side,pair:pair,val:"US$"+stake,stake:stake,profit:profit,
       score:S.totalScore+"/"+S.totalMax,time:time,date:tradeDate,prob:S.prob,
       result:"pending",remaining:durSecs,entryPrice:entryPrice,isBuy:isBuy,
-      contractId:null,strat:S.strategy,martLevel:bankroll.martLevel,hour:tradeHour,
+      contractId:null,_buyReqId:_buyReqId,
+      strat:S.strategy,martLevel:bankroll.martLevel,hour:tradeHour,
       // ✅ _entryFixed=false → será sobrescrito com preço real quando Deriv confirmar
       _entryFixed:false,
       tf:S.tf||"3",_pairIdx:S.pair,sources:JSON.parse(JSON.stringify(S.srcScores||{}))});
@@ -6554,8 +6565,14 @@ function hideActiveTrade(tradeId){
   if(tradeId){
     const card=document.getElementById('atCard_'+tradeId);
     if(card) card.remove();
+    // Limpa sub de tick do par (forex trades em par diferente do gráfico)
+    if(window._tradeTickSub && window._tradeTickSub[tradeId]){
+      delete window._tradeTickSub[tradeId];
+    }
   } else {
     const c=_getContainer(); if(c) c.innerHTML='';
+    // Limpa todas as subs de tick ao fechar todos os cards
+    window._tradeTickSub = {};
   }
   setTimeout(_updateBodyPad,50);
 }
@@ -6603,6 +6620,17 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
   const endTime = Date.now() + durSecs*1000;
   const t0=tradeHistory.find(x=>x.id===tradeId);
   if(t0) t0._endTime=endTime;
+
+  // ── FIX FOREX COUNTDOWN AMARELO (manual/semi-auto) ───────────
+  // Se o trade é num par diferente do gráfico ativo, subscreve tick desse par
+  if(t0 && t0._pairIdx !== undefined && t0._pairIdx !== S.pair){
+    const _tpDeriv = PAIRS[t0._pairIdx] && PAIRS[t0._pairIdx].deriv;
+    if(_tpDeriv && wsReady){
+      if(!window._tradeTickSub) window._tradeTickSub = {};
+      window._tradeTickSub[tradeId] = _tpDeriv;
+      derivSend({ticks: _tpDeriv, subscribe: 1, req_id: 78000 + (t0._pairIdx * 10) + (Date.now()%10)});
+    }
+  }
 
   // Cria card independente para este trade
   const pairName=PAIRS[S.pair]?PAIRS[S.pair].sym:'—';
@@ -9558,12 +9586,15 @@ const autoMode = {
       const contractType=isBuy?'CALL':'PUT'; // FIX: BUY=CALL (acima), SELL=PUT (abaixo) const symbol=PAIRS[S.pair].deriv; const reqId=94000+(Date.now()%900); // autoMode proposal: 94000-94999
       window._pendingProposals=window._pendingProposals||{};
       window._pendingProposals[reqId]={side:dir,stake,cb:(proposal)=>{
-        if(proposal.error){ notify('❌ AUTO: '+proposal.error.message); this._registerAndCountdown(dir,stake,profit,payout,durSecs,null); return; }
-        derivSend({buy:proposal.id,price:proposal.ask_price});
+        if(proposal.error){ notify('❌ AUTO: '+proposal.error.message); this._registerAndCountdown(dir,stake,profit,payout,durSecs,null,null); return; }
+        // FIX CRÍTICO: req_id único no buy para matching correto
+        // contractId=null → buy handler vai preencher com o contract_id real da Deriv
+        const _buyRqId = 97000 + (Date.now() % 1000);
+        derivSend({buy:proposal.id,price:proposal.ask_price,req_id:_buyRqId});
         notify('✅ AUTO: Ordem US$'+stake+' enviada!');
-        this._registerAndCountdown(dir,stake,profit,payout,durSecs,proposal.id);
+        this._registerAndCountdown(dir,stake,profit,payout,durSecs,null,_buyRqId);
       }};
-      setTimeout(()=>{ if(window._pendingProposals&&window._pendingProposals[reqId]){ delete window._pendingProposals[reqId]; this._registerAndCountdown(dir,stake,profit,payout,durSecs,null); } },6000);
+      setTimeout(()=>{ if(window._pendingProposals&&window._pendingProposals[reqId]){ delete window._pendingProposals[reqId]; this._registerAndCountdown(dir,stake,profit,payout,durSecs,null,null); } },6000);
       derivSend({proposal:1,amount:stake,basis:'stake',contract_type:contractType,currency:'USD',duration:durSecs,duration_unit:'s',symbol,req_id:reqId});
     } else {
       notify('📋 AUTO (demo): '+(isBuy?'COMPRA':'VENDA')+' US$'+stake);
@@ -9571,7 +9602,7 @@ const autoMode = {
     }
   },
 
-  _registerAndCountdown(dir,stake,profit,payout,durSecs,contractId){
+  _registerAndCountdown(dir,stake,profit,payout,durSecs,contractId,buyReqId){
     const isBuy=dir==='BUY';
     const time=new Date().toLocaleTimeString('pt-BR',{hour12:false});
     const date=new Date().toLocaleDateString('pt-BR');
@@ -9583,7 +9614,7 @@ const autoMode = {
     tradeHistory.push({id:tradeId,side:dir,pair:_pairName,val:'US$'+stake,stake,profit,
       score:S.totalScore+'/'+S.totalMax,time,date,prob:S.prob,
       result:'pending',remaining:durSecs,entryPrice:S.chartTick||1,
-      isBuy,contractId:contractId||null,
+      isBuy,contractId:contractId||null,_buyReqId:buyReqId||null,
       strat:this._mixMode==='aggr'?'soros':'cons',
       martLevel:0,hour:new Date().getHours(),
       // ✅ _pairIdx obrigatório — handleTick usa para atualizar _currentTick e _provisionalEntry
@@ -9607,6 +9638,21 @@ const autoMode = {
       _t2._provisionalEntry = _initPrice;
       if(!_t2.entryPrice && _initPrice > 0) _t2.entryPrice = _initPrice;
       _t2._cdInterval = true; // marca que tem countdown ativo
+
+      // ── FIX FOREX COUNTDOWN AMARELO ──────────────────────────
+      // Se o trade é num par diferente do gráfico ativo (OMNI/Conservador/Agressivo),
+      // subscreve tick desse par para que _currentTick seja atualizado em tempo real
+      const _tradePairIdx = _t2._pairIdx;
+      if(_tradePairIdx !== undefined && _tradePairIdx !== S.pair){
+        const _tradePairDeriv = PAIRS[_tradePairIdx] && PAIRS[_tradePairIdx].deriv;
+        if(_tradePairDeriv && wsReady){
+          if(!window._tradeTickSub) window._tradeTickSub = {};
+          window._tradeTickSub[tradeId] = _tradePairDeriv;
+          // Subscreve ticks do par — se já subscrito (OMNI pode ter mudado gráfico), usa sub existente
+          const _tickSubReqId = 78000 + (_tradePairIdx * 10) + (Date.now() % 10);
+          derivSend({ticks: _tradePairDeriv, subscribe: 1, req_id: _tickSubReqId});
+        }
+      }
     }
     const checkResult=setInterval(()=>{
       const t=tradeHistory.find(x=>x.id===tradeId);
@@ -9857,13 +9903,16 @@ const omniMode = {
       window._pendingProposals=window._pendingProposals||{};
       window._pendingProposals[reqId]={side:winner.sig.dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ OMNI: '+proposal.error.message); S.pair=origPair; this._executing=false; return; }
-        derivSend({buy:proposal.id,price:proposal.ask_price});
+        // FIX CRÍTICO: req_id único no buy para matching correto
+        const _buyRqId = 97000 + (Date.now() % 1000);
+        derivSend({buy:proposal.id,price:proposal.ask_price,req_id:_buyRqId});
         // Salvar par negociado no trade para resolução correta
         // Mudar gráfico para o par correto — resolve countdown, cores e resultado
         if(pairIdx>=0 && pairIdx!==origPair){
           selectPair(pairIdx); // muda gráfico completamente
         }
-        autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,durSecs,proposal.id);
+        // contractId=null → buy handler preenche com contract_id real da Deriv
+        autoMode._registerAndCountdown(winner.sig.dir,stake,profit,payout,durSecs,null,_buyRqId);
         // Corrigir par no trade após registro
         if(tradeHistory.length>0){ 
           const _lt=tradeHistory[tradeHistory.length-1]; 
