@@ -2512,40 +2512,59 @@ function derivConnect(){
           }
           if(poc.is_sold===1 || poc.status==='won' || poc.status==='lost'){
             const t = tradeHistory.find(x=>x.contractId===poc.contract_id);
-            if(t && t.result==='pending'){
+            if(t && (t.result==='pending' || t._resolvedLocally)){
               const realWon = poc.status==='won' || parseFloat(poc.profit||0) > 0;
               const realProfit = parseFloat(poc.profit||0);
-              // Usar resultado REAL da Deriv — não calcular localmente
+              const wasLocallyResolved = t._resolvedLocally;
+              const localWon = t.result === 'win';
+
+              // Atualiza com resultado real da Deriv
               t.result = realWon ? 'win' : 'loss';
               t._exitPrice = parseFloat(poc.exit_tick||poc.current_spot||0);
               t._realProfit = realProfit;
+              t._resolvedLocally = false;
               if(realWon) t.profit = realProfit.toFixed(2);
               else t._lossAmt = Math.abs(realProfit).toFixed(2);
-              // Atualizar banca com resultado real
+
               if(typeof bankroll !== 'undefined'){
-                bankroll.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit));
+                // Se já registrou localmente com resultado diferente, corrige
+                if(wasLocallyResolved && localWon !== realWon){
+                  // Desfaz registro local errado e registra o real
+                  bankroll.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit));
+                } else if(!wasLocallyResolved){
+                  bankroll.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit));
+                }
               }
               try{ bm.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit)); }catch(e){}
-              // Registrar no Mix
-              if(autoMode.active || omniMode.active){
-                autoMode.registerResult(realWon);
-              }
+              if(autoMode.active || omniMode.active) autoMode.registerResult(realWon);
               if(typeof ML !== 'undefined') setTimeout(()=>ML.update(), 300);
-              // Esconder card e atualizar UI
-              try{ hideActiveTrade(t.id); }catch(e){}
+
               try{ renderHistory(); }catch(e){}
               try{ updateStatsBar(); }catch(e){}
-              // ✅ FIX: mostra overlay de resultado imediatamente (antes era omitido para auto/OMNI)
-              try{
-                const _pName = PAIRS[t._pairIdx]?PAIRS[t._pairIdx].sym:(t.pair||'—');
-                const _nextStake = bankroll.getStake(S.strategy, bankroll.baseStake);
-                const _earlySuffix = t._earlyClosed ? ' ⚡ Antecipado' : '';
-                showResultOverlay(realWon, t.stake, Math.abs(realProfit).toFixed(2),
-                  _pName, t.tf||S.tf, t.entryPrice||0, t._exitPrice||0,
-                  'Próxima: US$'+_nextStake+_earlySuffix);
-              }catch(e){}
+
+              // Só mostra overlay se ainda não foi mostrado (trade ainda pending)
+              if(!wasLocallyResolved){
+                try{ hideActiveTrade(t.id); }catch(e){}
+                try{
+                  const _pName = PAIRS[t._pairIdx]?PAIRS[t._pairIdx].sym:(t.pair||'—');
+                  const _nextStake = bankroll.getStake(S.strategy, bankroll.baseStake);
+                  const _earlySuffix = t._earlyClosed ? ' ⚡ Antecipado' : '';
+                  showResultOverlay(realWon, t.stake, Math.abs(realProfit).toFixed(2),
+                    _pName, t.tf||S.tf, t.entryPrice||0, t._exitPrice||0,
+                    'Próxima: US$'+_nextStake+_earlySuffix);
+                }catch(e){}
+              } else if(wasLocallyResolved && localWon !== realWon){
+                // Resultado local estava errado — corrige overlay com resultado real
+                try{
+                  const _pName = PAIRS[t._pairIdx]?PAIRS[t._pairIdx].sym:(t.pair||'—');
+                  const _nextStake = bankroll.getStake(S.strategy, bankroll.baseStake);
+                  showResultOverlay(realWon, t.stake, Math.abs(realProfit).toFixed(2),
+                    _pName, t.tf||S.tf, t.entryPrice||0, t._exitPrice||0,
+                    'Próxima: US$'+_nextStake+' (Deriv corrigiu)');
+                }catch(e){}
+              }
+
               notify((realWon?'✅ WIN':'❌ LOSS')+' '+t.pair+' · '+(realWon?'+':'')+realProfit.toFixed(2)+' USD (Deriv confirmado)');
-              // Parar interval do countdown se ainda rodando
               if(window._cdMap && window._cdMap.has(t.id)){
                 clearInterval(window._cdMap.get(t.id));
                 window._cdMap.delete(t.id);
@@ -6658,7 +6677,9 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
   }
 
   // Cria card independente para este trade
-  const pairName=PAIRS[S.pair]?PAIRS[S.pair].sym:'—';
+  // FIX: usa o par real do trade (t0._pairIdx), não S.pair (gráfico ativo)
+  const _tradePairIdx = (t0 && t0._pairIdx !== undefined) ? t0._pairIdx : S.pair;
+  const pairName = PAIRS[_tradePairIdx] ? PAIRS[_tradePairIdx].sym : (PAIRS[S.pair]?PAIRS[S.pair].sym:'—');
   showActiveTrade(isBuy, pairName, S.tf, stake, profit, durSecs, tradeId);
   updateActiveTradeCD(durSecs, durSecs, tradeId, isBuy, 0);
 
@@ -6766,21 +6787,20 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
     if(remaining<=0){
       const iid=window._cdMap.get(tradeId);
       if(iid){clearInterval(iid);window._cdMap.delete(tradeId);}
-      // Só resolve localmente se não for trade automático/OMNI
       const _t=tradeHistory.find(x=>x.id===tradeId);
       if(_t && (_t.autoMode || _t._omni)){
-        // Trade auto/OMNI — aguarda resultado real da Deriv
+        // Trade auto/OMNI — resolve localmente (como manual) para overlay imediato
+        // POC vai confirmar/corrigir o resultado quando chegar (pode demorar até 30s)
         if(_t.result==='pending'){
-          _t._waitingDeriv=true;
-          const _cd=document.getElementById('atCd_'+tradeId);
-          if(_cd){ _cd.textContent='...'; _cd.className='at-cd'; }
-          const _lbl=document.getElementById('atLbl_'+tradeId);
-          if(_lbl) _lbl.textContent='⏳ Aguardando resultado da Deriv...';
+          // Resolve com preço atual — POC vai sobrescrever com resultado real se diferente
+          resolveTradeResult(tradeId, entryPrice, isBuy, stake, profit, payoutPct);
+          // Marca que foi resolvido localmente — POC ainda pode corrigir
+          _t._resolvedLocally = true;
         }
       } else if(!_t || _t.result==='pending'){
         resolveTradeResult(tradeId,entryPrice,isBuy,stake,profit,payoutPct);
       }
-      hideActiveTrade(tradeId); // remove só o card deste trade
+      hideActiveTrade(tradeId);
       if(!tradeHistory.some(x=>x.result==='pending')){
         document.getElementById('modalCountdown').style.display='none';
         document.getElementById('modalOverlay').classList.remove('show');
