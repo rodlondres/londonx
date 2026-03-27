@@ -2477,12 +2477,22 @@ function derivConnect(){
             try{ bm.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit)); }catch(e){}
             if(typeof ML !== 'undefined') setTimeout(()=>ML.update(), 300);
             try{ hideActiveTrade(t.id); renderHistory(); updateStatsBar(); }catch(e){}
+            // ✅ FIX: mostra overlay de resultado imediatamente após sell confirmado
+            try{
+              const _pName = PAIRS[t._pairIdx]?PAIRS[t._pairIdx].sym:(t.pair||'—');
+              const _nextStake = bankroll.getStake(S.strategy, bankroll.baseStake);
+              showResultOverlay(realWon, t.stake, Math.abs(realProfit).toFixed(2),
+                _pName, t.tf||S.tf, t.entryPrice||0, t._exitPrice||0,
+                'Próxima: US$'+_nextStake+' ⚡ Fechamento antecipado');
+            }catch(e){}
             notify('⚡ FECHADO: '+(realWon?'✅ WIN +':'❌ LOSS -')+'$'+Math.abs(realProfit).toFixed(2)+
                    ' (stake $'+t.stake+' → recebeu $'+soldPrice.toFixed(2)+')');
             if(window._cdMap && window._cdMap.has(t.id)){
               clearInterval(window._cdMap.get(t.id));
               window._cdMap.delete(t.id);
             }
+            if(wsReady && userToken) derivSend({balance:1, subscribe:1});
+            if(typeof updateMartBadge==="function") updateMartBadge();
           }
         }
 
@@ -2509,24 +2519,39 @@ function derivConnect(){
               t.result = realWon ? 'win' : 'loss';
               t._exitPrice = parseFloat(poc.exit_tick||poc.current_spot||0);
               t._realProfit = realProfit;
+              if(realWon) t.profit = realProfit.toFixed(2);
+              else t._lossAmt = Math.abs(realProfit).toFixed(2);
               // Atualizar banca com resultado real
               if(typeof bankroll !== 'undefined'){
                 bankroll.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit));
               }
+              try{ bm.registerResult(realWon, parseFloat(t.stake||0), Math.abs(realProfit)); }catch(e){}
               // Registrar no Mix
               if(autoMode.active || omniMode.active){
                 autoMode.registerResult(realWon);
               }
-              // Esconder overlay e atualizar UI
+              if(typeof ML !== 'undefined') setTimeout(()=>ML.update(), 300);
+              // Esconder card e atualizar UI
               try{ hideActiveTrade(t.id); }catch(e){}
               try{ renderHistory(); }catch(e){}
               try{ updateStatsBar(); }catch(e){}
+              // ✅ FIX: mostra overlay de resultado imediatamente (antes era omitido para auto/OMNI)
+              try{
+                const _pName = PAIRS[t._pairIdx]?PAIRS[t._pairIdx].sym:(t.pair||'—');
+                const _nextStake = bankroll.getStake(S.strategy, bankroll.baseStake);
+                const _earlySuffix = t._earlyClosed ? ' ⚡ Antecipado' : '';
+                showResultOverlay(realWon, t.stake, Math.abs(realProfit).toFixed(2),
+                  _pName, t.tf||S.tf, t.entryPrice||0, t._exitPrice||0,
+                  'Próxima: US$'+_nextStake+_earlySuffix);
+              }catch(e){}
               notify((realWon?'✅ WIN':'❌ LOSS')+' '+t.pair+' · '+(realWon?'+':'')+realProfit.toFixed(2)+' USD (Deriv confirmado)');
               // Parar interval do countdown se ainda rodando
               if(window._cdMap && window._cdMap.has(t.id)){
                 clearInterval(window._cdMap.get(t.id));
                 window._cdMap.delete(t.id);
               }
+              if(wsReady && userToken) derivSend({balance:1, subscribe:1});
+              if(typeof updateMartBadge==="function") updateMartBadge();
             }
           }
         }
