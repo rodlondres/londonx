@@ -6481,7 +6481,8 @@ function toggleAutoClose(tradeId){
   if(el){
     const on = t._autoClose!==false;
     el.textContent = on?'ATIVO':'PAUSADO';
-    el.style.color = on?'#00e676':'#ff1744';
+    el.style.color = on?'#00FF41':'#ff1744';
+    el.style.textShadow = on?'0 0 8px #00FF41':'0 0 8px #ff1744';
   }
   notify('🤖 Auto close '+(t._autoClose!==false?'ATIVADO':'PAUSADO'));
 }
@@ -6657,8 +6658,12 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
     if(t&&t.result==='pending') t.remaining=remaining;
 
     // ── FECHAMENTO AUTOMÁTICO INTELIGENTE ─────────────────────
+    // Janela dinâmica: abre após 12% do tempo decorrido, fecha nos últimos 10s
+    // Cobre contratos de 60s (janela 5–52s) e 300s (janela 24–264s)
+    const _acWinMin = Math.max(5, Math.round(durSecs * 0.08));
+    const _acWinMax = durSecs - 10;
     if(t && t.result==='pending' && t.contractId && t._autoClose!==false &&
-       wsReady && userToken && remaining>60 && remaining<240){
+       wsReady && userToken && remaining >= _acWinMin && remaining <= _acWinMax){
       const _bidEl=document.getElementById('closePrice_'+tradeId);
       const _bidTxt=_bidEl?_bidEl.textContent:'';
       const _bidProfit=parseFloat(_bidTxt.replace(/[^0-9.-]/g,''))||0;
@@ -6674,7 +6679,9 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
       }
 
       // Condição 2: RSI extremo contrário (reversão iminente)
-      if(candleOHLC.length>=14){
+      // FIX: só usa candleOHLC se for o mesmo par do trade (evita falso trigger em OMNI)
+      const _sameChartPair = (t._pairIdx === S.pair);
+      if(_sameChartPair && candleOHLC.length>=14){
         const closes=candleOHLC.map(c=>c.c);
         const rsi=calcChartRSI(closes,14);
         const rsiNow=rsi[rsi.length-1]||50;
@@ -6688,7 +6695,8 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
       }
 
       // Condição 3: candle de reversão forte + lucro positivo
-      if(candleOHLC.length>=3 && _bidProfit>0 && _profitPct>=30){
+      // FIX: só usa candleOHLC se for o mesmo par do trade (evita falso trigger em OMNI)
+      if(_sameChartPair && candleOHLC.length>=3 && _bidProfit>0 && _profitPct>=30){
         const last=candleOHLC[candleOHLC.length-1];
         const body=Math.abs(last.c-last.o);
         const range=last.h-last.l||0.0001;
