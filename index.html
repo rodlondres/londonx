@@ -3386,9 +3386,11 @@ function autoDetectRegime(){
 // DIRECTION
 // ============================================================
 function setDir(d){
-  S.dir=d;
-  document.getElementById('dirUp').classList.toggle('active',d==='up');
-  document.getElementById('dirDn').classList.toggle('active',d==='dn');
+  // FIX: normalizar entrada — aceita 'up'/'BUY' e 'dn'/'SELL'
+  const norm = (d==='up'||d==='BUY') ? 'BUY' : 'SELL';
+  S.dir=norm;
+  document.getElementById('dirUp').classList.toggle('active', norm==='BUY');
+  document.getElementById('dirDn').classList.toggle('active', norm==='SELL');
 }
 
 // ============================================================
@@ -3505,7 +3507,8 @@ function renderConf(){
   // Direction base
   document.getElementById('dirUpSub').textContent='Score: '+buyScore;
   document.getElementById('dirDnSub').textContent='Score: '+sellScore;
-  S.dir=buyScore>=sellScore?'up':'dn';
+  // FIX: normalizar para 'BUY'/'SELL' — padrão usado em toda a lógica de execução
+  S.dir=buyScore>=sellScore?'BUY':'SELL';
 
   // ── Condição de entrada: Agulhada do Didi + ADX + BB boca de jacaré ──
   var agu_bull=false, agu_bear=false, bbOk=false;
@@ -3829,7 +3832,7 @@ function renderConf(){
       '<span style="color:#fff;font-weight:900;font-size:14px">'+pSell+'%</span>'+
       '<span style="color:#dde;font-weight:700;font-size:11px"> | US$'+martStake+stratLbl+'</span>'+
       '<br><span style="font-size:13px;color:#fff;font-weight:700">'+waitMsg+'</span>';
-    setDir(S.dir);
+    setDir(S.dir); // dir já normalizado em BUY/SELL
   }
 
   // Tokens
@@ -4184,11 +4187,11 @@ function buildDynamicRows(tabId){
     var dec3=price>10000?0:price>100?2:price>10?3:5;
     var swH=(fibR.swingHigh||price).toFixed(dec3);
     var swL=(fibR.swingLow||price).toFixed(dec3);
-    var fib618=(fibTrend==='up'?(fibR.swingHigh-(fibR.range||0)*0.618):(fibR.swingLow+(fibR.range||0)*0.618))||price;
-    var fib382=(fibTrend==='up'?(fibR.swingHigh-(fibR.range||0)*0.382):(fibR.swingLow+(fibR.range||0)*0.382))||price;
+    var fib618=(fibTrend==='BUY'?(fibR.swingHigh-(fibR.range||0)*0.618):(fibR.swingLow+(fibR.range||0)*0.618))||price;
+    var fib382=(fibTrend==='BUY'?(fibR.swingHigh-(fibR.range||0)*0.382):(fibR.swingLow+(fibR.range||0)*0.382))||price;
     var fibReason=fibR.reasons&&fibR.reasons[0]?fibR.reasons[0].replace(/^[^A-Za-záàâãéèêíóôõúçÁ]*/,'').substring(0,28):'Sem nível ativo';
     return [
-      {l:'Tendência Fib', v:fibTrend==='up'?'↑ ALTA':' ↓ BAIXA', c:fibTrend==='up'?'bull':'bear', bar:fibTrend==='up'?70:30, sc:fibTrend==='up'?1:-1},
+      {l:'Tendência Fib', v:fibTrend==='BUY'?'↑ ALTA':' ↓ BAIXA', c:fibTrend==='BUY'?'bull':'bear', bar:fibTrend==='BUY'?70:30, sc:fibTrend==='BUY'?1:-1},
       {l:'Nível 61.8%', v:fib618.toFixed(dec3), c:Math.abs(price-fib618)/price<0.002?'bull':'neut', bar:Math.abs(price-fib618)/price<0.002?85:45, sc:Math.abs(price-fib618)/price<0.002?2:0},
       {l:'Nível 38.2%', v:fib382.toFixed(dec3), c:Math.abs(price-fib382)/price<0.002?'bull':'neut', bar:Math.abs(price-fib382)/price<0.002?75:40, sc:Math.abs(price-fib382)/price<0.002?1:0},
       {l:'Sinal Ativo', v:fibReason, c:fibDir, bar:fibDir==='bull'?80:fibDir==='bear'?20:50, sc:fbull-fbear},
@@ -6483,18 +6486,34 @@ function toggleAutoClose(tradeId){
   notify('🤖 Auto close '+(t._autoClose!==false?'ATIVADO':'PAUSADO'));
 }
 
-function earlyClose(tradeId){
+function earlyClose(tradeId, _retryCount){
+  _retryCount = _retryCount || 0;
   const t = tradeHistory.find(x=>x.id===tradeId);
   if(!t || t.result!=='pending'){ notify('⚠ Operação não encontrada ou já finalizada'); return; }
-  if(!t.contractId){ notify('⚠ Contract ID ainda não disponível — aguarde 2-3 segundos e tente de novo'); return; }
   if(!wsReady||!userToken){ notify('⚠ Sem conexão com a Deriv'); return; }
+
+  // FIX 5: retry automático se contractId ainda não chegou (POC latência)
+  if(!t.contractId){
+    if(_retryCount < 16){ // até 8s (16 x 500ms)
+      const btn2 = document.getElementById('closeBtn_'+tradeId);
+      if(btn2){ btn2.textContent='⏳ Aguardando ID... ('+((_retryCount+1)*0.5).toFixed(1)+'s)'; btn2.disabled=true; btn2.style.opacity='.7'; }
+      console.log('[earlyClose] contractId null — retry '+(_retryCount+1)+'/16 em 500ms');
+      setTimeout(() => earlyClose(tradeId, _retryCount+1), 500);
+      return;
+    }
+    notify('⚠ Contract ID não disponível após 8s — verifique a conexão');
+    const btn2 = document.getElementById('closeBtn_'+tradeId);
+    if(btn2){ btn2.textContent='⚡ FECHAR AGORA'; btn2.disabled=false; btn2.style.opacity='1'; }
+    return;
+  }
 
   const btn = document.getElementById('closeBtn_'+tradeId);
   if(btn){ btn.textContent='⏳ FECHANDO...'; btn.disabled=true; btn.style.opacity='.6'; }
 
   // Marca tentativa para erro handler identificar o trade
   t._closingAttempt = true;
-  notify('⚡ Enviando ordem de fechamento...');
+  notify('⚡ Enviando ordem de fechamento para contractId: '+t.contractId);
+  console.log('[earlyClose] sell contractId='+t.contractId+' tradeId='+tradeId);
 
   // Sell ao preço de mercado com req_id rastreável
   const _sellReqId = 89000 + (Date.now() % 1000);
@@ -6712,10 +6731,18 @@ function startTradeCountdown(tradeId,entryPrice,isBuy,stake,profit,payoutPct,dur
   window._cdMap.set(tradeId,iid);
   cdInterval=iid;
 
-  // Ao voltar de background: verifica todos os trades pendentes
+  // FIX 3: Ao voltar de background — força re-sincronização do countdown
   if(window._cdVisHandler){ document.removeEventListener('visibilitychange',window._cdVisHandler); }
   window._cdVisHandler=function(){
     if(document.visibilityState==='visible'){
+      // Forçar tick imediato para todos os trades pendentes
+      tradeHistory.filter(t=>t.result==='pending'&&t._cdInterval).forEach(t=>{
+        // Recalcular remaining com endTime absoluto (não pode desincronizar)
+        const _rem = Math.max(0, Math.round((t._endTime - Date.now()) / 1000));
+        const _cdEl = document.getElementById('atCd_'+t.id);
+        if(_cdEl) _cdEl.textContent = _rem > 0 ? _rem : '...';
+        console.log('[CD-SYNC] trade '+t.id+' remaining='+_rem+'s após voltar de background');
+      });
       tradeHistory.filter(t=>t.result==='pending'&&t._endTime).forEach(t=>{
         if(Date.now()>=t._endTime){
           const iid2=window._cdMap.get(t.id);
@@ -7040,7 +7067,7 @@ function calcFibonacci(candles){
     {lvl:0.786, name:'78.6%', w:1},
   ];
 
-  if(trend==='up'){
+  if(trend==='BUY'){
     // Retração de alta: suporte nos níveis abaixo do swingHigh
     fibs.forEach(f=>{
       const level=swingHigh - range*f.lvl;
@@ -7081,7 +7108,7 @@ function calcFibonacci(candles){
   }
 
   // Bônus: preço revertendo no nível fib
-  const isReverting=(trend==='up' && lastC>prevC)||(trend==='down' && lastC<prevC);
+  const isReverting=(trend==='BUY' && lastC>prevC)||(trend==='down' && lastC<prevC);
   if((bull>0||bear>0) && isReverting){
     if(bull>bear) { bull=Math.min(5,bull+1); reasons.push('🌀 Fib + vela de reversão confirmada'); }
     else          { bear=Math.min(5,bear+1); reasons.push('🌀 Fib + vela de reversão confirmada'); }
@@ -7089,7 +7116,7 @@ function calcFibonacci(candles){
 
   // Nunca retorna 0/0 quando há tendência clara — dar 1pt de contexto
   if(bull===0 && bear===0){
-    if(trend==='up'){ bull=1; reasons.push('🌀 Fib tendência de alta — aguardando retração'); }
+    if(trend==='BUY'){ bull=1; reasons.push('🌀 Fib tendência de alta — aguardando retração'); }
     else            { bear=1; reasons.push('🌀 Fib tendência de baixa — aguardando retração'); }
   }
 
@@ -9137,6 +9164,26 @@ window.LondonXUpgrade={
     prices.push(p);
     if(prices.length>200) prices.shift();
     detectDidi();
+    // FIX 4: sincronizar feedPrice com S.chartTick e trades pendentes
+    try {
+      // Atualiza par ativo apenas se for o par correto
+      if(typeof S !== 'undefined') {
+        if(!S.chartTick || Math.abs(p - S.chartTick) / (S.chartTick||1) < 0.1) {
+          S.chartTick = p;
+        }
+      }
+      // Sincronizar com trades pendentes do mesmo par
+      if(typeof tradeHistory !== 'undefined') {
+        tradeHistory.filter(t => t.result === 'pending').forEach(t => {
+          if(t._pairIdx === (typeof S !== 'undefined' ? S.pair : -1)) {
+            t._currentTick = p;
+            if(!t._entryFixed && !t._provisionalEntry) {
+              t._provisionalEntry = p;
+            }
+          }
+        });
+      }
+    } catch(e) { /* silencioso — não quebrar Didi */ }
   },
   getPrices:function(){return prices.slice();},
   forceDetect:detectDidi
@@ -9500,7 +9547,7 @@ const autoMode = {
     this.setStatus((isBuy?'⬆ EXECUTANDO':'⬇ EXECUTANDO')+' US$'+stake+' · '+sig.prob+'% · 1M ✅');
     semiAuto.playAlert(dir); semiAuto.startPulse(dir);
     if(wsReady&&userToken){
-      const contractType=isBuy?'CALL':'PUT'; const symbol=PAIRS[S.pair].deriv; const reqId=94000+(Date.now()%900); // autoMode proposal: 94000-94999
+      const contractType=isBuy?'CALL':'PUT'; // FIX: BUY=CALL (acima), SELL=PUT (abaixo) const symbol=PAIRS[S.pair].deriv; const reqId=94000+(Date.now()%900); // autoMode proposal: 94000-94999
       window._pendingProposals=window._pendingProposals||{};
       window._pendingProposals[reqId]={side:dir,stake,cb:(proposal)=>{
         if(proposal.error){ notify('❌ AUTO: '+proposal.error.message); this._registerAndCountdown(dir,stake,profit,payout,durSecs,null); return; }
@@ -9546,9 +9593,12 @@ const autoMode = {
     // Inicializar _currentTick = entryPrice → countdown começa NEUTRO (sem cor)
     const _t2=tradeHistory[tradeHistory.length-1];
     if(_t2){
-      _t2._currentTick = _t2.entryPrice || S.chartTick || 0;
-      // Salvar também entryPrice para referência
-      if(!_t2.entryPrice) _t2.entryPrice = S.chartTick||0;
+      // FIX 3b: inicializar com melhor preço disponível
+      const _initPrice = S.chartTick || (PAIRS[_t2._pairIdx]&&PAIRS[_t2._pairIdx]._lastPrice) || 0;
+      _t2._currentTick = _initPrice;
+      _t2._provisionalEntry = _initPrice;
+      if(!_t2.entryPrice && _initPrice > 0) _t2.entryPrice = _initPrice;
+      _t2._cdInterval = true; // marca que tem countdown ativo
     }
     const checkResult=setInterval(()=>{
       const t=tradeHistory.find(x=>x.id===tradeId);
@@ -9779,6 +9829,7 @@ const omniMode = {
       this._executing=false; return;
     }
 
+    // FIX: BUY → CALL (mercado sobe), SELL → PUT (mercado desce)
     const dir=winner.sig.dir==='BUY'?'CALL':'PUT';
     const stake=autoMode.getStake();
     const payout=0.954;
@@ -10803,8 +10854,19 @@ var ML = (function(){
   const ctx = { MIN_VOL:0.0001, MAX_VOL:0.002, lossSeq:0 };
 
   function fakeMarketCheck(){
-    // fallback simple protection (since real data is inside bot)
-    return Math.random() > 0.3 && ctx.lossSeq < 2;
+    // FIX: usar analisarMercado real em vez de random
+    try {
+      if (typeof window.analisarMercado === 'function') {
+        const a = window.analisarMercado();
+        const prob  = a.probabilidade || 0;
+        const fontes = a.confirmacoes || 0;
+        const vol   = a.volatilidade || 0;
+        const volOk = vol > 0.00005 && vol < 0.003;
+        return prob >= 60 && fontes >= 6 && volOk && ctx.lossSeq < 2;
+      }
+    } catch(e) { console.error('[fakeMarketCheck]', e); }
+    // Sem analisarMercado → bloquear por segurança
+    return ctx.lossSeq < 2;
   }
 
   // INTERCEPT WEBSOCKET SEND (REAL TRADE POINT)
@@ -10812,16 +10874,19 @@ var ML = (function(){
 
   WebSocket.prototype.send = function(data){
     try{
-      if(typeof data === "string" && data.includes("buy")){
-
-        const autorizado = fakeMarketCheck();
-
-        if(!autorizado){
-          console.log("🚫 BLOQUEADO PELO FILTRO (WS)");
-          return; // BLOCK TRADE HERE
-        }
-
-        console.log("✅ TRADE LIBERADO (WS)");
+      if(typeof data === "string"){
+        try{
+          const _parsed = JSON.parse(data);
+          // FIX: só interceptar se for realmente uma ordem de compra (chave "buy" no root)
+          if(_parsed && typeof _parsed.buy !== 'undefined'){
+            const autorizado = fakeMarketCheck();
+            if(!autorizado){
+              console.log("🚫 BLOQUEADO PELO FILTRO (WS) — fakeMarketCheck");
+              return; // BLOCK TRADE HERE
+            }
+            console.log("✅ TRADE LIBERADO (WS) — fakeMarketCheck");
+          }
+        } catch(e){ /* JSON inválido — deixar passar */ }
       }
     }catch(e){
       console.log("erro filtro ws", e);
@@ -10853,12 +10918,98 @@ function lxScore(a){
 }
 
 // decisão final
+
+
+// ══════════════════════════════════════════════════════════════════
+// DIAGNÓSTICO: log de execução de trade para rastrear inversão
+// ══════════════════════════════════════════════════════════════════
+window._lxLogTrade = function(info) {
+  console.group('[LX-TRADE] Execução de operação');
+  console.log('📌 Par:          ', info.pair);
+  console.log('📌 Direção:      ', info.dir, '→', info.contractType);
+  console.log('📌 Stake:        ', info.stake);
+  console.log('📌 Entry:        ', info.entry);
+  console.log('📌 Prob:         ', info.prob + '%');
+  console.log('📌 Fontes:       ', info.fontes + '/13');
+  console.log('📌 ADX:          ', info.adx);
+  console.log('📌 Sessão:       ', info.sessao);
+  console.log('📌 ContractID:   ', info.contractId || 'aguardando...');
+  console.groupEnd();
+};
+// ══════════════════════════════════════════════════════════════════
+// analisarMercado — implementação real integrada ao motor do bot
+// Usa S.prob, S.dir, S.totalScore, S.adxNow, candleOHLC
+// Retorna objeto compatível com lxPodeOperar() e lxScore()
+// ══════════════════════════════════════════════════════════════════
+window.analisarMercado = function() {
+  try {
+    // 1. Probabilidade e direção já calculadas pelo analyzeSignal()
+    const prob       = S.prob || 0;
+    const dir        = S.dir  || 'BUY';
+    const score      = S.totalScore || 0;
+    const scoreMax   = S.totalMax   || 57;
+    const scorePct   = scoreMax > 0 ? score / scoreMax : 0;
+    const fontes     = S.sourcesConfirming || 0;
+
+    // 2. ADX — tendência forte ou fraca
+    const adx = S.adxNow || 0;
+    let tendencia = 'fraca';
+    if (adx >= 30)      tendencia = 'forte';
+    else if (adx >= 22) tendencia = 'moderada';
+
+    // 3. Volatilidade — calculada via ATR dos últimos 14 candles
+    let volatilidade = 0;
+    if (candleOHLC && candleOHLC.length >= 14) {
+      const n = candleOHLC.length;
+      let atrSum = 0;
+      for (let i = n - 14; i < n; i++) {
+        const hi = candleOHLC[i].h, lo = candleOHLC[i].l;
+        const prevC = i > 0 ? candleOHLC[i-1].c : candleOHLC[i].c;
+        atrSum += Math.max(hi - lo, Math.abs(hi - prevC), Math.abs(lo - prevC));
+      }
+      const atr = atrSum / 14;
+      const midPrice = candleOHLC[n-1].c || 1;
+      volatilidade = atr / midPrice; // normalizado
+    }
+
+    // 4. Confirmações — fontes reais do motor
+    const confirmacoes = fontes || Math.round(scorePct * 13);
+
+    // 5. Sessão ativa
+    const hUTC = new Date().getUTCHours();
+    const sessaoAtiva = (hUTC >= 7 && hUTC < 16) || (hUTC >= 12 && hUTC < 21);
+
+    const resultado = {
+      probabilidade:  prob,
+      confirmacoes:   confirmacoes,
+      tendencia:      tendencia,
+      volatilidade:   volatilidade,
+      direcao:        dir,
+      adx:            adx,
+      sessaoAtiva:    sessaoAtiva,
+      scoreTotal:     score,
+      scoreMax:       scoreMax,
+    };
+
+    console.log('[analisarMercado] prob=' + prob + '% dir=' + dir +
+                ' adx=' + adx.toFixed(1) + ' vol=' + volatilidade.toFixed(6) +
+                ' tend=' + tendencia + ' fontes=' + confirmacoes);
+
+    return resultado;
+  } catch(e) {
+    console.error('[analisarMercado] erro:', e);
+    // Retorna neutro — lxPodeOperar vai bloquear via score < MIN_SCORE
+    return { probabilidade: 0, confirmacoes: 0, tendencia: 'fraca', volatilidade: 0 };
+  }
+};
+console.log('[LondonX] analisarMercado registrado com sucesso');
+
 function lxPodeOperar(){
     try{
 
         if (typeof window.analisarMercado !== "function") {
-            console.log("⚠️ analisarMercado não encontrado → liberando");
-            return true;
+            console.warn("⛔ [lxPodeOperar] analisarMercado não encontrado → BLOQUEANDO por segurança");
+            return false; // FIX: nunca liberar sem validação real
         }
 
         const a = window.analisarMercado();
@@ -10896,15 +11047,21 @@ function lxPodeOperar(){
 
         try{
 
-            if (typeof data === "string" && data.includes('"buy"')){
-
-                if (!lxPodeOperar()){
-                    console.log("🚫 TRADE BLOQUEADO PELO SMART FILTER");
-                    return;
-                }
+            if (typeof data === "string"){
+                try{
+                  const _p2 = JSON.parse(data);
+                  // FIX: só bloquear se for realmente uma ordem buy (não proposal, subscribe, etc)
+                  if(_p2 && typeof _p2.buy !== 'undefined'){
+                    if (!lxPodeOperar()){
+                      console.log("🚫 TRADE BLOQUEADO PELO SMART FILTER (lxPodeOperar)");
+                      return;
+                    }
+                    console.log("✅ TRADE LIBERADO (lxPodeOperar)");
+                  }
+                } catch(e){ /* deixar passar */ }
+              }
 
                 console.log("🚀 TRADE EXECUTADO COM FILTRO");
-            }
 
         }catch(e){
             console.log("erro ws:", e);
