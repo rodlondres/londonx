@@ -10314,6 +10314,205 @@ function dColor(wr){ return wr>=65?'#00e676':wr>=50?'#ffd600':'#ff1744'; }
 function dBar(wr){ return 'width:'+wr+'%;background:'+dColor(wr); }
 function noData(el){ el.innerHTML='<div style="color:#8ab0d0;font-size:11px;text-align:center;padding:20px">Mínimo 5 operações para exibir análise</div>'; }
 
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD VISUAL — funções auxiliares de renderização
+// ═══════════════════════════════════════════════════════════
+
+// Donut SVG animado para Win Rate
+function drawDonut(wr, wins, losses){
+  var col = wr>=65?'#00e676':wr>=50?'#ffd600':'#ff1744';
+  var bg  = 'rgba(255,255,255,.06)';
+  var r=36, cx=50, cy=50, circ=2*Math.PI*r;
+  var dash = (wr/100)*circ;
+  var gap  = circ - dash;
+  return '<svg width="100" height="100" viewBox="0 0 100 100" style="display:block;margin:0 auto">'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+bg+'" stroke-width="9"/>'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="9"'
+    +' stroke-dasharray="'+dash.toFixed(1)+' '+gap.toFixed(1)+'"'
+    +' stroke-dashoffset="'+((circ/4)).toFixed(1)+'" stroke-linecap="round"'
+    +' style="transition:stroke-dasharray .8s cubic-bezier(.4,0,.2,1)"/>'
+    +'<text x="50" y="45" text-anchor="middle" fill="'+col+'" font-family="Orbitron,monospace" font-size="14" font-weight="900">'+wr+'%</text>'
+    +'<text x="50" y="59" text-anchor="middle" fill="rgba(160,196,232,.6)" font-family="Orbitron,monospace" font-size="8">WIN RATE</text>'
+    +'<text x="50" y="72" text-anchor="middle" fill="rgba(160,196,232,.5)" font-family="monospace" font-size="9">'+wins+'W / '+losses+'L</text>'
+    +'</svg>';
+}
+
+// Equity curve canvas melhorada com grid e labels
+function drawEquityCurve(canvasId, data){
+  setTimeout(function(){
+    var canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var dpr = Math.min(window.devicePixelRatio||1,2);
+    var parent = canvas.parentElement;
+    var W = (parent ? parent.offsetWidth : 300) || 300;
+    var H = 120;
+    canvas.width  = Math.round(W*dpr);
+    canvas.height = Math.round(H*dpr);
+    canvas.style.width  = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,W,H);
+    if(data.length<2) return;
+
+    var min = Math.min.apply(null,data);
+    var max = Math.max.apply(null,data);
+    if(min===max){ min-=1; max+=1; }
+    var padL=38, padR=10, padT=10, padB=18;
+    var chartW = W-padL-padR;
+    var chartH = H-padT-padB;
+
+    function px(i){ return padL+(i/(data.length-1))*chartW; }
+    function py(v){ return padT+chartH-((v-min)/(max-min))*chartH; }
+
+    // Grid linhas horizontais (3)
+    ctx.strokeStyle='rgba(255,255,255,.05)';
+    ctx.lineWidth=1;
+    ctx.setLineDash([3,4]);
+    [0,.5,1].forEach(function(f){
+      var yg = padT + chartH*(1-f);
+      ctx.beginPath(); ctx.moveTo(padL,yg); ctx.lineTo(W-padR,yg); ctx.stroke();
+      var lv = (min+(max-min)*f);
+      ctx.fillStyle='rgba(160,196,232,.45)';
+      ctx.font='10px monospace';
+      ctx.textAlign='right';
+      ctx.fillText((lv>=0?'+':'')+lv.toFixed(0), padL-4, yg+4);
+    });
+    ctx.setLineDash([]);
+
+    // Linha zero destacada
+    var z0 = py(0);
+    if(z0>=padT && z0<=padT+chartH){
+      ctx.strokeStyle='rgba(255,255,255,.18)';
+      ctx.lineWidth=1;
+      ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(padL,z0); ctx.lineTo(W-padR,z0); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Preenche por segmento (verde acima do zero, vermelho abaixo)
+    var last = data[data.length-1];
+    var col  = last>=0?'#00e676':'#ff1744';
+    var grad = ctx.createLinearGradient(0,padT,0,padT+chartH);
+    grad.addColorStop(0, last>=0?'rgba(0,230,118,.28)':'rgba(255,23,68,.28)');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.moveTo(px(0), py(data[0]));
+    for(var i=1;i<data.length;i++) ctx.lineTo(px(i),py(data[i]));
+    ctx.lineTo(px(data.length-1), padT+chartH);
+    ctx.lineTo(px(0), padT+chartH);
+    ctx.closePath();
+    ctx.fillStyle=grad; ctx.fill();
+
+    // Linha principal
+    ctx.beginPath();
+    ctx.moveTo(px(0),py(data[0]));
+    for(var j=1;j<data.length;j++) ctx.lineTo(px(j),py(data[j]));
+    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.stroke();
+
+    // Ponto final
+    var lx=px(data.length-1), ly=py(last);
+    ctx.beginPath(); ctx.arc(lx,ly,3.5,0,2*Math.PI);
+    ctx.fillStyle=col; ctx.fill();
+
+    // Label valor final
+    ctx.fillStyle=col; ctx.font='bold 11px monospace'; ctx.textAlign='right';
+    var lv2=(last>=0?'+':'')+last.toFixed(2);
+    ctx.fillText(lv2, W-padR, ly-6);
+
+    // Eixo X: N ops
+    ctx.fillStyle='rgba(160,196,232,.4)'; ctx.font='9px monospace'; ctx.textAlign='center';
+    ctx.fillText(data.length-1+' ops', padL+chartW/2, H-3);
+  }, 80);
+}
+
+// Heatmap de horários (SVG 24h × 7 dias)
+function drawHeatmapHours(hourStats){
+  var hours = [];
+  for(var h=0;h<24;h++){
+    var s = hourStats[h] || {w:0,l:0};
+    var tot = s.w+s.l;
+    var wr  = tot ? Math.round(s.w/tot*100) : -1;
+    hours.push({h:h, wr:wr, tot:tot});
+  }
+
+  var cellW=20, cellH=22, padL=28, padT=8;
+  var totalW = padL + 24*cellW + 8;
+  var totalH = padT + cellH + 28;
+
+  var svg = '<svg width="100%" viewBox="0 0 '+totalW+' '+totalH+'" style="display:block">';
+  // Rótulos de hora
+  for(var i=0;i<24;i++){
+    if(i%3===0){
+      svg += '<text x="'+(padL+i*cellW+cellW/2)+'" y="'+(padT+cellH+16)+'"'
+           +' text-anchor="middle" font-family="monospace" font-size="9" fill="rgba(160,196,232,.5)">'+i+'h</text>';
+    }
+  }
+  // Células
+  hours.forEach(function(d){
+    var x = padL + d.h*cellW;
+    var y = padT;
+    var fill, stroke;
+    if(d.tot===0){
+      fill='rgba(255,255,255,.04)'; stroke='rgba(255,255,255,.06)';
+    } else if(d.wr>=70){
+      fill='rgba(0,230,118,.55)'; stroke='rgba(0,230,118,.8)';
+    } else if(d.wr>=55){
+      fill='rgba(0,230,118,.3)'; stroke='rgba(0,230,118,.5)';
+    } else if(d.wr>=45){
+      fill='rgba(255,214,0,.35)'; stroke='rgba(255,214,0,.6)';
+    } else if(d.wr>0){
+      fill='rgba(255,23,68,.4)'; stroke='rgba(255,23,68,.65)';
+    } else {
+      fill='rgba(255,255,255,.04)'; stroke='rgba(255,255,255,.06)';
+    }
+    svg += '<rect x="'+x+'" y="'+y+'" width="'+(cellW-2)+'" height="'+(cellH-2)+'"'
+         +' rx="3" fill="'+fill+'" stroke="'+stroke+'" stroke-width="0.5"/>';
+    if(d.tot>0){
+      svg += '<text x="'+(x+cellW/2-1)+'" y="'+(y+cellH/2+4)+'"'
+           +' text-anchor="middle" font-family="monospace" font-size="8" font-weight="900"'
+           +' fill="rgba(255,255,255,.85)">'+d.wr+'</text>';
+    }
+  });
+  // Labels sessões
+  var sessions=[
+    {label:'ASI',start:1, end:9, col:'rgba(100,180,255,.5)'},
+    {label:'EUR',start:9, end:17,col:'rgba(255,214,0,.5)'},
+    {label:'NYK',start:15,end:23,col:'rgba(0,230,118,.5)'}
+  ];
+  sessions.forEach(function(s){
+    var sx = padL+s.start*cellW, ex=padL+s.end*cellW;
+    svg += '<line x1="'+sx+'" y1="'+(padT+cellH+1)+'" x2="'+ex+'" y2="'+(padT+cellH+1)+'"'
+         +' stroke="'+s.col+'" stroke-width="2.5" stroke-linecap="round"/>';
+    svg += '<text x="'+((sx+ex)/2)+'" y="'+(padT+cellH+11)+'"'
+         +' text-anchor="middle" font-family="monospace" font-size="8" fill="'+s.col+'">'+s.label+'</text>';
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+// Barra horizontal com gradiente e label integrado
+function gradBar(wr, label, sublabel, pnl, ops){
+  var col  = dColor(wr);
+  var col2 = wr>=65?'rgba(0,230,118,.15)':wr>=50?'rgba(255,214,0,.12)':'rgba(255,23,68,.12)';
+  var pnlStr = pnl!==undefined ? ((pnl>=0?'+':'')+pnl.toFixed(0)) : '';
+  var pnlCol = pnl>=0?'#00e676':'#ff1744';
+  return '<div style="background:rgba(6,14,26,.7);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:8px 10px;margin-bottom:7px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'
+    +'<div style="font-family:Orbitron,monospace;font-size:12px;font-weight:900;color:#a0c4e8">'+label+'</div>'
+    +'<div style="display:flex;gap:10px;align-items:center">'
+    +(pnlStr?'<span style="font-size:12px;color:'+pnlCol+';font-weight:700">'+pnlStr+'</span>':'')
+    +(ops!==undefined?'<span style="font-size:11px;color:#556">'+ops+'op</span>':'')
+    +'<span style="font-family:Orbitron,monospace;font-size:13px;font-weight:900;color:'+col+'">'+wr+'%</span>'
+    +'</div>'
+    +'</div>'
+    +(sublabel?'<div style="font-size:11px;color:#6a90b8;margin-bottom:5px">'+sublabel+'</div>':'')
+    +'<div style="background:rgba(10,20,36,.8);border-radius:4px;height:7px;overflow:hidden">'
+    +'<div style="height:100%;width:'+wr+'%;background:linear-gradient(90deg,'+col+'99,'+col+');border-radius:4px;transition:width .7s cubic-bezier(.4,0,.2,1)"></div>'
+    +'</div>'
+    +'</div>';
+}
+
 // ── VISÃO GERAL ───────────────────────────────────────────
 function renderDashOverview(){
   var el  = document.getElementById('dcontent-overview');
@@ -10326,7 +10525,6 @@ function renderDashOverview(){
   var streak = calcStreak(all);
   var avgProb = all.length ? Math.round(all.reduce(function(s,t){return s+(parseFloat(t.prob)||0);},0)/all.length) : 0;
 
-  // ── Trades de hoje ──────────────────────────────────────
   var today = new Date().toLocaleDateString('pt-BR');
   var todayTrades = all.filter(function(t){ return t.date===today; });
   var todayWins   = todayTrades.filter(function(t){ return t.result==='win'; }).length;
@@ -10335,106 +10533,120 @@ function renderDashOverview(){
   var todayPnl    = dPnL(todayTrades);
   var todayPnlCol = todayPnl >= 0 ? '#00e676' : '#ff1744';
 
-  // Meta e stop do dia
-  var bmStart  = (typeof bm!=='undefined' && bm.dayStartBal) ? bm.dayStartBal : 0;
-  var bmMeta   = (typeof bm!=='undefined') ? bmStart*(bm.metaPct/100) : 0;
-  var bmStop   = (typeof bm!=='undefined') ? bmStart*(bm.stopPct/100) : 0;
-  var metaProg = bmMeta > 0 ? Math.min(100, Math.round((todayPnl/bmMeta)*100)) : 0;
-  var stopProg = bmStop > 0 ? Math.min(100, Math.round((-todayPnl/bmStop)*100)) : 0;
-  var progPct  = (bmMeta+bmStop) > 0
-    ? Math.max(0,Math.min(100, ((todayPnl+bmStop)/(bmMeta+bmStop))*100))
-    : 50;
+  var bmStart = (typeof bm!=='undefined' && bm.dayStartBal) ? bm.dayStartBal : 0;
+  var bmMeta  = (typeof bm!=='undefined') ? bmStart*(bm.metaPct/100) : 0;
+  var bmStop  = (typeof bm!=='undefined') ? bmStart*(bm.stopPct/100) : 0;
+  var progPct = (bmMeta+bmStop)>0 ? Math.max(0,Math.min(100,((todayPnl+bmStop)/(bmMeta+bmStop))*100)) : 50;
+  var metaProg = bmMeta>0 ? Math.min(100,Math.round((todayPnl/bmMeta)*100)) : 0;
+  var stopProg = bmStop>0 ? Math.min(100,Math.round((-todayPnl/bmStop)*100)) : 0;
 
-  // Equity curve — HOJE
+  // Equity curves
   var equityDay = [0];
   todayTrades.forEach(function(t){
-    var last = equityDay[equityDay.length-1];
-    if(t.result==='win')  equityDay.push(+(last+parseFloat(t.profit||0)).toFixed(2));
-    if(t.result==='loss'){
-      var la = t._earlyClosed&&t._lossAmt ? parseFloat(t._lossAmt) : parseFloat(t.stake||0);
-      equityDay.push(+(last-la).toFixed(2));
-    }
+    var last=equityDay[equityDay.length-1];
+    if(t.result==='win') equityDay.push(+(last+parseFloat(t.profit||0)).toFixed(2));
+    else { var la=t._earlyClosed&&t._lossAmt?parseFloat(t._lossAmt):parseFloat(t.stake||0); equityDay.push(+(last-la).toFixed(2)); }
   });
-  // Equity curve — TOTAL
-  var equity = [0];
+  var equity=[0];
   all.forEach(function(t){
-    var last = equity[equity.length-1];
-    if(t.result==='win')  equity.push(+(last+parseFloat(t.profit||0)).toFixed(2));
-    if(t.result==='loss'){
-      var la = t._earlyClosed&&t._lossAmt ? parseFloat(t._lossAmt) : parseFloat(t.stake||0);
-      equity.push(+(last-la).toFixed(2));
-    }
+    var last=equity[equity.length-1];
+    if(t.result==='win') equity.push(+(last+parseFloat(t.profit||0)).toFixed(2));
+    else { var la=t._earlyClosed&&t._lossAmt?parseFloat(t._lossAmt):parseFloat(t.stake||0); equity.push(+(last-la).toFixed(2)); }
   });
 
-  // ── SEÇÃO HOJE — sempre visível ────────────────────────
-  var dayHtml = '<div style="margin-bottom:14px;padding:12px;background:#060e1a;border:1px solid var(--border2);border-radius:10px">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    +'<span style="font-family:\'Orbitron\',monospace;font-size:12px;font-weight:900;color:#ffd600;letter-spacing:2px">📅 HOJE</span>'
-    +'<span style="font-size:11px;color:#556;font-weight:700">'+today+' · '+todayTrades.length+' ops</span>'
+  // Streak badge
+  var strBadge = streak.cur===0 ? '' :
+    '<div style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:900;letter-spacing:1px;background:'+(streak.cur>0?'rgba(0,230,118,.12)':'rgba(255,23,68,.12)')+';color:'+(streak.cur>0?'#00e676':'#ff1744')+';border:1px solid '+(streak.cur>0?'rgba(0,230,118,.3)':'rgba(255,23,68,.3)')+'">'+
+    (streak.cur>0?'🔥 ':'💀 ')+Math.abs(streak.cur)+(streak.cur>0?' WIN STREAK':' LOSS')+'</div>';
+
+  var html = '';
+
+  // ── CARD HOJE ───────────────────────────────────────────
+  html += '<div style="background:rgba(6,14,26,.9);border:1px solid rgba(0,229,255,.15);border-radius:12px;padding:14px;margin-bottom:12px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    +'<div>'
+    +'<div style="font-family:Orbitron,monospace;font-size:12px;font-weight:900;color:#ffd600;letter-spacing:2px">📅 HOJE</div>'
+    +'<div style="font-size:11px;color:#556;margin-top:2px">'+today+' · '+todayTrades.length+' operações</div>'
     +'</div>'
-    // KPIs do dia
-    +'<div class="dash-kpi" style="margin-bottom:10px">'
-    +kpiBox((todayPnl>=0?'+':'')+' US$'+todayPnl.toFixed(2), 'P&L DIA', todayPnlCol)
-    +kpiBox(todayTrades.length>0?todayWR+'%':'—', 'WIN RATE', todayTrades.length>0?dColor(todayWR):'#556')
-    +kpiBox(todayWins+' / '+todayLoss, 'W / L', '#ffd600')
-    +kpiBox(todayTrades.length, 'OPS HOJE', '#00e5ff')
-    +'</div>'
-    // Barra stop ←→ meta
-    +(bmStart>0 ? (
-      '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-      +'<span style="font-size:10px;color:#ff1744;font-weight:700">STOP -US$'+bmStop.toFixed(0)+'</span>'
-      +'<span style="font-size:10px;color:'+todayPnlCol+';font-weight:900">'+(todayPnl>=0?'+':'')+todayPnl.toFixed(2)+'</span>'
-      +'<span style="font-size:10px;color:#00e676;font-weight:700">META +US$'+bmMeta.toFixed(0)+'</span>'
-      +'</div>'
-      +'<div style="background:#0d1f35;border-radius:6px;height:10px;overflow:hidden;margin-bottom:6px;position:relative">'
-      +'<div style="position:absolute;left:'+Math.round(bmStop/(bmStop+bmMeta)*100)+'%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.2)"></div>'
-      +'<div id="bm-day-progress" style="height:100%;border-radius:6px;transition:width .6s,background .4s;width:'+progPct+'%;background:'+(todayPnl>=0?'#00e676':'#ff1744')+'"></div>'
-      +'</div>'
-      +(metaProg>0?'<div style="font-size:11px;color:#00e676;margin-bottom:3px">🎯 Meta: <strong>'+metaProg+'%</strong> (faltam US$'+(bmMeta-todayPnl).toFixed(2)+')</div>':'')
-      +(stopProg>0?'<div style="font-size:11px;color:#ff6d00;margin-bottom:3px">⚠️ Stop: <strong>'+stopProg+'%</strong> usado</div>':'')
-    ) : '<div style="font-size:11px;color:#556;margin-bottom:6px">⚠️ Conecte à Deriv para ver barra de meta/stop</div>')
-    // Equity do dia
-    +(todayTrades.length >= 2
-      ? '<div style="font-size:11px;color:#8ab0d0;font-weight:700;margin:8px 0 4px">EQUITY DO DIA</div>'
-        +'<div class="dash-equity-wrap"><canvas id="equityCanvasDay"></canvas></div>'
-      : '<div style="font-size:11px;color:#556;text-align:center;padding:8px 0">📈 Gráfico aparece após 2 operações hoje</div>'
-    )
+    +(todayTrades.length>0 ? strBadge : '')
     +'</div>';
 
-  // KPIs gerais
-  var kpiHtml = all.length > 0
-    ? '<div style="font-family:\'Orbitron\',monospace;font-size:11px;font-weight:900;color:#a0c4e8;letter-spacing:2px;margin-bottom:8px">📊 HISTÓRICO TOTAL ('+all.length+' ops)</div>'
-      +'<div class="dash-kpi">'
-      + kpiBox(wr+'%', 'WIN RATE', dColor(wr))
-      + kpiBox(all.length, 'TRADES', '#00e5ff')
-      + kpiBox((pnl>=0?'+':'')+' US$'+pnl.toFixed(0), 'P&L TOTAL', pnl>=0?'#00e676':'#ff1744')
-      + kpiBox(wins+'/'+loss, 'W / L', '#ffd600')
+  // KPIs do dia — linha única com 4 cards
+  if(todayTrades.length>0){
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">';
+    var kpis = [
+      {v:(todayPnl>=0?'+':'')+' $'+todayPnl.toFixed(2), l:'P&L DIA', c:todayPnlCol},
+      {v:todayWR+'%', l:'WIN RATE', c:dColor(todayWR)},
+      {v:todayWins+' / '+todayLoss, l:'W / L', c:'#ffd600'},
+      {v:todayTrades.length, l:'OPS', c:'#00e5ff'}
+    ];
+    kpis.forEach(function(k){
+      html += '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:8px;text-align:center">'
+        +'<div style="font-family:Orbitron,monospace;font-size:13px;font-weight:900;color:'+k.c+'">'+k.v+'</div>'
+        +'<div style="font-size:9px;color:#6a90b8;letter-spacing:1px;margin-top:4px;font-weight:700">'+k.l+'</div>'
+        +'</div>';
+    });
+    html += '</div>';
+  }
+
+  // Barra meta / stop
+  if(bmStart>0){
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-size:10px;color:#ff1744;font-weight:700">STOP -$'+bmStop.toFixed(0)+'</span>'
+      +'<span style="font-size:11px;font-weight:900;color:'+todayPnlCol+'">'+(todayPnl>=0?'+':'')+todayPnl.toFixed(2)+'</span>'
+      +'<span style="font-size:10px;color:#00e676;font-weight:700">META +$'+bmMeta.toFixed(0)+'</span>'
       +'</div>'
-    : '<div style="color:#556;font-size:11px;text-align:center;padding:8px">Sem histórico total ainda</div>';
+      +'<div style="background:#0d1f35;border-radius:6px;height:10px;overflow:hidden;position:relative;margin-bottom:8px">'
+      +'<div style="position:absolute;left:'+Math.round(bmStop/(bmStop+bmMeta)*100)+'%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.25)"></div>'
+      +'<div style="height:100%;border-radius:6px;width:'+progPct+'%;background:'+(todayPnl>=0?'linear-gradient(90deg,#00c853,#00e676)':'linear-gradient(90deg,#d50000,#ff1744)')+';transition:width .6s"></div>'
+      +'</div>'
+      +(metaProg>0?'<div style="font-size:11px;color:#00e676;margin-bottom:2px">🎯 Meta: '+metaProg+'% — faltam $'+(bmMeta-todayPnl).toFixed(2)+'</div>':'')
+      +(stopProg>30?'<div style="font-size:11px;color:#ff6d00;margin-bottom:2px">⚠️ Stop: '+stopProg+'% usado</div>':'');
+  }
 
-  // Equity total
-  var equityHtml = all.length >= 2
-    ? '<div style="font-size:11px;color:#8ab0d0;font-weight:700;margin:8px 0 4px">CURVA DE EQUITY TOTAL</div>'
-      + '<div class="dash-equity-wrap"><canvas id="equityCanvas"></canvas></div>'
-    : '';
+  // Equity do dia
+  if(todayTrades.length>=2){
+    html += '<div style="font-size:11px;color:#6a90b8;font-weight:700;margin:8px 0 4px;letter-spacing:1px">EQUITY DO DIA</div>'
+      +'<div class="dash-equity-wrap"><canvas id="equityCanvasDay"></canvas></div>';
+  } else {
+    html += '<div style="font-size:11px;color:#2a3a50;text-align:center;padding:8px 0">📈 Gráfico aparece após 2 operações hoje</div>';
+  }
+  html += '</div>'; // /card hoje
 
-  // Alertas inteligentes
-  var alerts = all.length > 0 ? buildAlerts(all, wr, pnl, streak) : '';
+  // ── CARD HISTÓRICO TOTAL ─────────────────────────────────
+  if(all.length>=3){
+    html += '<div style="background:rgba(6,14,26,.7);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+      +'<div style="font-family:Orbitron,monospace;font-size:12px;font-weight:900;color:#a0c4e8;letter-spacing:2px">📊 HISTÓRICO TOTAL</div>'
+      +'<div style="font-size:11px;color:#556">'+all.length+' operações</div>'
+      +'</div>'
 
-  // Stats extras
-  var extrasHtml = all.length > 0
-    ? '<div class="dash-kpi" style="margin-top:8px">'
-      + kpiBox(avgProb+'%', 'PROB MÉDIA', avgProb>=65?'#00e676':'#ffd600')
-      + kpiBox((streak.cur>=0?'+':'')+streak.cur, streak.cur>=0?'STREAK WIN':'STREAK LOSS', streak.cur>=0?'#00e676':'#ff1744')
-      + kpiBox(streak.best, 'MELHOR', '#00e5ff')
-      + kpiBox(streak.worst, 'PIOR', '#ff6d00')
-      + '</div>'
-    : '';
+      // Donut + KPIs
+      +'<div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">'
+      +'<div style="flex:0 0 100px">'+drawDonut(wr, wins, loss)+'</div>'
+      +'<div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+      +'<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;text-align:center"><div style="font-family:Orbitron,monospace;font-size:14px;font-weight:900;color:'+(pnl>=0?'#00e676':'#ff1744')+'">'+(pnl>=0?'+':'')+' $'+pnl.toFixed(0)+'</div><div style="font-size:9px;color:#6a90b8;margin-top:4px;letter-spacing:1px">P&L TOTAL</div></div>'
+      +'<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;text-align:center"><div style="font-family:Orbitron,monospace;font-size:14px;font-weight:900;color:'+(avgProb>=65?'#00e676':'#ffd600')+'">'+avgProb+'%</div><div style="font-size:9px;color:#6a90b8;margin-top:4px;letter-spacing:1px">PROB MÉDIA</div></div>'
+      +'<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;text-align:center"><div style="font-family:Orbitron,monospace;font-size:14px;font-weight:900;color:#00e5ff">'+streak.best+'</div><div style="font-size:9px;color:#6a90b8;margin-top:4px;letter-spacing:1px">MELHOR STREAK</div></div>'
+      +'<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;text-align:center"><div style="font-family:Orbitron,monospace;font-size:14px;font-weight:900;color:#ff6d00">'+streak.worst+'</div><div style="font-size:9px;color:#6a90b8;margin-top:4px;letter-spacing:1px">PIOR SÉRIE</div></div>'
+      +'</div>'
+      +'</div>'
 
-  el.innerHTML = dayHtml + kpiHtml + equityHtml + alerts + extrasHtml;
+      // Equity total
+      +(all.length>=2?
+        '<div style="font-size:11px;color:#6a90b8;font-weight:700;margin-bottom:4px;letter-spacing:1px">CURVA DE EQUITY</div>'
+        +'<div class="dash-equity-wrap"><canvas id="equityCanvas"></canvas></div>'
+      :'')
+
+      // Alertas
+      +buildAlerts(all, wr, pnl, streak)
+      +'</div>';
+  }
+
+  el.innerHTML = html;
   setTimeout(function(){
-    if(all.length >= 2)      drawEquityCurve('equityCanvas', equity);
-    if(todayTrades.length >= 2) drawEquityCurve('equityCanvasDay', equityDay);
+    if(all.length>=2)         drawEquityCurve('equityCanvas',    equity);
+    if(todayTrades.length>=2) drawEquityCurve('equityCanvasDay', equityDay);
   }, 100);
 }
 
@@ -10529,72 +10741,81 @@ function drawEquityCurve(canvasId, data){
 function renderDashPairs(){
   var el  = document.getElementById('dcontent-pairs');
   var all = dDone();
-  if(all.length<3){ noData(el); return; }
+  if(all.length<2){ noData(el); return; }
   var groups = groupBy(all,'pair');
   var rows = Object.keys(groups).map(function(p){
     var a=groups[p], w=dWR(a), pnl=dPnL(a);
-    return {pair:p, wr:w, ops:a.length, pnl:pnl};
+    return {pair:p, wr:w, ops:a.length, pnl:pnl, wins:a.filter(function(t){return t.result==='win';}).length};
   }).sort(function(a,b){return b.wr-a.wr;});
 
-  var html = '<div class="dash-section-lbl">WIN RATE POR PAR (min 1 op)</div>';
-  rows.forEach(function(r){
-    var col=dColor(r.wr);
-    var pnlStr=(r.pnl>=0?'+':'')+r.pnl.toFixed(0);
-    html+='<div class="dash-row">'
-      +'<div class="dash-lbl">'+r.pair.replace('frx','').replace('_OTC','')+'</div>'
-      +'<div class="dash-bar-wrap"><div class="dash-bar-fill" style="'+dBar(r.wr)+'"></div></div>'
-      +'<div class="dash-pct" style="color:'+col+'">'+r.wr+'%</div>'
-      +'<div class="dash-ops" style="color:'+(r.pnl>=0?'#00e676':'#ff1744')+'">'+pnlStr+'</div>'
-      +'<div class="dash-ops">'+r.ops+'op</div>'
-      +'</div>';
+  var html = '<div style="font-size:11px;letter-spacing:2px;color:#6a90b8;font-weight:700;margin-bottom:10px">RANKING POR WIN RATE</div>';
+  rows.forEach(function(r, idx){
+    var pname = r.pair.replace('frx','').replace('_OTC','').replace('R_','VOL ');
+    var medal = idx===0?'🥇 ':idx===1?'🥈 ':idx===2?'🥉 ':'';
+    var sublbl = r.wins+'W / '+(r.ops-r.wins)+'L · prob '+Math.round((r.wins/r.ops)*100)+'%';
+    html += gradBar(r.wr, medal+pname, sublbl, r.pnl, r.ops);
   });
-  // Recomendação
+  // Recomendações
   var best=rows[0], worst=rows[rows.length-1];
-  if(best) html+='<div class="dash-alert dash-alert-good" style="margin-top:10px">🟢 Foco em: <strong style="color:#00e676">'+best.pair.replace('frx','').replace('_OTC','')+'</strong> ('+best.wr+'%)</div>';
-  if(worst && worst.wr<50 && worst.ops>=3) html+='<div class="dash-alert dash-alert-bad">🔴 Evitar: <strong style="color:#ff1744">'+worst.pair.replace('frx','').replace('_OTC','')+'</strong> ('+worst.wr+'% — '+worst.ops+' ops)</div>';
-  el.innerHTML=html;
+  html += '<div style="margin-top:4px">';
+  if(best) html+='<div class="dash-alert dash-alert-good">🟢 Foco: <strong style="color:#00e676">'+best.pair.replace('frx','').replace('_OTC','')+'</strong> — '+best.wr+'% WR</div>';
+  if(worst && worst.wr<50 && worst.ops>=3) html+='<div class="dash-alert dash-alert-bad">🔴 Evitar: <strong style="color:#ff1744">'+worst.pair.replace('frx','').replace('_OTC','')+'</strong> — '+worst.wr+'% em '+worst.ops+' ops</div>';
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 // ── POR HORÁRIO ───────────────────────────────────────────
 function renderDashTime(){
   var el  = document.getElementById('dcontent-time');
   var all = dDone();
-  if(all.length<3){ noData(el); return; }
+  if(all.length<2){ noData(el); return; }
+
+  // Mapa hora → stats
+  var hourStats={};
+  all.forEach(function(t){
+    var h = t.hour!==undefined ? t.hour : parseInt((t.time||'00:00').split(':')[0]);
+    if(!hourStats[h]) hourStats[h]={w:0,l:0,pnl:0};
+    if(t.result==='win'){ hourStats[h].w++; hourStats[h].pnl+=parseFloat(t.profit||0); }
+    else { hourStats[h].l++; hourStats[h].pnl-=parseFloat(t.stake||0); }
+  });
+
+  // Heatmap 24h
+  var html = '<div style="font-size:11px;letter-spacing:2px;color:#6a90b8;font-weight:700;margin-bottom:8px">MAPA DE CALOR — 24H (WR%)</div>';
+  html += '<div style="background:rgba(6,14,26,.7);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px;margin-bottom:12px">'
+    + drawHeatmapHours(hourStats)
+    + '<div style="display:flex;gap:12px;margin-top:8px;font-size:10px;color:#556;flex-wrap:wrap">'
+    + '<span>■ <span style="color:rgba(0,230,118,.7)">≥70% forte</span></span>'
+    + '<span>■ <span style="color:rgba(0,230,118,.4)">55-70% ok</span></span>'
+    + '<span>■ <span style="color:rgba(255,214,0,.5)">45-55% neutro</span></span>'
+    + '<span>■ <span style="color:rgba(255,23,68,.5)">&lt;45% evitar</span></span>'
+    + '</div>'
+    +'</div>';
+
+  // Períodos rankeados
   var periods=[
     {label:'00–03h',hours:[0,1,2]},{label:'03–06h',hours:[3,4,5]},
     {label:'06–09h',hours:[6,7,8]},{label:'09–12h',hours:[9,10,11]},
     {label:'12–15h',hours:[12,13,14]},{label:'15–18h',hours:[15,16,17]},
     {label:'18–21h',hours:[18,19,20]},{label:'21–24h',hours:[21,22,23]}
   ];
-  var hourMap={};
-  all.forEach(function(t){
-    var h=t.hour!==undefined?t.hour:parseInt((t.time||'00:00').split(':')[0]);
-    if(!hourMap[h]) hourMap[h]={w:0,l:0,pnl:0};
-    if(t.result==='win'){ hourMap[h].w++; hourMap[h].pnl+=parseFloat(t.profit||0); }
-    else { hourMap[h].l++; hourMap[h].pnl-=parseFloat(t.stake||0); }
-  });
-  var html='<div class="dash-section-lbl">WIN RATE POR PERÍODO (BRT)</div>';
   var rows=[];
   periods.forEach(function(p){
     var w=0,l=0,pnl=0;
-    p.hours.forEach(function(h){ if(hourMap[h]){w+=hourMap[h].w;l+=hourMap[h].l;pnl+=hourMap[h].pnl;} });
+    p.hours.forEach(function(h){ if(hourStats[h]){w+=hourStats[h].w;l+=hourStats[h].l;pnl+=hourStats[h].pnl;} });
     if(w+l===0) return;
-    rows.push({label:p.label,w:w,l:l,pnl:pnl,wr:Math.round(w/(w+l)*100)});
+    rows.push({label:p.label,w:w,l:l,pnl:pnl,wr:Math.round(w/(w+l)*100),ops:w+l});
   });
-  rows.sort(function(a,b){return b.wr-a.wr;}).forEach(function(r){
-    var col=dColor(r.wr);
-    html+='<div class="dash-row">'
-      +'<div class="dash-lbl">'+r.label+'</div>'
-      +'<div class="dash-bar-wrap"><div class="dash-bar-fill" style="'+dBar(r.wr)+'"></div></div>'
-      +'<div class="dash-pct" style="color:'+col+'">'+r.wr+'%</div>'
-      +'<div class="dash-ops" style="color:'+(r.pnl>=0?'#00e676':'#ff1744')+'">'+(r.pnl>=0?'+':'')+r.pnl.toFixed(0)+'</div>'
-      +'<div class="dash-ops">'+(r.w+r.l)+'op</div>'
-      +'</div>';
+  rows.sort(function(a,b){return b.wr-a.wr;});
+
+  html += '<div style="font-size:11px;letter-spacing:2px;color:#6a90b8;font-weight:700;margin-bottom:8px">RANKING POR PERÍODO</div>';
+  rows.forEach(function(r){
+    html += gradBar(r.wr, r.label, r.w+'W / '+r.l+'L', r.pnl, r.ops);
   });
+
   if(rows.length){
     var best=rows[0], worst=rows[rows.length-1];
-    html+='<div class="dash-alert dash-alert-good" style="margin-top:10px">🟢 Melhor horário: <strong style="color:#00e676">'+best.label+'</strong> ('+best.wr+'%)</div>';
-    if(worst.wr<50) html+='<div class="dash-alert dash-alert-bad">🔴 Evitar: <strong style="color:#ff1744">'+worst.label+'</strong> ('+worst.wr+'%)</div>';
+    html += '<div class="dash-alert dash-alert-good" style="margin-top:4px">🟢 Melhor: <strong style="color:#00e676">'+best.label+'</strong> — '+best.wr+'% WR</div>';
+    if(worst.wr<50 && worst.ops>=2) html += '<div class="dash-alert dash-alert-bad">🔴 Evitar: <strong style="color:#ff1744">'+worst.label+'</strong> — '+worst.wr+'%</div>';
   }
   el.innerHTML=html;
 }
@@ -10603,28 +10824,29 @@ function renderDashTime(){
 function renderDashTF(){
   var el  = document.getElementById('dcontent-tf');
   var all = dDone().filter(function(t){return t.tf;});
-  if(all.length<3){ noData(el); return; }
+  if(all.length<2){ noData(el); return; }
   var groups=groupBy(all,'tf');
   var order=['1','3','5','15'];
-  var html='<div class="dash-section-lbl">WIN RATE POR TIMEFRAME</div>';
+  var rows=[];
   order.forEach(function(tf){
     var arr=groups[tf]; if(!arr||!arr.length) return;
-    var wr=dWR(arr), pnl=dPnL(arr), col=dColor(wr);
-    html+='<div class="dash-row">'
-      +'<div class="dash-lbl">'+tf+'M</div>'
-      +'<div class="dash-bar-wrap"><div class="dash-bar-fill" style="'+dBar(wr)+'"></div></div>'
-      +'<div class="dash-pct" style="color:'+col+'">'+wr+'%</div>'
-      +'<div class="dash-ops" style="color:'+(pnl>=0?'#00e676':'#ff1744')+'">'+(pnl>=0?'+':'')+pnl.toFixed(0)+'</div>'
-      +'<div class="dash-ops">'+arr.length+'op</div>'
-      +'</div>';
+    var wr=dWR(arr), pnl=dPnL(arr);
+    var wins=arr.filter(function(t){return t.result==='win';}).length;
+    rows.push({tf:tf,wr:wr,pnl:pnl,ops:arr.length,wins:wins,loss:arr.length-wins});
   });
-  // Recomendação
-  var best=null,bwr=0;
-  order.forEach(function(tf){
-    var arr=groups[tf]; if(!arr||arr.length<2) return;
-    var w=dWR(arr); if(w>bwr){bwr=w;best=tf;}
+  rows.sort(function(a,b){return b.wr-a.wr;});
+
+  var html = '<div style="font-size:11px;letter-spacing:2px;color:#6a90b8;font-weight:700;margin-bottom:10px">WIN RATE POR TIMEFRAME</div>';
+  rows.forEach(function(r){
+    var sublbl = r.wins+'W / '+r.loss+'L · '+r.ops+' ops';
+    html += gradBar(r.wr, r.tf+'M', sublbl, r.pnl, r.ops);
   });
-  if(best) html+='<div class="dash-alert dash-alert-good" style="margin-top:10px">🟢 Melhor timeframe: <strong style="color:#00e676">'+best+'M</strong> ('+bwr+'% WR)</div>';
+  if(rows.length){
+    var best=rows[0];
+    html += '<div class="dash-alert dash-alert-good" style="margin-top:4px">🟢 Melhor: <strong style="color:#00e676">'+best.tf+'M</strong> — '+best.wr+'% WR</div>';
+    if(rows[rows.length-1].wr<50 && rows[rows.length-1].ops>=2)
+      html += '<div class="dash-alert dash-alert-bad">🔴 Pior: <strong style="color:#ff1744">'+rows[rows.length-1].tf+'M</strong> — '+rows[rows.length-1].wr+'%</div>';
+  }
   el.innerHTML=html;
 }
 
